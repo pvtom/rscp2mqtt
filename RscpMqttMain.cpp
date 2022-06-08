@@ -275,6 +275,7 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
 static int processReceiveBuffer(const unsigned char * ucBuffer, int iLength){
     RscpProtocol protocol;
     SRscpFrame frame;
+    int i;
 
     int iResult = protocol.parseFrame(ucBuffer, iLength, &frame);
 
@@ -289,17 +290,15 @@ static int processReceiveBuffer(const unsigned char * ucBuffer, int iLength){
             return(iResult);
     }
 
-    int iProcessedBytes = iResult;
-
     // process each SRscpValue struct seperately
-    for (unsigned int i; i < frame.data.size(); i++)
+    for (i = 0; i < frame.data.size(); i++)
         handleResponseValue(&protocol, &frame.data[i]);
 
     // destroy frame data and free memory
     protocol.destroyFrameData(frame);
 
     // returned processed amount of bytes
-    return(iProcessedBytes);
+    return(iResult);
 }
 
 static void receiveLoop(bool & bStopExecution){
