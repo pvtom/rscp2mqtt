@@ -2,7 +2,7 @@
 
 This software module connects a S10 home power station from E3/DC with a MQTT broker.
 
-It is based on the RSCP example application from E3/DC and it was developed and tested on a Raspberry Pi.
+It is based on the RSCP example application from E3/DC and it was developed and tested with a Raspberry Pi and a Linux PC (x86_64).
 
 Using the RSCP interface of the S10 device, it fetches the following data from the S10 and publishes it to the MQTT broker.
 
@@ -191,8 +191,3 @@ Adjust the user (pi) if you use another user.
 - The RSCP example application comes from E3/DC. According to E3/DC it can be distributed under the following conditions: `The authors or copyright holders, and in special E3/DC can not be held responsible for any damage caused by the software. Usage of the software is at your own risk. It may not be issued in copyright terms as a separate work.`
 - License of AES is included in the AES code files
 - Eclipse Mosquitto (https://github.com/eclipse/mosquitto) with EPL-2.0
-
-## Note
-
-- The system clock of the S10 does not run correctly. On my S10 the time difference is 3600 seconds (1 hour) compared to the Raspberry Pi and the current epoch UNIX timestamp (e.g. https://www.unixtimestamp.de). So that the values for the day are queried correctly, the difference is determined and considered by rscp2mqtt. The result is that the values correspond to the E3/DC portal.
-
