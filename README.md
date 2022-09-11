@@ -1,10 +1,11 @@
 # RSCP2MQTT - Bridge between an E3/DC S10 device and a MQTT broker
 
 This software module connects a S10 home power station from E3/DC with a MQTT broker.
+It uses the RSCP interface of the S10 device.
 
-It is based on the RSCP example application from E3/DC and it was developed and tested with a Raspberry Pi and a Linux PC (x86_64).
+The solution is based on the RSCP example application provided by E3/DC and it was developed and tested with a Raspberry Pi and a Linux PC (x86_64).
 
-Using the RSCP interface of the S10 device, it fetches the following data from the S10 and publishes it to the MQTT broker.
+The tool cyclically fetches the data from the S10 and publishes it under the following topics to the MQTT broker.
 
 Energy topics for today [kWh]:
 
@@ -22,8 +23,17 @@ Power topics - current values [W]:
 - e3dc/addon/power
 - e3dc/battery/power
 - e3dc/grid/power
-- e3dc/home/energy
 - e3dc/solar/power
+
+EMS power settings [W]:
+- e3dc/ems/max_charge/power
+- e3dc/ems/max_discharge/power
+- e3dc/ems/discharge_start/power
+
+EMS power settings (true/false):
+- e3dc/ems/power_limits
+- e3dc/ems/power_save
+- e3dc/ems/weather_regulation
 
 Additional topics:
 
@@ -31,12 +41,16 @@ Additional topics:
 - e3dc/battery/current
 - e3dc/battery/cycles
 - e3dc/battery/error
+- e3dc/battery/name
 - e3dc/battery/rsoc
 - e3dc/battery/soc
 - e3dc/battery/status
 - e3dc/battery/voltage
 - e3dc/consumed
 - e3dc/coupling/mode
+- e3dc/ems/max_charge/status
+- e3dc/ems/max_discharge/status
+- e3dc/ems/discharge_start/status
 - e3dc/time/zone
 
 Only modified values will be published.
@@ -124,7 +138,9 @@ MQTT_PASSWORD=
 // MQTT parameters
 MQTT_QOS=0
 MQTT_RETAIN=false
-// Interval requesting the E3/DC S10 device in seconds (1..600)
+// log file
+LOGFILE=/tmp/rscp2mqtt.log
+// Interval requesting the E3/DC S10 device in seconds (1..10)
 INTERVAL=1
 ```
 
@@ -151,7 +167,7 @@ RSCP authentitication level 10
 Connecting to broker localhost:1883
 Connected successfully
 
-Request cyclic example data at 2022-01-08 09:59:56 (1641632396)
+Request cyclic data at 2022-01-08 09:59:56 (1641632396)
 MQTT: publish topic >e3dc/solar/power< payload >2663<
 MQTT: publish topic >e3dc/battery/power< payload >1953<
 MQTT: publish topic >e3dc/home/power< payload >665<
@@ -185,6 +201,42 @@ If you like to start `rscp2mqtt` during the system start, use `/etc/rc.local`. A
 (cd /opt/rscp2mqtt ; /usr/bin/sudo -H -u pi /opt/rscp2mqtt/rscp2mqtt -d)
 ```
 Adjust the user (pi) if you use another user.
+
+The daemon can be terminated with
+```
+pkill rscp2mqtt
+```
+Be careful that the program runs only once.
+
+## New Features in V2.0
+
+rscp2mqtt subscribes the root topic "e3dc/set/#" and responds to incoming requests that are passed to the S10 home power station.
+
+Start battery charging manually (payload is the energy [Wh] to charge, 100 to 4500, in steps of 100)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/manual_charge" -m 1000
+```
+Set weather regulation (true/false)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/weather_regulation" -m true
+```
+Set limits for battery charging / discharging (true/false)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_limits" -m true
+```
+Set the limit in [W] (100 to 4500, in steps of 100)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/max_charge_power" -m 2300
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/max_discharge_power -m 4500
+```
+Post all topics to the MQTT broker again
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/force" -m 1
+```
+Log all topics and payloads to the log file
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/log" -m 1
+```
 
 ## Used Libraries and Licenses
 

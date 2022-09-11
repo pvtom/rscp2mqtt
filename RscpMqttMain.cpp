@@ -11,13 +11,17 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <mosquitto.h>
+#include <thread>
+#include <regex>
+#include <mutex>
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
 
 #define CONFIG_FILE             ".config"
 #define DEFAULT_INTERVAL_MIN    1
-#define DEFAULT_INTERVAL_MAX    600
+#define DEFAULT_INTERVAL_MAX    10
+#define SUBSCRIBE_TOPIC         "e3dc/set/#"
 
 static int iSocket = -1;
 static int iAuthenticated = 0;
@@ -33,10 +37,64 @@ static config_t cfg;
 static int yesterday = 0;
 static int lhour = -1;
 
+std::mutex mtx;
+
+static bool mqttRcvd = false;
+
+int storeMQTTReceivedValue(std::vector<RSCP_MQTT::rec_cache_t> & c, char *topic, char *payload) {
+    mtx.lock();
+    mqttRcvd = true;
+    for (std::vector<RSCP_MQTT::rec_cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
+        if (std::regex_match(topic, std::regex(it->topic))) {
+            if (!cfg.daemon) printf("MQTT: received topic >%s< payload >%s<\n", it->topic, payload);
+            if (std::regex_match(payload, std::regex(it->regex_true))) {
+                if (strcmp(it->value_true, "")) strncpy(it->payload, it->value_true, PAYLOAD_SIZE);
+                else strncpy(it->payload, payload, PAYLOAD_SIZE);
+                it->done = false;
+                break;
+            } else if (std::regex_match(payload, std::regex(it->regex_false))) {
+                if (strcmp(it->value_false, "")) strncpy(it->payload, it->value_false, PAYLOAD_SIZE);
+                else strncpy(it->payload, payload, PAYLOAD_SIZE);
+                it->done = false;
+                break;
+            } else {
+                it->done = true;
+                break;
+            }
+        }
+    }
+    mtx.unlock();
+    return(0);
+}
+
+void mqttCallbackOnConnect(struct mosquitto *mosq, void *obj, int result) {
+    if (!result) {
+        if (!cfg.daemon) printf("MQTT: subscribing topic >%s<\n", SUBSCRIBE_TOPIC);
+        mosquitto_subscribe(mosq, NULL, SUBSCRIBE_TOPIC, cfg.mqtt_qos);
+    } else {
+        if (!cfg.daemon) printf("MQTT: subscribing topic >%s< failed\n", SUBSCRIBE_TOPIC);
+    }
+}
+
+void mqttCallbackOnMessage(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg) {
+    if (mosq && msg && msg->topic && msg->payload) {
+        //printf("MQTT: message topic >%s< payload >%s< received\n", msg->topic, (char *)msg->payload);
+        storeMQTTReceivedValue(RSCP_MQTT::RscpMqttReceiveCache, msg->topic, (char *)msg->payload);
+    }
+}
+
+void mqttListener(struct mosquitto *m) {
+    if (m) {
+         if (!cfg.daemon) printf("MQTT: starting listener loop\n");
+         mosquitto_loop_forever(m, -1, 1);
+    }
+}
+
 int handleMQTT(std::vector<RSCP_MQTT::cache_t> & v, int qos, bool retain) {
     int rc = 0;
 
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
+        //printf("MQTT: vector topic >%s< payload >%s< %d\n", it->topic, it->payload, it->publish);
         if (it->publish && strcmp(it->topic, "") && strcmp(it->payload, "")) {
             if (!cfg.daemon) printf("MQTT: publish topic >%s< payload >%s<\n", it->topic, it->payload);
             rc = mosquitto_publish(mosq, NULL, it->topic, strlen(it->payload), it->payload, qos, retain);
@@ -46,6 +104,25 @@ int handleMQTT(std::vector<RSCP_MQTT::cache_t> & v, int qos, bool retain) {
     return(rc);
 }
 
+int logCache(std::vector<RSCP_MQTT::cache_t> & v, char *file, char *prefix) {
+    FILE *fp;
+    fp = fopen(file, "a");
+    if (!fp) return(0);
+    for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
+        if (!cfg.daemon) printf("%s: topic >%s< payload >%s<\n", prefix, it->topic, it->payload);
+        fprintf(fp, "%s: topic >%s< payload >%s<\n", prefix, it->topic, it->payload);
+    }
+    fclose(fp);
+    return(1);
+}
+
+int refreshCache(std::vector<RSCP_MQTT::cache_t> & v) {
+    for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
+        if (strcmp(it->payload, "")) it->publish = true;
+    }
+    return(1);
+}
+
 int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protocol, SRscpValue *response, int day) {
     char buf[PAYLOAD_SIZE];
     int rc = 0;
@@ -53,8 +130,33 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
         if ((it->day == day) && (it->tag == response->tag)) {
             switch (it->type) {
-                case RSCP::eTypeUInt32: {
+                case RSCP::eTypeBool: {
+                    if (protocol->getValueAsBool(response)) strcpy(buf, "true");
+                    else strcpy(buf, "false");
+                    if (strcmp(it->payload, buf) || it->day) {
+                        strcpy(it->payload, buf);
+                        it->publish = true;
+                    }
+                    break;
+                }
+                case RSCP::eTypeInt32: {
                     snprintf(buf, PAYLOAD_SIZE, it->fstring, protocol->getValueAsInt32(response));
+                    if (strcmp(it->payload, buf) || it->day) {
+                        strcpy(it->payload, buf);
+                        it->publish = true;
+                    }
+                    break;
+                }
+                case RSCP::eTypeUInt32: {
+                    snprintf(buf, PAYLOAD_SIZE, it->fstring, protocol->getValueAsUInt32(response));
+                    if (strcmp(it->payload, buf) || it->day) {
+                        strcpy(it->payload, buf);
+                        it->publish = true;
+                    }
+                    break;
+                }
+                case RSCP::eTypeChar8: {
+                    snprintf(buf, PAYLOAD_SIZE, it->fstring, protocol->getValueAsChar8(response));
                     if (strcmp(it->payload, buf) || it->day) {
                         strcpy(it->payload, buf);
                         it->publish = true;
@@ -144,8 +246,8 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
         // free memory of sub-container as it is now copied to rootValue
         protocol.destroyValueData(authenContainer);
     } else {
-        if (!cfg.daemon) printf("\nRequest cyclic example data at %s (%li)\n", buffer, rawtime);
-        if (!cfg.daemon && e3dc_ts) printf("Difference to E3DC time is %li hour\n", e3dc_diff);
+        if (!cfg.daemon) printf("\nRequest cyclic data at %s (%li)\n", buffer, rawtime);
+        if (!cfg.daemon && e3dc_ts) printf("Difference to E3DC time is %li hour(s)\n", e3dc_diff);
         // request power data information
         protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_PV);
         protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_BAT);
@@ -168,10 +270,18 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
         protocol.appendValue(&batteryContainer, TAG_BAT_REQ_CHARGE_CYCLES);
         protocol.appendValue(&batteryContainer, TAG_BAT_REQ_STATUS_CODE);
         protocol.appendValue(&batteryContainer, TAG_BAT_REQ_ERROR_CODE);
+        protocol.appendValue(&batteryContainer, TAG_BAT_REQ_DEVICE_NAME);
+
         // append sub-container to root container
         protocol.appendValue(&rootValue, batteryContainer);
         // free memory of sub-container as it is now copied to rootValue
         protocol.destroyValueData(batteryContainer);
+
+        // request EMS information
+        SRscpValue PowerContainer;
+        protocol.createContainerValue(&PowerContainer, TAG_EMS_REQ_GET_POWER_SETTINGS);
+        protocol.appendValue(&rootValue, PowerContainer);
+        protocol.destroyValueData(PowerContainer);
 
         // request db history information
         if (e3dc_ts) {
@@ -183,6 +293,78 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
             protocol.appendValue(&rootValue, dbContainer);
             protocol.destroyValueData(dbContainer);
         }
+
+        // handle incoming MQTT requests
+        mtx.lock();
+        if (mqttRcvd) {
+            mqttRcvd = false;
+            uint32_t container = 0;
+            SRscpValue ReqContainer;
+
+            for (std::vector<RSCP_MQTT::rec_cache_t>::iterator it = RSCP_MQTT::RscpMqttReceiveCache.begin(); it != RSCP_MQTT::RscpMqttReceiveCache.end(); ++it) {
+                if (it->done == false) {
+                    if (!cfg.daemon) printf("MQTT: received topic >%s< payload >%s<\n", it->topic, it->payload);
+                    if (!it->container && !it->tag) { //system call
+                        if (!strcmp(it->topic, "e3dc/set/log")) logCache(RSCP_MQTT::RscpMqttCache, cfg.logfile, buffer);
+                        if (!strcmp(it->topic, "e3dc/set/force")) refreshCache(RSCP_MQTT::RscpMqttCache);
+                        it->done = true;
+                        continue;
+                    }
+                    if (container && (it->container != container)) {
+                        protocol.appendValue(&rootValue, ReqContainer);
+                        protocol.destroyValueData(ReqContainer);
+                    }
+                    if (it->container && (it->container != container)) {
+                        protocol.createContainerValue(&ReqContainer, it->container);
+                        container = it->container;
+                    }
+                    switch (it->type) {
+                        case RSCP::eTypeBool: {
+                            bool value = false;
+                            if (!strcmp(it->payload, "true")) value = true;
+                            if (it->container == 0) {
+                                protocol.appendValue(&rootValue, it->tag, value);
+                            } else {
+                                protocol.appendValue(&ReqContainer, it->tag, value);
+                            }
+                            break;
+                        }
+                        case RSCP::eTypeUChar8: {
+                            if (it->container == 0) {
+                                protocol.appendValue(&rootValue, it->tag, (uint8_t) atoi(it->payload));
+                            } else {
+                                protocol.appendValue(&ReqContainer, it->tag, (uint8_t) atoi(it->payload));
+                            }
+                            break;
+                        }
+                        case RSCP::eTypeInt32: {
+                            if (it->container == 0) {
+                                protocol.appendValue(&rootValue, it->tag, (int32_t) atoi(it->payload));
+                            } else {
+                                protocol.appendValue(&ReqContainer, it->tag, (int32_t) atoi(it->payload));
+                            }
+                            break;
+                        }
+                        case RSCP::eTypeUInt32: {
+                            if (it->container == 0) {
+                                protocol.appendValue(&rootValue, it->tag, (uint32_t) atoi(it->payload));
+                            } else { 
+                                protocol.appendValue(&ReqContainer, it->tag, (uint32_t) atoi(it->payload));
+                            }
+                            break;
+                        }
+                        default:
+                            break;
+                    }
+                    it->done = true;
+                }
+            }
+            if (container) {
+                protocol.appendValue(&rootValue, ReqContainer);
+                protocol.destroyValueData(ReqContainer);
+            }
+        }
+        mtx.unlock();
     }
 
     // create buffer frame to send data to the S10
@@ -221,18 +403,19 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
         e3dc_diff = (e3dc_ts - now + 60) / 3600;
         break;
     }
-    case TAG_BAT_DATA: {        // response for TAG_BAT_REQ_DATA
-        uint8_t ucBatteryIndex = 0;
-        std::vector<SRscpValue> batteryData = protocol->getValueAsContainer(response);
-        for (size_t i = 0; i < batteryData.size(); ++i) {
-            if (batteryData[i].dataType == RSCP::eTypeError) {
+    case TAG_EMS_SET_POWER_SETTINGS:
+    case TAG_EMS_GET_POWER_SETTINGS:
+    case TAG_BAT_DATA: {
+        std::vector<SRscpValue> containerData = protocol->getValueAsContainer(response);
+        for (size_t i = 0; i < containerData.size(); ++i) {
+            if (containerData[i].dataType == RSCP::eTypeError) {
                 // handle error for example access denied errors
-                uint32_t uiErrorCode = protocol->getValueAsUInt32(&batteryData[i]);
-                if (!cfg.daemon) printf("Tag 0x%08X received error code %u.\n", batteryData[i].tag, uiErrorCode);
+                uint32_t uiErrorCode = protocol->getValueAsUInt32(&containerData[i]);
+                if (!cfg.daemon) printf("Tag 0x%08X received error code %u.\n", containerData[i].tag, uiErrorCode);
             } else
-                storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(batteryData[i]), yesterday);
+                storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), yesterday);
         }
-        protocol->destroyValueData(batteryData);
+        protocol->destroyValueData(containerData);
         break;
     }
     case TAG_DB_HISTORY_DATA_DAY: {
@@ -275,7 +458,6 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
 static int processReceiveBuffer(const unsigned char * ucBuffer, int iLength){
     RscpProtocol protocol;
     SRscpFrame frame;
-    int i;
 
     int iResult = protocol.parseFrame(ucBuffer, iLength, &frame);
 
@@ -291,7 +473,7 @@ static int processReceiveBuffer(const unsigned char * ucBuffer, int iLength){
     }
 
     // process each SRscpValue struct seperately
-    for (i = 0; i < frame.data.size(); i++)
+    for (size_t i = 0; i < frame.data.size(); i++)
         handleResponseValue(&protocol, &frame.data[i]);
 
     // destroy frame data and free memory
@@ -321,7 +503,7 @@ static void receiveLoop(bool & bStopExecution){
             // check maximum size
             if (vecDynamicBuffer.size() > RSCP_MAX_FRAME_LENGTH) {
                 // something went wrong and the size is more than possible by the RSCP protocol
-                if (!cfg.daemon) printf("Maximum buffer size exceeded %lu\n", vecDynamicBuffer.size());
+                if (!cfg.daemon) printf("Maximum buffer size exceeded %zu\n", vecDynamicBuffer.size());
                 bStopExecution = true;
                 break;
             }
@@ -444,10 +626,15 @@ static void mainLoop(void){
         if (!mosq) {
             mosq = mosquitto_new(NULL, true, NULL);
 
-            if (!cfg.daemon) printf("\nConnecting to broker %s:%i\n", cfg.mqtt_host, cfg.mqtt_port);
+            if (!cfg.daemon) printf("\nConnecting to broker %s:%u\n", cfg.mqtt_host, cfg.mqtt_port);
             if (mosq) {
+                mosquitto_threaded_set(mosq, true);
+                mosquitto_connect_callback_set(mosq, (void (*)(mosquitto*, void*, int))mqttCallbackOnConnect);
+                mosquitto_message_callback_set(mosq, (void (*)(mosquitto*, void*, const mosquitto_message*))mqttCallbackOnMessage);
                 if (cfg.mqtt_auth) mosquitto_username_pw_set(mosq, cfg.mqtt_user, cfg.mqtt_password);
                 if (!mosquitto_connect(mosq, cfg.mqtt_host, cfg.mqtt_port, 10)) {
+                    std::thread th(mqttListener, mosq);
+                    th.detach();
                     if (!cfg.daemon) printf("Connected successfully\n");
                 } else {
                     if (!cfg.daemon) printf("Connection failed\n");
@@ -491,7 +678,7 @@ int main(int argc, char *argv[]){
     FILE *fp;
     fp = fopen(CONFIG_FILE, "r");
     if (!fp) {
-        printf("Config File %s not found. Program terminated.\n", CONFIG_FILE);
+        printf("Config file %s not found. Program terminated.\n", CONFIG_FILE);
         exit(EXIT_FAILURE);
     }
 
@@ -499,11 +686,12 @@ int main(int argc, char *argv[]){
     cfg.mqtt_qos = 0;
     cfg.mqtt_retain = false;
     cfg.interval = 1;
+    strcpy(cfg.logfile, "");
 
     while (fgets(line, sizeof(line), fp)) {
         memset(key, 0, sizeof(key));
         memset(value, 0, sizeof(value));
-        if (sscanf(line, "%[^ \t=]=%[^\n]", key, value) == 2) {
+        if (sscanf(line, "%127[^ \t=]=%127[^\n]", key, value) == 2) {
             if (strcasecmp(key, "E3DC_IP") == 0)
                 strcpy(cfg.e3dc_ip, value);
             else if (strcasecmp(key, "E3DC_PORT") == 0)
@@ -528,6 +716,8 @@ int main(int argc, char *argv[]){
                 cfg.mqtt_retain = true;
             else if (strcasecmp(key, "MQTT_QOS") == 0)
                 cfg.mqtt_qos = atoi(value);
+            else if (strcasecmp(key, "LOGFILE") == 0)
+                strcpy(cfg.logfile, value);
             else if (strcasecmp(key, "INTERVAL") == 0)
                 cfg.interval = atoi(value);
         }
@@ -538,9 +728,11 @@ int main(int argc, char *argv[]){
     if (cfg.interval > DEFAULT_INTERVAL_MAX) cfg.interval = DEFAULT_INTERVAL_MAX;
     if ((cfg.mqtt_qos < 0) || (cfg.mqtt_qos > 2)) cfg.mqtt_qos = 0;
 
+    sort(RSCP_MQTT::RscpMqttReceiveCache.begin(), RSCP_MQTT::RscpMqttReceiveCache.end(), RSCP_MQTT::compareRecCache);
+
     printf("Connecting...\n");
-    printf("E3DC system %s:%i user: %s\n", cfg.e3dc_ip, cfg.e3dc_port, cfg.e3dc_user);
-    printf("MQTT broker %s:%i qos = %i retain = %s\n", cfg.mqtt_host, cfg.mqtt_port, cfg.mqtt_qos, cfg.mqtt_retain ? "true" : "false");
+    printf("E3DC system %s:%u user: %s\n", cfg.e3dc_ip, cfg.e3dc_port, cfg.e3dc_user);
+    printf("MQTT broker %s:%u qos = %i retain = %s\n", cfg.mqtt_host, cfg.mqtt_port, cfg.mqtt_qos, cfg.mqtt_retain ? "true" : "false");
     printf("Fetching data every ");
     if (cfg.interval == 1) printf("second.\n"); else printf("%i seconds.\n", cfg.interval);
     printf("\n");
@@ -570,7 +762,7 @@ int main(int argc, char *argv[]){
     // endless application which re-connections to server on connection lost
     while (true) {
         // connect to server
-        if (!cfg.daemon) printf("Connecting to server %s:%i\n", cfg.e3dc_ip, cfg.e3dc_port);
+        if (!cfg.daemon) printf("Connecting to server %s:%u\n", cfg.e3dc_ip, cfg.e3dc_port);
         iSocket = SocketConnect(cfg.e3dc_ip, cfg.e3dc_port);
         if (iSocket < 0) {
             if (!cfg.daemon) printf("Connection failed\n");
