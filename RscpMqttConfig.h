@@ -14,6 +14,7 @@ typedef struct _config_t {
     bool mqtt_auth;
     int mqtt_qos;
     bool mqtt_retain;
+    char logfile[128];
     int interval;
     bool daemon;
 } config_t;
