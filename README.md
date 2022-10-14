@@ -23,6 +23,7 @@ Power topics - current values [W]:
 - e3dc/addon/power
 - e3dc/battery/power
 - e3dc/grid/power
+- e3dc/home/power
 - e3dc/solar/power
 
 EMS power settings [W]:
