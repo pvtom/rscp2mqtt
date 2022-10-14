@@ -7,7 +7,7 @@
 #define TOPIC_SIZE        128
 #define PAYLOAD_SIZE      80
 
-#define PAYLOAD_REGEX     "^(10[0-9]|1[1-9][0-9]|[2-9][0-9]{2}|[1-3][0-9]{3}|4[0-4][0-9]{2}|4500)$"
+#define PAYLOAD_REGEX     "(^[1-9]00$|^[1-9][0-9]00$|^[1-2][0-9][0-9]00$|^30000$)"
 
 namespace RSCP_MQTT {
 

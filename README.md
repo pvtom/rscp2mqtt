@@ -212,7 +212,7 @@ Be careful that the program runs only once.
 
 rscp2mqtt subscribes the root topic "e3dc/set/#" and responds to incoming requests that are passed to the S10 home power station.
 
-Start battery charging manually (payload is the energy [Wh] to charge, 100 to 4500, in steps of 100)
+Start battery charging manually (payload is the energy [Wh] to charge, in steps of 100)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/manual_charge" -m 1000
 ```
@@ -224,7 +224,7 @@ Set limits for battery charging / discharging (true/false)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_limits" -m true
 ```
-Set the limit in [W] (100 to 4500, in steps of 100)
+Set the limit in [W] (100 to max. 30000 (depends on the system), in steps of 100)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/max_charge_power" -m 2300
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/max_discharge_power -m 4500
