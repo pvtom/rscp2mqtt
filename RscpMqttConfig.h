@@ -17,6 +17,7 @@ typedef struct _config_t {
     char logfile[128];
     int interval;
     bool daemon;
+    bool auto_refresh;
 } config_t;
 
 #endif

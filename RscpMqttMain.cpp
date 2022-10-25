@@ -67,6 +67,47 @@ int storeMQTTReceivedValue(std::vector<RSCP_MQTT::rec_cache_t> & c, char *topic,
     return(0);
 }
 
+int handleSetPower(std::vector<RSCP_MQTT::rec_cache_t> & c, uint32_t container, char *payload) {
+    char cycles[12];
+    char cmd[12];
+    char power[12];
+    char modus[2];
+
+    if (!strcmp(payload, "auto")) {
+        strcpy(cycles, "0");
+        strcpy(modus, "0");
+        strcpy(power, "0");
+    } else if ((sscanf(payload, "%12[^:]:%12[^:]", &cmd, &cycles) == 2) && (!strcmp(cmd, "idle"))) {
+        strcpy(modus, "1");
+        strcpy(power, "0");
+    } else if (sscanf(payload, "%12[^:]:%12[^:]:%12[^:]", &cmd, &power, &cycles) == 3) {
+        if (!strcmp(cmd, "discharge")) strcpy(modus, "2");
+        else if (!strcmp(cmd, "charge")) strcpy(modus, "3");
+        else strcpy(modus, "4");
+    } else return(0);
+
+    if (!cfg.daemon) printf("handleSetPower: payload=>%s< modus=>%s< power=>%s< cycles=>%s<\n", payload, modus, power, cycles);
+
+    for (std::vector<RSCP_MQTT::rec_cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
+        if (it->container == container) {
+            switch (it->tag) {
+                case TAG_EMS_REQ_SET_POWER_MODE: {
+                    strcpy(it->payload, modus);
+                    it->refresh_count = abs(atoi(cycles));
+                    break;
+                }
+                case TAG_EMS_REQ_SET_POWER_VALUE: {
+                    strcpy(it->payload, power);
+                    it->refresh_count = abs(atoi(cycles));
+                    break;
+                }
+            }
+            it->done = false;
+        }
+    }
+    return(0);
+}
+
 void mqttCallbackOnConnect(struct mosquitto *mosq, void *obj, int result) {
     if (!result) {
         if (!cfg.daemon) printf("MQTT: subscribing topic >%s<\n", SUBSCRIBE_TOPIC);
@@ -140,7 +181,12 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                     break;
                 }
                 case RSCP::eTypeInt32: {
-                    snprintf(buf, PAYLOAD_SIZE, it->fstring, protocol->getValueAsInt32(response));
+                    if (it->bit_to_bool) {
+                        if (protocol->getValueAsInt32(response) & it->bit_to_bool) strcpy(buf, "true");
+                        else strcpy(buf, "false");
+                    } else {
+                        snprintf(buf, PAYLOAD_SIZE, it->fstring, protocol->getValueAsInt32(response));
+                    }
                     if (strcmp(it->payload, buf) || it->day) {
                         strcpy(it->payload, buf);
                         it->publish = true;
@@ -148,7 +194,12 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                     break;
                 }
                 case RSCP::eTypeUInt32: {
-                    snprintf(buf, PAYLOAD_SIZE, it->fstring, protocol->getValueAsUInt32(response));
+                    if (it->bit_to_bool) {
+                        if (protocol->getValueAsUInt32(response) & it->bit_to_bool) strcpy(buf, "true");
+                        else strcpy(buf, "false");
+                    } else {
+                        snprintf(buf, PAYLOAD_SIZE, it->fstring, protocol->getValueAsUInt32(response));
+                    }
                     if (strcmp(it->payload, buf) || it->day) {
                         strcpy(it->payload, buf);
                         it->publish = true;
@@ -156,7 +207,12 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                     break;
                 }
                 case RSCP::eTypeChar8: {
-                    snprintf(buf, PAYLOAD_SIZE, it->fstring, protocol->getValueAsChar8(response));
+                    if (it->bit_to_bool) {
+                        if (protocol->getValueAsChar8(response) & it->bit_to_bool) strcpy(buf, "true");
+                        else strcpy(buf, "false");
+                    } else {
+                        snprintf(buf, PAYLOAD_SIZE, it->fstring, protocol->getValueAsChar8(response));
+                    }
                     if (strcmp(it->payload, buf) || it->day) {
                         strcpy(it->payload, buf);
                         it->publish = true;
@@ -164,7 +220,12 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                     break;
                 }
                 case RSCP::eTypeUChar8: {
-                    snprintf(buf, PAYLOAD_SIZE, it->fstring, protocol->getValueAsUChar8(response));
+                    if (it->bit_to_bool) {
+                        if (protocol->getValueAsUChar8(response) & it->bit_to_bool) strcpy(buf, "true");
+                        else strcpy(buf, "false");
+                    } else {
+                        snprintf(buf, PAYLOAD_SIZE, it->fstring, protocol->getValueAsUChar8(response));
+                    }
                     if (strcmp(it->payload, buf) || it->day) {
                         strcpy(it->payload, buf);
                         it->publish = true;
@@ -189,7 +250,6 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                 }
             }
             rc = it->type;
-            break;
         }
     }
     return(rc);
@@ -255,6 +315,15 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
         protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_GRID);
         protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_ADD);
         protocol.appendValue(&rootValue, TAG_EMS_REQ_COUPLING_MODE);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_MODE);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_STATUS);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_BALANCED_PHASES);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_INSTALLED_PEAK_POWER);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_DERATE_AT_PERCENT_VALUE);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_DERATE_AT_POWER_VALUE);
+        protocol.appendValue(&rootValue, TAG_INFO_REQ_SERIAL_NUMBER);
+        protocol.appendValue(&rootValue, TAG_INFO_REQ_SW_RELEASE);
+        protocol.appendValue(&rootValue, TAG_INFO_REQ_PRODUCTION_DATE);
 
         // request e3dc timestamp
         protocol.appendValue(&rootValue, TAG_INFO_REQ_TIME);
@@ -296,17 +365,20 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
 
         // handle incoming MQTT requests
         mtx.lock();
-        if (mqttRcvd) {
+        if (mqttRcvd || cfg.auto_refresh) {
             mqttRcvd = false;
             uint32_t container = 0;
             SRscpValue ReqContainer;
 
             for (std::vector<RSCP_MQTT::rec_cache_t>::iterator it = RSCP_MQTT::RscpMqttReceiveCache.begin(); it != RSCP_MQTT::RscpMqttReceiveCache.end(); ++it) {
-                if (it->done == false) {
+                if ((it->done == false) || (it->refresh_count > 0)) {
+                    if (it->refresh_count > 0) it->refresh_count = it->refresh_count - 1;
                     if (!cfg.daemon) printf("MQTT: received topic >%s< payload >%s<\n", it->topic, it->payload);
                     if (!it->container && !it->tag) { //system call
                         if (!strcmp(it->topic, "e3dc/set/log")) logCache(RSCP_MQTT::RscpMqttCache, cfg.logfile, buffer);
                         if (!strcmp(it->topic, "e3dc/set/force")) refreshCache(RSCP_MQTT::RscpMqttCache);
+                        if ((!strcmp(it->topic, "e3dc/set/interval")) && (atoi(it->payload) >= DEFAULT_INTERVAL_MIN) && (atoi(it->payload) <= DEFAULT_INTERVAL_MAX)) cfg.interval = atoi(it->payload);
+                        if ((!strcmp(it->topic, "e3dc/set/power_mode")) && cfg.auto_refresh) handleSetPower(RSCP_MQTT::RscpMqttReceiveCache, TAG_EMS_REQ_SET_POWER, it->payload);
                         it->done = true;
                         continue;
                     }
@@ -686,7 +758,8 @@ int main(int argc, char *argv[]){
     cfg.mqtt_qos = 0;
     cfg.mqtt_retain = false;
     cfg.interval = 1;
-    strcpy(cfg.logfile, "");
+    cfg.auto_refresh = false;
+    strcpy(cfg.logfile, "/tmp/rscp2mqtt.log");
 
     while (fgets(line, sizeof(line), fp)) {
         memset(key, 0, sizeof(key));
@@ -720,6 +793,8 @@ int main(int argc, char *argv[]){
                 strcpy(cfg.logfile, value);
             else if (strcasecmp(key, "INTERVAL") == 0)
                 cfg.interval = atoi(value);
+            else if ((strcasecmp(key, "AUTO_REFRESH") == 0) && (strcasecmp(value, "true") == 0))
+                cfg.auto_refresh = true;
         }
     }
     fclose(fp);

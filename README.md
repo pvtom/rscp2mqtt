@@ -32,6 +32,9 @@ EMS power settings [W]:
 - e3dc/ems/discharge_start/power
 
 EMS power settings (true/false):
+- e3dc/ems/discharge_start/status
+- e3dc/ems/max_charge/status
+- e3dc/ems/max_discharge/status
 - e3dc/ems/power_limits
 - e3dc/ems/power_save
 - e3dc/ems/weather_regulation
@@ -49,9 +52,22 @@ Additional topics:
 - e3dc/battery/voltage
 - e3dc/consumed
 - e3dc/coupling/mode
-- e3dc/ems/max_charge/status
-- e3dc/ems/max_discharge/status
-- e3dc/ems/discharge_start/status
+- e3dc/ems/balanced_phases/L1
+- e3dc/ems/balanced_phases/L2
+- e3dc/ems/balanced_phases/L3
+- e3dc/ems/charging_lock
+- e3dc/ems/charging_throttled
+- e3dc/ems/charging_time_lock
+- e3dc/ems/discharging_lock
+- e3dc/ems/discharging_time_lock
+- e3dc/ems/emergency_power_available
+- e3dc/grid_in_limit
+- e3dc/system/derate_at_percent_value
+- e3dc/system/derate_at_power_value
+- e3dc/system/installed_peak_power
+- e3dc/system/production_date
+- e3dc/system/serial_number
+- e3dc/system/software
 - e3dc/time/zone
 
 Only modified values will be published.
@@ -143,6 +159,8 @@ MQTT_RETAIN=false
 LOGFILE=/tmp/rscp2mqtt.log
 // Interval requesting the E3/DC S10 device in seconds (1..10)
 INTERVAL=1
+// Auto refresh
+AUTO_REFRESH=false
 ```
 
 Start the program:
@@ -237,6 +255,51 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/force" -m 1
 Log all topics and payloads to the log file
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/log" -m 1
+```
+Set new refresh interval (1 to 10 seconds)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/interval" -m 2
+```
+
+## New Features in V2.3
+
+Control the power management with "e3dc/set/power_mode":
+
+The functionality can be used to intervene in the regulation of the power management.
+It should be noted here that the use of this functionality is your own responsibility.
+Caution: This function can bypass a set feed-in reduction.
+
+Automatic / normal mode
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_mode" -m "auto"
+```
+
+Idle mode (number of cycles)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_mode" -m "idle:60"
+```
+
+Discharge mode (power in [W], number of cycles)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_mode" -m "discharge:2000:60"
+```
+
+Charge mode (power in [W], number of cycles)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_mode" -m "charge:2000:60"
+```
+
+Grid charge mode (power in [W], number of cycles)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_mode" -m "grid_charge:2000:60"
+```
+
+After the time has elapsed (number of cycles multiplied by the configured interval) plus a few seconds, the system automatically returns to normal mode.
+
+Configuration:
+Turn on the functionality in the configuration file .config, add/change the following line:
+```
+AUTO_REFRESH=true
 ```
 
 ## Used Libraries and Licenses
