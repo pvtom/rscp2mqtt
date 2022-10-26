@@ -27,9 +27,10 @@ Power topics - current values [W]:
 - e3dc/solar/power
 
 EMS power settings [W]:
+- e3dc/ems/discharge_start/power
 - e3dc/ems/max_charge/power
 - e3dc/ems/max_discharge/power
-- e3dc/ems/discharge_start/power
+- e3dc/ems/set_power/power
 
 EMS power settings (true/false):
 - e3dc/ems/discharge_start/status
