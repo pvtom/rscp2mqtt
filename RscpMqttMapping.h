@@ -46,6 +46,7 @@ cache_t cache[] = {
     { 0, TAG_INFO_SW_RELEASE, "e3dc/system/software", "%s", "", RSCP::eTypeString, 1, 0, false },
     { 0, TAG_INFO_PRODUCTION_DATE, "e3dc/system/production_date", "%s", "", RSCP::eTypeString, 1, 0, false },
     { 0, TAG_INFO_SERIAL_NUMBER, "e3dc/system/serial_number", "%s", "", RSCP::eTypeString, 1, 0, false },
+    { 0, TAG_EMS_SET_POWER, "e3dc/ems/set_power/power", "%i", "", RSCP::eTypeInt32, 1, 0, false },
     { 0, TAG_EMS_MODE, "e3dc/mode", "%i", "", RSCP::eTypeUChar8, 1, 0, false },
     { 0, TAG_EMS_COUPLING_MODE, "e3dc/coupling/mode", "%i", "", RSCP::eTypeUChar8, 1, 0, false },
     { 0, TAG_INFO_TIME_ZONE, "e3dc/time/zone", "%s", "", RSCP::eTypeString, 1, 0, false },
