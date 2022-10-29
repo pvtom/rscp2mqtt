@@ -102,7 +102,6 @@ int handleSetPower(std::vector<RSCP_MQTT::rec_cache_t> & c, uint32_t container, 
                     break;
                 }
             }
-            it->done = false;
         }
     }
     return(0);
