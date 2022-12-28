@@ -1,96 +1,28 @@
-# RSCP2MQTT - Bridge between an E3/DC S10 device and a MQTT broker
+# RSCP2MQTT - Bridge between an E3/DC S10 device and an MQTT broker
 
-This software module connects a S10 home power station from E3/DC with a MQTT broker.
+This software module connects a home power station from E3/DC to an MQTT broker.
 It uses the RSCP interface of the S10 device.
 
-The solution is based on the RSCP example application provided by E3/DC and it was developed and tested with a Raspberry Pi and a Linux PC (x86_64).
+The solution is based on the RSCP sample application provided by E3/DC and was developed and tested with a Raspberry Pi and a Linux PC (x86_64).
 
-The tool cyclically fetches the data from the S10 and publishes it under the following topics to the MQTT broker.
+The tool fetches the data cyclically from the S10 and publishes it to the MQTT broker under certain [topics](TOPICS.md). Only modified values will be published.
 
-Energy topics for today [kWh]:
+Supported topic areas are:
 
-- e3dc/battery/energy/charge
-- e3dc/battery/energy/discharge
-- e3dc/grid/energy/in
-- e3dc/grid/energy/out
-- e3dc/home/energy
-- e3dc/pm_0/energy
-- e3dc/pm_1/energy
-- e3dc/solar/energy
-
-Power topics - current values [W]:
-
-- e3dc/addon/power
-- e3dc/battery/power
-- e3dc/grid/power
-- e3dc/home/power
-- e3dc/solar/power
-
-EMS power settings [W]:
-- e3dc/ems/discharge_start/power
-- e3dc/ems/max_charge/power
-- e3dc/ems/max_discharge/power
-- e3dc/ems/set_power/power
-
-EMS power settings (true/false):
-- e3dc/ems/discharge_start/status
-- e3dc/ems/max_charge/status
-- e3dc/ems/max_discharge/status
-- e3dc/ems/power_limits
-- e3dc/ems/power_save
-- e3dc/ems/weather_regulation
-
-Additional topics:
-
-- e3dc/autarky
-- e3dc/battery/current
-- e3dc/battery/cycles
-- e3dc/battery/error
-- e3dc/battery/name
-- e3dc/battery/rsoc
-- e3dc/battery/soc
-- e3dc/battery/status
-- e3dc/battery/voltage
-- e3dc/consumed
-- e3dc/coupling/mode
-- e3dc/ems/balanced_phases/L1
-- e3dc/ems/balanced_phases/L2
-- e3dc/ems/balanced_phases/L3
-- e3dc/ems/charging_lock
-- e3dc/ems/charging_throttled
-- e3dc/ems/charging_time_lock
-- e3dc/ems/discharging_lock
-- e3dc/ems/discharging_time_lock
-- e3dc/ems/emergency_power_available
-- e3dc/grid_in_limit
-- e3dc/system/derate_at_percent_value
-- e3dc/system/derate_at_power_value
-- e3dc/system/installed_peak_power
-- e3dc/system/production_date
-- e3dc/system/serial_number
-- e3dc/system/software
-- e3dc/time/zone
-
-Only modified values will be published.
-
-At midnight, a summary of the previous day's values is sent out:
-
-- e3dc/yesterday/autarky
-- e3dc/yesterday/battery/energy/charge
-- e3dc/yesterday/battery/energy/discharge
-- e3dc/yesterday/battery/soc
-- e3dc/yesterday/consumed
-- e3dc/yesterday/grid/energy/in
-- e3dc/yesterday/grid/energy/out
-- e3dc/yesterday/home/energy
-- e3dc/yesterday/pm_0/energy
-- e3dc/yesterday/pm_1/energy
-- e3dc/yesterday/solar/energy
+- Energy topics for today
+- Current power values
+- Autarky and self-consumption
+- Battery status
+- Energy management (EMS) power settings
+- Data from yesterday and the current week, month and year
+- Values of the power meter (PM)
+- Values of the photovoltaic inverter (PVI)
+- Values of the emergency power supply (EP)
 
 ## Prerequisite
 
-- A MQTT broker in your environment
-- rscp2mqtt needs the library libmosquitto. To install it on a Raspberry Pi enter:
+- An MQTT broker in your environment
+- rscp2mqtt needs the library libmosquitto. For installation please enter:
 
 ```
 sudo apt-get install libmosquitto-dev
@@ -136,7 +68,7 @@ nano .config
 
 ```
 // IP address of the E3/DC S10 device
-E3DC_IP=192.168.xxx.xxx
+E3DC_IP=xxx.xxx.xxx.xxx
 // Port of the E3/DC S10 device, default is 5033
 E3DC_PORT=5033
 // E3/DC account
@@ -160,8 +92,16 @@ MQTT_RETAIN=false
 LOGFILE=/tmp/rscp2mqtt.log
 // Interval requesting the E3/DC S10 device in seconds (1..10)
 INTERVAL=1
-// Auto refresh
+// enable PVI requests, default is true
+PVI_REQUESTS=true
+// number of available PV strings(trackers), default is 2
+PVI_TRACKER=2
+// enable PM requests, default is true
+PM_REQUESTS=true
+// Auto refresh, default is false
 AUTO_REFRESH=false
+// Dryrun (Test mode. S10 requests: yes - MQTT publications: no), default is false
+DRYRUN=false
 ```
 
 Start the program:
@@ -170,11 +110,11 @@ Start the program:
 ./rscp2mqtt
 ```
 
-If everything works properly, you can see something like this:
+If everything works properly, you will see something like this:
 
 ```
 Connecting...
-E3DC system 192.168.178.111:5033 user: <your account>
+E3DC system 192.168.178.111:5033 user: <your E3DC user>
 MQTT broker localhost:1883 qos = 0 retain = false
 Fetching data every second.
 
@@ -228,68 +168,67 @@ pkill rscp2mqtt
 ```
 Be careful that the program runs only once.
 
-## New Features in V2.0
+## Device Control
 
-rscp2mqtt subscribes the root topic "e3dc/set/#" and responds to incoming requests that are passed to the S10 home power station.
+rscp2mqtt subscribes to the root topic "e3dc/set/#" and forwards incoming requests to the S10 home power station. In this way, the unit can be controlled and changes made to its configuration.
 
-Start battery charging manually (payload is the energy [Wh] to charge, in steps of 100)
+### Battery Charging
+
+Start battery charging manually (payload is the energy [Wh] to charge)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/manual_charge" -m 1000
 ```
+
+### Weather Regulation
+
 Set weather regulation (true/false)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/weather_regulation" -m true
 ```
-Set limits for battery charging / discharging (true/false)
+
+### Power Limits
+
+Set limits for battery charging and discharging (true/false)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_limits" -m true
 ```
-Set the limit in [W] (100 to max. 30000 (depends on the system), in steps of 100)
+Set the charging and discharging power limits in [W]
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/max_charge_power" -m 2300
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/max_discharge_power -m 4500
 ```
-Post all topics to the MQTT broker again
+### Emergency Power
+
+Set battery reserve for emergency power
 ```
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/force" -m 1
-```
-Log all topics and payloads to the log file
-```
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/log" -m 1
-```
-Set new refresh interval (1 to 10 seconds)
-```
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/interval" -m 2
+mosquitto_pub -h r7 -t "e3dc/set/reserve/energy" -m 1500 # in [Wh]
+# or
+mosquitto_pub -h r7 -t "e3dc/set/reserve/percent" -m 10 # in [%]
 ```
 
-## New Features in V2.3
+### Power Management
 
 Control the power management with "e3dc/set/power_mode":
 
 The functionality can be used to intervene in the regulation of the power management.
-It should be noted here that the use of this functionality is your own responsibility.
-Caution: This function can bypass a set feed-in reduction.
+Caution: This function can be used to bypass a set feed-in reduction. Use this functionality at your own risk.
 
 Automatic / normal mode
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_mode" -m "auto"
 ```
-
 Idle mode (number of cycles)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_mode" -m "idle:60"
 ```
-
 Discharge mode (power in [W], number of cycles)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_mode" -m "discharge:2000:60"
 ```
-
 Charge mode (power in [W], number of cycles)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_mode" -m "charge:2000:60"
 ```
-
 Grid charge mode (power in [W], number of cycles)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_mode" -m "grid_charge:2000:60"
@@ -297,10 +236,32 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_mode" -m "grid_charge:2000
 
 After the time has elapsed (number of cycles multiplied by the configured interval) plus a few seconds, the system automatically returns to normal mode.
 
-Configuration:
 Turn on the functionality in the configuration file .config, add/change the following line:
 ```
 AUTO_REFRESH=true
+```
+
+## System Commands
+
+Post all topics and payloads to the MQTT broker again
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/force" -m 1
+```
+Log all topics and payloads to the log file
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/log" -m 1
+```
+Set a new refresh interval (1..10 seconds)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/interval" -m 2
+```
+Set PM requests on or off (true/false)
+```
+mosquitto_pub -h r7 -t "e3dc/set/requests/pm" -m true
+```
+Set PVI requests on or off (true/false)
+```
+mosquitto_pub -h r7 -t "e3dc/set/requests/pvi" -m true
 ```
 
 ## Used Libraries and Licenses

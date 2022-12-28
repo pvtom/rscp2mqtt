@@ -16,7 +16,11 @@ typedef struct _config_t {
     bool mqtt_retain;
     char logfile[128];
     int interval;
+    bool pvi_requests;
+    int pvi_tracker;
+    bool pm_requests;
     bool daemon;
+    bool dryrun;
     bool auto_refresh;
 } config_t;
 
