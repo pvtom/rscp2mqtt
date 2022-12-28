@@ -201,9 +201,9 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/max_discharge_power -m 4500
 
 Set battery reserve for emergency power
 ```
-mosquitto_pub -h r7 -t "e3dc/set/reserve/energy" -m 1500 # in [Wh]
+mosquitto_pub -h localhost -t "e3dc/set/reserve/energy" -m 1500 # in [Wh]
 # or
-mosquitto_pub -h r7 -t "e3dc/set/reserve/percent" -m 10 # in [%]
+mosquitto_pub -h localhost -t "e3dc/set/reserve/percent" -m 10 # in [%]
 ```
 
 ### Power Management
@@ -257,11 +257,11 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/interval" -m 2
 ```
 Set PM requests on or off (true/false)
 ```
-mosquitto_pub -h r7 -t "e3dc/set/requests/pm" -m true
+mosquitto_pub -h localhost -t "e3dc/set/requests/pm" -m true
 ```
 Set PVI requests on or off (true/false)
 ```
-mosquitto_pub -h r7 -t "e3dc/set/requests/pvi" -m true
+mosquitto_pub -h localhost -t "e3dc/set/requests/pvi" -m true
 ```
 
 ## Used Libraries and Licenses
