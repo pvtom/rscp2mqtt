@@ -187,7 +187,7 @@ rec_cache_t rec_cache[] = {
     { TAG_EMS_REQ_SET_POWER, TAG_EMS_REQ_SET_POWER_MODE, "power_mode: mode", "", "", "", "", "", RSCP::eTypeUChar8, 0, true },
     { TAG_EMS_REQ_SET_POWER, TAG_EMS_REQ_SET_POWER_VALUE, "power_mode: value", "", "", "", "", "", RSCP::eTypeInt32, 0, true },
     { TAG_SE_REQ_SET_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE, "e3dc/set/reserve/percent", PAYLOAD_REGEX_2_DIGIT, "", "", "", "", RSCP::eTypeFloat32, -1, true },
-    { TAG_SE_REQ_SET_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE_W, "e3dc/set/reserve/energy", PAYLOAD_REGEX_5_DIGIT, "", "^0$", "", "", RSCP::eTypeFloat32, -1, true },
+    { TAG_SE_REQ_SET_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE_W, "e3dc/set/reserve/energy", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", RSCP::eTypeFloat32, -1, true },
     { 0, 0, "e3dc/set/power_mode", "^auto$|^idle:[0-9]{1,4}$|^charge:[0-9]{1,5}:[0-9]{1,4}$|^discharge:[0-9]{1,5}:[0-9]{1,4}$|^grid_charge:[0-9]{1,5}:[0-9]{1,4}$", "", "", "", "", RSCP::eTypeBool, -1, true },
     { 0, 0, "e3dc/set/requests/pm", "^true|1$", "true", "^false|0$", "false", "", RSCP::eTypeBool, -1, true },
     { 0, 0, "e3dc/set/requests/pvi", "^true|1$", "true", "^false|0$", "false", "", RSCP::eTypeBool, -1, true },
