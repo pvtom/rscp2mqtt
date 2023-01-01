@@ -466,7 +466,7 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
             // YEAR
             l->tm_mday = 1;
             l->tm_mon = 0;
-            start.seconds = mktime(l) - 1;
+            start.seconds = (e3dc_diff * 3600) + mktime(l) - 1;
             interval.seconds = 366 * 24 * 3600;
             span.seconds = (366 * 24 * 3600) - 1;
             protocol.createContainerValue(&dbContainer, TAG_DB_REQ_HISTORY_DATA_YEAR);
