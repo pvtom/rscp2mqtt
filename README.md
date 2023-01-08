@@ -50,7 +50,7 @@ sudo chown pi:pi /opt/rscp2mqtt/
 ```
 Adjust user and group (pi:pi) if you use another user.
 
-Please copy rscp2mqtt and the config file into the directory /opt/rscp2mqtt
+Please copy `rscp2mqtt` and the config file into the directory `/opt/rscp2mqtt`
 
 ```
 cp -a rscp2mqtt /opt/rscp2mqtt
@@ -59,7 +59,7 @@ cp config.template /opt/rscp2mqtt/.config
 
 ## Configuration & Test
 
-Please change to the directory /opt/rscp2mqtt and edit .config to adjust to your configuration:
+Please change to the directory `/opt/rscp2mqtt` and edit `.config` to adjust to your configuration:
 
 ```
 cd /opt/rscp2mqtt
@@ -145,18 +145,15 @@ If you use the Mosquitto tools you can subscribe the topics with (here without u
 mosquitto_sub -h localhost -p 1883 -t 'e3dc/#' -v
 ```
 
-Stop rscp2mqtt with Crtl-C and start it in the background.
+Stop `rscp2mqtt` with Crtl-C and start it in the background.
 
 ## Daemon Mode
 
 Start the program in daemon mode:
-
 ```
 ./rscp2mqtt -d
 ```
-
 If you like to start `rscp2mqtt` during the system start, use `/etc/rc.local`. Add the following line before `exit 0`.
-
 ```
 (cd /opt/rscp2mqtt ; /usr/bin/sudo -H -u pi /opt/rscp2mqtt/rscp2mqtt -d)
 ```
@@ -165,6 +162,17 @@ Adjust the user (pi) if you use another user.
 The daemon can be terminated with
 ```
 pkill rscp2mqtt
+```
+Alternatively, `rscp2mqtt` can be managed by systemd. To do this, copy the file `rscp2mqtt.service` to the systemd directory:
+```
+sudo cp -a rscp2mqtt.service /etc/systemd/system/
+```
+Configure the service `sudo nano rscp2mqtt.service` (adjust user 'User=pi'), if needed.
+
+Register the service and start it with:
+```
+sudo systemctl start rscp2mqtt
+sudo systemctl enable rscp2mqtt
 ```
 Be careful that the program runs only once.
 
