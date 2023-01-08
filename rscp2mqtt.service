@@ -1,0 +1,20 @@
+[Unit]
+Description=RSCP2MQTT service
+After=network.target
+After=systemd-user-sessions.service
+After=network-online.target
+
+[Service]
+User=pi
+Type=forking
+WorkingDirectory=/opt/rscp2mqtt
+ExecStart=/opt/rscp2mqtt/rscp2mqtt -d
+ExecStop=pkill rscp2mqtt
+TimeoutSec=30
+Restart=on-failure
+RestartSec=30
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Install]
+WantedBy=multi-user.target
