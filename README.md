@@ -176,6 +176,10 @@ sudo systemctl enable rscp2mqtt
 ```
 Be careful that the program runs only once.
 
+## Logging
+
+If stdout is redirected to another process, only the log information is passed (issue #10).
+
 ## Device Control
 
 rscp2mqtt subscribes to the root topic "e3dc/set/#" and forwards incoming requests to the S10 home power station. In this way, the unit can be controlled and changes made to its configuration.
@@ -203,7 +207,7 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_limits" -m true
 Set the charging and discharging power limits in [W]
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/max_charge_power" -m 2300
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/max_discharge_power -m 4500
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/max_discharge_power" -m 4500
 ```
 ### Emergency Power
 

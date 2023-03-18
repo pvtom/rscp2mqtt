@@ -41,14 +41,14 @@ std::mutex mtx;
 
 static bool mqttRcvd = false;
 
-int logMessage(char *file, char *srcfile, int line, char *format, ...);
+void logMessage(char *file, char *srcfile, int line, char *format, ...);
 
 int storeMQTTReceivedValue(std::vector<RSCP_MQTT::rec_cache_t> & c, char *topic, char *payload) {
     mtx.lock();
     mqttRcvd = true;
     for (std::vector<RSCP_MQTT::rec_cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
         if (!strncmp(topic, it->topic, TOPIC_SIZE)) {
-            if (!cfg.daemon) printf("MQTT: received topic >%s< payload >%s<\n", it->topic, payload);
+            //logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"MQTT: received topic >%s< payload >%s<\n", it->topic, payload);
             if (std::regex_match(payload, std::regex(it->regex_true))) {
                 if (strcmp(it->value_true, "")) strncpy(it->payload, it->value_true, PAYLOAD_SIZE);
                 else strncpy(it->payload, payload, PAYLOAD_SIZE);
@@ -89,7 +89,7 @@ int handleSetPower(std::vector<RSCP_MQTT::rec_cache_t> & c, uint32_t container, 
         else strcpy(modus, "4");
     } else return(0);
 
-    if (!cfg.daemon) printf("handleSetPower: payload=>%s< modus=>%s< power=>%s< cycles=>%s<\n", payload, modus, power, cycles);
+    //logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"handleSetPower: payload=>%s< modus=>%s< power=>%s< cycles=>%s<\n", payload, modus, power, cycles);
 
     for (std::vector<RSCP_MQTT::rec_cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
         if (it->container == container) {
@@ -112,10 +112,8 @@ int handleSetPower(std::vector<RSCP_MQTT::rec_cache_t> & c, uint32_t container, 
 
 void mqttCallbackOnConnect(struct mosquitto *mosq, void *obj, int result) {
     if (!result) {
-        if (!cfg.daemon) printf("MQTT: subscribing topic >%s<\n", SUBSCRIBE_TOPIC);
         mosquitto_subscribe(mosq, NULL, SUBSCRIBE_TOPIC, cfg.mqtt_qos);
     } else {
-        if (!cfg.daemon) printf("MQTT: subscribing topic >%s< failed\n", SUBSCRIBE_TOPIC);
         logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: subscribing topic >%s< failed\n", SUBSCRIBE_TOPIC);
     }
 }
@@ -129,7 +127,7 @@ void mqttCallbackOnMessage(struct mosquitto *mosq, void *obj, const struct mosqu
 
 void mqttListener(struct mosquitto *m) {
     if (m) {
-         if (!cfg.daemon) printf("MQTT: starting listener loop\n");
+         logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"MQTT: starting listener loop\n");
          mosquitto_loop_forever(m, -1, 1);
     }
 }
@@ -138,9 +136,8 @@ int handleMQTT(std::vector<RSCP_MQTT::cache_t> & v, int qos, bool retain) {
     int rc = 0;
 
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
-        //printf("MQTT: vector topic >%s< payload >%s< %d\n", it->topic, it->payload, it->publish);
         if (it->publish && strcmp(it->topic, "") && strcmp(it->payload, "")) {
-            if (!cfg.daemon) printf("MQTT: publish topic >%s< payload >%s<\n", it->topic, it->payload);
+            if ((!cfg.daemon) && isatty(STDOUT_FILENO)) printf("MQTT: publish topic >%s< payload >%s<\n", it->topic, it->payload);
             if (!cfg.dryrun) rc = mosquitto_publish(mosq, NULL, it->topic, strlen(it->payload), it->payload, qos, retain);
             it->publish = false;
         }
@@ -148,45 +145,58 @@ int handleMQTT(std::vector<RSCP_MQTT::cache_t> & v, int qos, bool retain) {
     return(rc);
 }
 
-int logCache(std::vector<RSCP_MQTT::cache_t> & v, char *file, char *prefix) {
-    FILE *fp;
-    fp = fopen(file, "a");
-    if (!fp) return(0);
-    for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
-        if (!cfg.daemon) printf("%s: topic >%s< payload >%s<\n", prefix, it->topic, it->payload);
-        fprintf(fp, "%s: topic >%s< payload >%s<\n", prefix, it->topic, it->payload);
+void logCache(std::vector<RSCP_MQTT::cache_t> & v, char *file, char *prefix) {
+    if (file) {
+        FILE *fp;
+        fp = fopen(file, "a");
+        if (!fp) return;
+        for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
+            fprintf(fp, "%s: topic >%s< payload >%s<\n", prefix, it->topic, it->payload);
+        }
+        fflush(fp);
+        fclose(fp);
+    } else {
+        for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
+            printf("%s: topic >%s< payload >%s<\n", prefix, it->topic, it->payload);
+        }
+        fflush(NULL);
     }
-    fclose(fp);
-    return(1);
+    return;
 }
 
-int logMessage(char *file, char *srcfile, int line, char *format, ...)
+void logMessage(char *file, char *srcfile, int line, char *format, ...)
 {
     FILE * fp;
-    fp = fopen(file, "a");
-    if (!fp) return(0);
+
+    if (file) {
+        fp = fopen(file, "a");
+        if (!fp) return;
+    }
 
     pid_t pid, ppid;
-    pthread_t tid;
     va_list args;
-
     char timestamp[64];
+
     time_t rawtime;
     time(&rawtime);
     struct tm *l = localtime(&rawtime);
     strftime(timestamp, 26, "%Y-%m-%d %H:%M:%S", l);
-
     pid = getpid();
     ppid = getppid();
-    tid = pthread_self();
 
-    fprintf(fp, "[%s] pid=%d ppid=%d tid=%lu %s(%d) ", timestamp, pid, ppid, tid, srcfile, line);
     va_start(args, format);
-    vfprintf(fp, format, args);
+    if (file) {
+        fprintf(fp, "[%s] pid=%d ppid=%d %s(%d) ", timestamp, pid, ppid, srcfile, line);
+        vfprintf(fp, format, args);
+        fflush(fp);
+        fclose(fp);
+    } else {
+        printf("[%s] pid=%d ppid=%d %s(%d) ", timestamp, pid, ppid, srcfile, line);
+        vprintf(format, args);
+        fflush(NULL);
+    }
     va_end(args);
-    fflush(fp);
-    fclose(fp);
-    return(1);
+    return;
 }
 
 int refreshCache(std::vector<RSCP_MQTT::cache_t> & v) {
@@ -310,8 +320,7 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
     // Create a request frame
     //---------------------------------------------------------------------------------------------------------
     if (iAuthenticated == 0) {
-        if (!cfg.daemon) printf("\nRequest authentication at %s (%li)\n", buffer, rawtime);
-        logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Auth: Request authentication at %s (%li)\n", buffer, rawtime);
+        logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Request authentication (%li)\n", rawtime);
         // authentication request
         SRscpValue authenContainer;
         protocol.createContainerValue(&authenContainer, TAG_RSCP_REQ_AUTHENTICATION);
@@ -322,8 +331,8 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
         // free memory of sub-container as it is now copied to rootValue
         protocol.destroyValueData(authenContainer);
     } else {
-        if (!cfg.daemon) printf("\nRequest cyclic data at %s (%li)\n", buffer, rawtime);
-        if (!cfg.daemon && e3dc_ts) printf("Difference to E3DC time is %li hour(s)\n", e3dc_diff);
+        //if (!cfg.daemon) printf("\nRequest cyclic data at %s (%li)\n", buffer, rawtime);
+        //if (!cfg.daemon && e3dc_ts) printf("Difference to E3DC time is %li hour(s)\n", e3dc_diff);
         // request power data information
         protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_PV);
         protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_BAT);
@@ -487,7 +496,6 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
             for (std::vector<RSCP_MQTT::rec_cache_t>::iterator it = RSCP_MQTT::RscpMqttReceiveCache.begin(); it != RSCP_MQTT::RscpMqttReceiveCache.end(); ++it) {
                 if ((it->done == false) || (it->refresh_count > 0)) {
                     if (it->refresh_count > 0) it->refresh_count = it->refresh_count - 1;
-                    if (!cfg.daemon) printf("MQTT: received topic >%s< payload >%s<\n", it->topic, it->payload);
                     if (!it->container && !it->tag) { //system call
                         if (!strcmp(it->topic, "e3dc/set/log")) logCache(RSCP_MQTT::RscpMqttCache, cfg.logfile, buffer);
                         if (!strcmp(it->topic, "e3dc/set/force")) refreshCache(RSCP_MQTT::RscpMqttCache);
@@ -581,7 +589,6 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
     if (response->dataType == RSCP::eTypeError) {
         // handle error for example access denied errors
         uint32_t uiErrorCode = protocol->getValueAsUInt32(response);
-        if (!cfg.daemon) printf("Tag 0x%08X received error code %u.\n", response->tag, uiErrorCode);
         logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Tag 0x%08X received error code %u.\n", response->tag, uiErrorCode);
         return(-1);
     }
@@ -595,7 +602,7 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
         uint8_t ucAccessLevel = protocol->getValueAsUChar8(response);
         if (ucAccessLevel > 0)
             iAuthenticated = 1;
-        if (!cfg.daemon) printf("RSCP authentitication level %i\n", ucAccessLevel);
+        logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"RSCP authentitication level %i\n", ucAccessLevel);
         break;
     }
     case TAG_INFO_TIME: {
@@ -615,7 +622,6 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
             if (containerData[i].dataType == RSCP::eTypeError) {
                 // handle error for example access denied errors
                 uint32_t uiErrorCode = protocol->getValueAsUInt32(&containerData[i]);
-                if (!cfg.daemon) printf("Tag 0x%08X received error code %u.\n", containerData[i].tag, uiErrorCode);
                 logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Tag 0x%08X received error code %u.\n", response->tag, uiErrorCode);
             } else {
                 storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
@@ -630,7 +636,6 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
             if (containerData[i].dataType == RSCP::eTypeError) {
                 // handle error for example access denied errors
                 uint32_t uiErrorCode = protocol->getValueAsUInt32(&containerData[i]);
-                if (!cfg.daemon) printf("Tag 0x%08X received error code %u.\n", containerData[i].tag, uiErrorCode);
                 logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Tag 0x%08X received error code %u.\n", response->tag, uiErrorCode);
             } else {
             switch (containerData[i].tag) {
@@ -675,7 +680,6 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
             if (historyData[i].dataType == RSCP::eTypeError) {
                 // handle error for example access denied errors
                 uint32_t uiErrorCode = protocol->getValueAsUInt32(&historyData[i]);
-                if (!cfg.daemon) printf("Tag 0x%08X received error code %u.\n", historyData[i].tag, uiErrorCode);
                 logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Tag 0x%08X received error code %u.\n", response->tag, uiErrorCode);
             } else {
                 switch (historyData[i].tag) {
@@ -756,7 +760,6 @@ static void receiveLoop(bool & bStopExecution){
             // check maximum size
             if (vecDynamicBuffer.size() > RSCP_MAX_FRAME_LENGTH) {
                 // something went wrong and the size is more than possible by the RSCP protocol
-                if (!cfg.daemon) printf("Maximum buffer size exceeded %zu\n", vecDynamicBuffer.size());
                 logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Maximum buffer size exceeded %zu\n", vecDynamicBuffer.size());
                 bStopExecution = true;
                 break;
@@ -770,12 +773,10 @@ static void receiveLoop(bool & bStopExecution){
             // check errno for the error code to detect if this is a timeout or a socket error
             if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
                 // receive timed out -> continue with re-sending the initial block
-                if (!cfg.daemon) printf("Response receive timeout (retry)\n");
                 logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Response receive timeout (retry)\n");
                 break;
             }
             // socket error -> check errno for failure code if needed
-            if (!cfg.daemon) printf("Socket receive error. errno %i\n", errno);
             logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Socket receive error. errno %i\n", errno);
             bStopExecution = true;
             break;
@@ -783,7 +784,6 @@ static void receiveLoop(bool & bStopExecution){
             // connection was closed regularly by peer
             // if this happens on startup each time the possible reason is
             // wrong AES password or wrong network subnet (adapt hosts.allow file required)
-            if (!cfg.daemon) printf("Connection closed by peer\n");
             logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Connection closed by peer\n");
             bStopExecution = true;
             break;
@@ -810,7 +810,6 @@ static void receiveLoop(bool & bStopExecution){
             int iProcessedBytes = processReceiveBuffer(&decryptionBuffer[0], iLength);
             if (iProcessedBytes < 0) {
                 // an error occured;
-                if (!cfg.daemon) printf("Error parsing RSCP frame: %i\n", iProcessedBytes);
                 logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: parsing RSCP frame: %i\n", iProcessedBytes);
                 // stop execution as the data received is not RSCP data
                 bStopExecution = true;
@@ -871,7 +870,6 @@ static void mainLoop(void){
             // send data on socket
             int iResult = SocketSendData(iSocket, &encryptionBuffer[0], encryptionBuffer.size());
             if (iResult < 0) {
-                if (!cfg.daemon) printf("Socket send error %i. errno %i\n", iResult, errno);
                 logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Socket send error %i. errno %i\n", iResult, errno);
                 bStopExecution = true;
             } else
@@ -884,8 +882,7 @@ static void mainLoop(void){
         // MQTT connection
         if (!mosq) {
             mosq = mosquitto_new(NULL, true, NULL);
-
-            if (!cfg.daemon) printf("\nConnecting to broker %s:%u\n", cfg.mqtt_host, cfg.mqtt_port);
+            logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Connecting to broker %s:%u\n", cfg.mqtt_host, cfg.mqtt_port);
             if (mosq) {
                 mosquitto_threaded_set(mosq, true);
                 mosquitto_connect_callback_set(mosq, (void (*)(mosquitto*, void*, int))mqttCallbackOnConnect);
@@ -894,10 +891,8 @@ static void mainLoop(void){
                 if (!mosquitto_connect(mosq, cfg.mqtt_host, cfg.mqtt_port, 10)) {
                     std::thread th(mqttListener, mosq);
                     th.detach();
-                    if (!cfg.daemon) printf("Connected successfully\n");
                     logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Success: MQTT broker connected.\n");
                 } else {
-                    if (!cfg.daemon) printf("Connection failed\n");
                     logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Connection failed.\n");
                     mosquitto_destroy(mosq);
                     mosq = NULL;
@@ -908,7 +903,6 @@ static void mainLoop(void){
         // MQTT publish
         if (mosq) {
             if (handleMQTT(RSCP_MQTT::RscpMqttCache, cfg.mqtt_qos, cfg.mqtt_retain)) {
-                if (!cfg.daemon) printf("MQTT connection lost\n");
                 logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"MQTT connection lost\n");
                 mosquitto_disconnect(mosq);
                 mosquitto_destroy(mosq);
@@ -948,7 +942,7 @@ int main(int argc, char *argv[]){
     cfg.pm_requests = true;
     cfg.auto_refresh = false;
     cfg.dryrun = false;
-    strcpy(cfg.logfile, "/tmp/rscp2mqtt.log");
+    cfg.logfile = NULL;
 
     while (fgets(line, sizeof(line), fp)) {
         memset(key, 0, sizeof(key));
@@ -978,9 +972,10 @@ int main(int argc, char *argv[]){
                 cfg.mqtt_retain = true;
             else if (strcasecmp(key, "MQTT_QOS") == 0)
                 cfg.mqtt_qos = atoi(value);
-            else if (strcasecmp(key, "LOGFILE") == 0)
+            else if (strcasecmp(key, "LOGFILE") == 0) {
+                cfg.logfile = (char *)malloc(sizeof(char) * strlen(value) + 1);
                 strcpy(cfg.logfile, value);
-            else if (strcasecmp(key, "INTERVAL") == 0)
+            } else if (strcasecmp(key, "INTERVAL") == 0)
                 cfg.interval = atoi(value);
             else if ((strcasecmp(key, "PVI_REQUESTS") == 0) && (strcasecmp(value, "true") == 0))
                 cfg.pvi_requests = true;
@@ -1014,6 +1009,16 @@ int main(int argc, char *argv[]){
     printf("\n");
     printf("Requesting PM data = %s\n", cfg.pm_requests ? "true" : "false");
     printf("Auto refresh mode = %s\n", cfg.auto_refresh ? "true" : "false");
+
+    if (isatty(STDOUT_FILENO)) {
+      printf("Stdout to terminal\n");
+      if (cfg.logfile) printf("Logfile >%s<\n", cfg.logfile);
+    } else {
+      printf("Stdout to pipe/file\n");
+      if (cfg.logfile) free(cfg.logfile);
+      cfg.logfile = NULL;
+      cfg.daemon = false;
+    }
     printf("\n");
 
     if (cfg.daemon) {
@@ -1035,24 +1040,19 @@ int main(int argc, char *argv[]){
         close(STDERR_FILENO);
     }
 
-    logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"###########################\n");
-    logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Success: rscp2mqtt started.\n");
-
     // MQTT init
     mosquitto_lib_init();
 
     // endless application which re-connections to server on connection lost
     while (true) {
         // connect to server
-        if (!cfg.daemon) printf("Connecting to server %s:%u\n", cfg.e3dc_ip, cfg.e3dc_port);
+        logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Connecting to server %s:%u\n", cfg.e3dc_ip, cfg.e3dc_port);
         iSocket = SocketConnect(cfg.e3dc_ip, cfg.e3dc_port);
         if (iSocket < 0) {
-            if (!cfg.daemon) printf("Connection failed\n");
             logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: E3DC connection failed\n");
             sleep(1);
             continue;
         }
-        if (!cfg.daemon) printf("Connected successfully\n");
         logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Success: E3DC connected.\n");
 
         // reset authentication flag
@@ -1091,6 +1091,8 @@ int main(int argc, char *argv[]){
 
     // MQTT cleanup
     mosquitto_lib_cleanup();
+
+    if (cfg.logfile) free(cfg.logfile);
 
     exit(EXIT_SUCCESS);
 }
