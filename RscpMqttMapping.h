@@ -84,7 +84,7 @@ cache_t cache[] = {
     { TAG_PM_DATA, TAG_PM_VOLTAGE_L2, 0, "e3dc/pm/voltage/L2", "%0.2f", "", RSCP::eTypeFloat32, 1, 0, false },
     { TAG_PM_DATA, TAG_PM_VOLTAGE_L3, 0, "e3dc/pm/voltage/L3", "%0.2f", "", RSCP::eTypeFloat32, 1, 0, false },
     { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "e3dc/pm/active_phases/L1", "%i", "", RSCP::eTypeUChar8, 1, 1, false },
-    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "e3dc/pm/actice_phases/L2", "%i", "", RSCP::eTypeUChar8, 2, 1, false },
+    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "e3dc/pm/active_phases/L2", "%i", "", RSCP::eTypeUChar8, 2, 1, false },
     { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "e3dc/pm/active_phases/L3", "%i", "", RSCP::eTypeUChar8, 4, 1, false },
     // CONTAINER TAG_PVI_DATA --------------------------------------------------------------------
     { TAG_PVI_DC_POWER, TAG_PVI_VALUE, 0, "e3dc/pvi/power/string_1", "%.0f", "", RSCP::eTypeFloat32, 1, 0, false },
