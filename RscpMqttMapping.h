@@ -36,6 +36,8 @@ cache_t cache[] = {
     { 0, TAG_EMS_POWER_HOME, 0, "e3dc/home/power", "%i", "", RSCP::eTypeInt32, 1, 0, false },
     { 0, TAG_EMS_POWER_GRID, 0, "e3dc/grid/power", "%i", "", RSCP::eTypeInt32, 1, 0, false },
     { 0, TAG_EMS_POWER_ADD, 0, "e3dc/addon/power", "%i", "", RSCP::eTypeInt32, 1, 0, false },
+    { 0, TAG_EMS_POWER_WB_ALL, 0, "e3dc/wallbox/power", "%i", "", RSCP::eTypeInt32, 1, 0, false },
+    { 0, TAG_EMS_POWER_WB_SOLAR, 0, "e3dc/wallbox/solarpower", "%i", "", RSCP::eTypeInt32, 1, 0, false },
     { 0, TAG_EMS_STATUS, 0, "e3dc/ems/charging_lock", "%s", "", RSCP::eTypeUInt32, 1, 1, false },
     { 0, TAG_EMS_STATUS, 0, "e3dc/ems/discharging_lock", "%s", "", RSCP::eTypeUInt32, 1, 2, false },
     { 0, TAG_EMS_STATUS, 0, "e3dc/ems/emergency_power_available", "%s", "", RSCP::eTypeUInt32, 1, 4, false },
