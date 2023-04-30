@@ -62,7 +62,7 @@
 | Month Home Energy | e3dc/month/home/energy | [kWh] |
 | Month Solar Energy | e3dc/month/solar/energy | [kWh] |
 | PM Active Phase L1 | e3dc/pm/active_phases/L1 | (true/false) |
-| PM Active Phase L2 | e3dc/pm/actice_phases/L2 | (true/false) |
+| PM Active Phase L2 | e3dc/pm/active_phases/L2 | (true/false) |
 | PM Active Phase L3 | e3dc/pm/active_phases/L3 | (true/false) |
 | PM Energy L1 | e3dc/pm/energy/L1 | [Wh] |
 | PM Energy L2 | e3dc/pm/energy/L2 | [Wh] |
@@ -94,6 +94,19 @@
 | Software Release | e3dc/system/software | S10_XXXX_XXX |
 | Solar Energy | e3dc/solar/energy | [kWh] |
 | Time Zone | e3dc/time/zone | "Europe/City" |
+| Wallbox power | e3dc/wallbox/total/power | [W] |
+| Wallbox power | e3dc/wallbox/solar/power | [W] |
+| Wallbox battery | e3dc/wallbox/battery_to_car | |
+| Wallbox battery | e3dc/wallbox/battery_before_car | |
+| Wallbox status | e3dc/wallbox/status | |
+| Wallbox phases | e3dc/wallbox/active_phases | |
+| Wallbox phases | e3dc/wallbox/number_used_phases | |
+| Wallbox current | e3dc/wallbox/max_current | (true/false) |
+| Wallbox plugged | e3dc/wallbox/plugged | (true/false) |
+| Wallbox locked | e3dc/wallbox/locked | (true/false) |
+| Wallbox charging | e3dc/wallbox/charging | (true/false) |
+| Wallbox canceled | e3dc/wallbox/canceled | (true/false) |
+| Wallbox mode | e3dc/wallbox/sun_mode | (true/false) |
 | Week Autarky | e3dc/week/autarky | [%] |
 | Week Battery Energy Charge | e3dc/week/battery/energy/charge | [kWh] |
 | Week Consumed Production | e3dc/week/consumed | [%] |

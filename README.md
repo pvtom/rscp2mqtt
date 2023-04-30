@@ -5,7 +5,7 @@ It uses the RSCP interface of the S10 device.
 
 The solution is based on the RSCP sample application provided by E3/DC and was developed and tested with a Raspberry Pi and a Linux PC (x86_64).
 
-The tool fetches the data cyclically from the S10 and publishes it to the MQTT broker under certain [topics](TOPICS.md). Only modified values will be published.
+The tool fetches the data cyclically from the S10 and publishes it to the MQTT broker under certain [topics](TOPICS.md).
 
 Supported topic areas are:
 
@@ -19,6 +19,13 @@ Supported topic areas are:
 - Values of the photovoltaic inverter (PVI)
 - Values of the emergency power supply (EP)
 
+For continuous provision of values, you can configure several topics that are published in each cycle. Default: Only modified values will be published.
+
+## New Features
+
+- E3/DC [wallbox](WALLBOX.md) topics
+- [InfluxDB](INFLUXDB.md) support
+
 ## Prerequisite
 
 - An MQTT broker in your environment
@@ -28,18 +35,29 @@ Supported topic areas are:
 sudo apt-get install libmosquitto-dev
 ```
 
+If you like to transfer data to InfluxDB install the libcurl library:
+```
+sudo apt-get install curl libcurl4-openssl-dev
+```
+
 ## Cloning the Repository
 
 ```
 sudo apt-get install git # if necessary
 git clone https://github.com/pvtom/rscp2mqtt.git
+cd rscp2mqtt
 ```
 
 ## Compilation
 
+To build a program version without InfluxDB use:
 ```
-cd rscp2mqtt
 make
+```
+
+To build a program version including InfluxDB support use:
+```
+make WITH_INFLUXDB=yes
 ```
 
 ## Installation
@@ -100,9 +118,18 @@ PVI_TRACKER=2
 PM_REQUESTS=true
 // Auto refresh, default is false
 AUTO_REFRESH=false
-// Dryrun (Test mode. S10 requests: yes - MQTT publications: no), default is false
-DRYRUN=false
+// Disable MQTT publish support (dryrun mode)
+DISABLE_MQTT_PUBLISH=false
+// Wallbox, default is false
+WALLBOX=true
+// topics to be published in each cycle (regular expressions)
+FORCE_PUB=e3dc/[a-z]+/power
+FORCE_PUB=e3dc/battery/rsoc
 ```
+
+Find InfluxDB configurations in [InfluxDB](INFLUXDB.md).
+
+The parameter FORCE_PUB can occur several times. You can use it to define topics that will be published in each cycle, even if the values do not change. To check the definition, look at the log output after the program start.
 
 Start the program:
 
@@ -178,7 +205,7 @@ Be careful that the program runs only once.
 
 ## Logging
 
-If stdout is redirected to another process, only the log information is passed (issue #10).
+If stdout is redirected to another process or rscp2mqtt is started with option -s (silent mode), only the log information is passed (issue #10).
 
 ## Device Control
 
@@ -253,6 +280,29 @@ Turn on the functionality in the configuration file .config, add/change the foll
 AUTO_REFRESH=true
 ```
 
+## Wallbox Control
+
+Set solar or mix mode with the current in [A] (6..32 Ampere)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/control" -m "solar:16"
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/control" -m "mix:8"
+```
+
+Stop charging
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/control" -m "stop"
+```
+
+Set battery to car mode (true/1/false/0)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_to_car" -m true
+```
+
+Set battery before car mode (true/1/false/0)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_before_car" -m true
+```
+
 ## System Commands
 
 Post all topics and payloads to the MQTT broker again
@@ -281,3 +331,4 @@ mosquitto_pub -h localhost -t "e3dc/set/requests/pvi" -m true
 - The RSCP example application comes from E3/DC. According to E3/DC it can be distributed under the following conditions: `The authors or copyright holders, and in special E3/DC can not be held responsible for any damage caused by the software. Usage of the software is at your own risk. It may not be issued in copyright terms as a separate work.`
 - License of AES is included in the AES code files
 - Eclipse Mosquitto (https://github.com/eclipse/mosquitto) with EPL-2.0
+- libcurl (https://github.com/curl/curl/blob/master/COPYING)

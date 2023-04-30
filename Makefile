@@ -1,11 +1,14 @@
 CXX=g++
-ROOT_VALUE=rscp2mqtt
+TARGET=rscp2mqtt
 
-all: $(ROOT_VALUE)
+all: $(TARGET)
 
-$(ROOT_VALUE): clean
+$(TARGET): clean
+ifeq ($(WITH_INFLUXDB), yes)
+	$(CXX) -O3 RscpMqttMain.cpp RscpProtocol.cpp AES.cpp SocketConnection.cpp -pthread -lmosquitto -lcurl -o $@ -DINFLUXDB
+else
 	$(CXX) -O3 RscpMqttMain.cpp RscpProtocol.cpp AES.cpp SocketConnection.cpp -pthread -lmosquitto -o $@
-
+endif
 
 clean:
-	-rm $(ROOT_VALUE) $(VECTOR)
+	-rm $(TARGET)
