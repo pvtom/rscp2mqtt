@@ -52,6 +52,7 @@ cache_t cache[] = {
     { 0, TAG_EMS_SET_POWER, 0, "e3dc/ems/set_power/power", "%i", "", RSCP::eTypeInt32, 1, 0, 0 },
     { 0, TAG_EMS_MODE, 0, "e3dc/mode", "%i", "", RSCP::eTypeUChar8, 1, 0, 0 },
     { 0, TAG_EMS_COUPLING_MODE, 0, "e3dc/coupling/mode", "%i", "", RSCP::eTypeUChar8, 1, 0, 0 },
+    { 0, TAG_EMS_BAT_SOC, 0, "e3dc/battery/soc", "%i", "", RSCP::eTypeUChar8, 1, 0, false },
     // CONTAINER TAG_BAT_DATA --------------------------------------------------------------------
     { TAG_BAT_DATA, TAG_BAT_RSOC, 0, "e3dc/battery/rsoc", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     { TAG_BAT_DATA, TAG_BAT_MODULE_VOLTAGE, 0, "e3dc/battery/voltage", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
@@ -118,7 +119,6 @@ cache_t cache[] = {
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_CONSUMPTION, 0, "e3dc/home/energy", "%0.2f", "", RSCP::eTypeFloat32, 1000, 0, 0 },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_0_POWER, 0, "e3dc/pm_0/energy", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_1_POWER, 0, "e3dc/pm_1/energy", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
-    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_BAT_CHARGE_LEVEL, 0, "e3dc/battery/soc", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_CONSUMED_PRODUCTION, 0, "e3dc/consumed", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_AUTARKY, 0, "e3dc/autarky", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     // YESTERDAY
