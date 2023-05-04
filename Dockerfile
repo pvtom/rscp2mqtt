@@ -1,11 +1,11 @@
-FROM debian:bullseye-slim
+FROM alpine
 
-# Updating the packages
-RUN apt-get update  \
-  && apt-get install -y --no-install-recommends \
+# Install packages
+RUN apk --no-cache add \
   bash \
-  build-essential \
-  libmosquitto-dev
+  g++ \
+  make \
+  mosquitto-dev
 
 RUN mkdir -p /tmp/rscp2mqtt
 COPY ./ /tmp/rscp2mqtt
