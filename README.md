@@ -1,4 +1,10 @@
 # RSCP2MQTT - Bridge between an E3/DC S10 device and an MQTT broker
+[![GitHub sourcecode](https://img.shields.io/badge/Source-GitHub-green)](https://github.com/pvtom/rscp2mqtt/)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/pvtom/rscp2mqtt)](https://github.com/pvtom/rscp2mqtt/releases/latest)
+[![GitHub last commit](https://img.shields.io/github/last-commit/pvtom/rscp2mqtt)](https://github.com/pvtom/rscp2mqtt/commits)
+[![GitHub issues](https://img.shields.io/github/issues/pvtom/rscp2mqtt)](https://github.com/pvtom/rscp2mqtt/issues)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/pvtom/rscp2mqtt)](https://github.com/pvtom/rscp2mqtt/pulls)
+[![GitHub](https://img.shields.io/github/license/pvtom/rscp2mqtt)](https://github.com/pvtom/rscp2mqtt/blob/main/LICENSE)
 
 This software module connects a home power station from E3/DC to an MQTT broker.
 It uses the RSCP interface of the S10 device.
@@ -18,6 +24,7 @@ Supported topic areas are:
 - Values of the power meter (PM)
 - Values of the photovoltaic inverter (PVI)
 - Values of the emergency power supply (EP)
+- Values of the wallbox (WB)
 
 For continuous provision of values, you can configure several topics that are published in each cycle. Default: Only modified values will be published.
 
@@ -25,6 +32,7 @@ For continuous provision of values, you can configure several topics that are pu
 
 - E3/DC [wallbox](WALLBOX.md) topics
 - [InfluxDB](INFLUXDB.md) support
+- Topics for temperatures (battery, PVI)
 
 ## Prerequisite
 
@@ -124,7 +132,7 @@ DISABLE_MQTT_PUBLISH=false
 WALLBOX=true
 // topics to be published in each cycle (regular expressions)
 FORCE_PUB=e3dc/[a-z]+/power
-FORCE_PUB=e3dc/battery/rsoc
+FORCE_PUB=e3dc/battery/soc
 ```
 
 Find InfluxDB configurations in [InfluxDB](INFLUXDB.md).

@@ -14,6 +14,8 @@
 | Battery RSOC | e3dc/battery/rsoc | [%] |
 | Battery SOC | e3dc/battery/soc | [%] |
 | Battery Status Code | e3dc/battery/status | |
+| Battery Temperature Max | e3dc/battery/temperature/max | [°C] |
+| Battery Temperature Min | e3dc/battery/temperature/min | [°C] |
 | Battery Training Mode | e3dc/battery/training | (0-2) |
 | Consumed Production | e3dc/consumed | [%] |
 | EMS Addon Power | e3dc/addon/power | [W] |
@@ -87,6 +89,10 @@
 | PVI String2 Current | e3dc/pvi/current/string_2 | [A] |
 | PVI String2 Power | e3dc/pvi/power/string_2 | [W] |
 | PVI String2 Voltage | e3dc/pvi/voltage/string_2 | [V] |
+| PVI Temperature 1 | e3dc/pvi/temperature/1  | [°C] |
+| PVI Temperature 2 | e3dc/pvi/temperature/2  | [°C] |
+| PVI Temperature 3 | e3dc/pvi/temperature/3  | [°C] |
+| PVI Temperature 4 | e3dc/pvi/temperature/4  | [°C] |
 | PVI Voltage L1 | e3dc/pvi/voltage/L1 | [V] |
 | PVI Voltage L2 | e3dc/pvi/voltage/L2 | [V] |
 | PVI Voltage L3 | e3dc/pvi/voltage/L3 | [V] |
@@ -125,7 +131,7 @@
 | Year Solar Energy | e3dc/year/solar/energy | [kWh] |
 | Yesterday Autarky | e3dc/yesterday/autarky | [%] |
 | Yesterday Battery Energy Charge | e3dc/yesterday/battery/energy/charge | [kWh] |
-| Yesterday Battery SOC | e3dc/yesterday/battery/soc | [%] |
+| Yesterday Battery SOC | e3dc/yesterday/battery/rsoc | [%] |
 | Yesterday Consumed Production | e3dc/yesterday/consumed | [%] |
 | Yesterday Energy Discharge | e3dc/yesterday/battery/energy/discharge | [kWh] |
 | Yesterday Grid In Energy | e3dc/yesterday/grid/energy/in | [kWh] |

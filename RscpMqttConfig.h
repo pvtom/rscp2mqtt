@@ -29,6 +29,7 @@ typedef struct _config_t {
     int interval;
     bool pvi_requests;
     int pvi_tracker;
+    int pvi_temp_count;
     bool pm_requests;
     bool wallbox;
     bool daemon;

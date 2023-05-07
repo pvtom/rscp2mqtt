@@ -36,6 +36,7 @@ cache_t cache[] = {
     { 0, TAG_EMS_POWER_HOME, 0, "e3dc/home/power", "%i", "", RSCP::eTypeInt32, 1, 0, 0 },
     { 0, TAG_EMS_POWER_GRID, 0, "e3dc/grid/power", "%i", "", RSCP::eTypeInt32, 1, 0, 0 },
     { 0, TAG_EMS_POWER_ADD, 0, "e3dc/addon/power", "%i", "", RSCP::eTypeInt32, 1, 0, 0 },
+    { 0, TAG_EMS_BAT_SOC, 0, "e3dc/battery/soc", "%i", "", RSCP::eTypeUChar8, 1, 0, 0 },
     { 0, TAG_EMS_STATUS, 0, "e3dc/ems/charging_lock", "%s", "", RSCP::eTypeUInt32, 1, 1, 0 },
     { 0, TAG_EMS_STATUS, 0, "e3dc/ems/discharging_lock", "%s", "", RSCP::eTypeUInt32, 1, 2, 0 },
     { 0, TAG_EMS_STATUS, 0, "e3dc/ems/emergency_power_available", "%s", "", RSCP::eTypeUInt32, 1, 4, 0 },
@@ -62,6 +63,8 @@ cache_t cache[] = {
     { TAG_BAT_DATA, TAG_BAT_DEVICE_NAME, 0, "e3dc/battery/name", "%s", "", RSCP::eTypeString, 1, 0, 0 },
     { TAG_BAT_DATA, TAG_BAT_DCB_COUNT, 0, "e3dc/battery/dcb_count", "%i", "", RSCP::eTypeUChar8, 1, 0, 0 },
     { TAG_BAT_DATA, TAG_BAT_TRAINING_MODE, 0, "e3dc/battery/training", "%i", "", RSCP::eTypeUChar8, 1, 0, 0 },
+    { TAG_BAT_DATA, TAG_BAT_MAX_DCB_CELL_TEMPERATURE, 0, "e3dc/battery/temperature/max", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
+    { TAG_BAT_DATA, TAG_BAT_MIN_DCB_CELL_TEMPERATURE, 0, "e3dc/battery/temperature/min", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     // CONTAINER TAG_EMS_GET_POWER_SETTINGS ------------------------------------------------------
     { TAG_EMS_GET_POWER_SETTINGS, TAG_EMS_MAX_CHARGE_POWER, 0, "e3dc/ems/max_charge/power", "%u", "", RSCP::eTypeUInt32, 1, 0, 0 },
     { TAG_EMS_GET_POWER_SETTINGS, TAG_EMS_MAX_DISCHARGE_POWER, 0, "e3dc/ems/max_discharge/power", "%u", "", RSCP::eTypeUInt32, 1, 0, 0 },
@@ -102,6 +105,7 @@ cache_t cache[] = {
     { TAG_PVI_AC_CURRENT, TAG_PVI_VALUE, 0, "e3dc/pvi/current/L1", "%0.2f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     { TAG_PVI_AC_CURRENT, TAG_PVI_VALUE, 1, "e3dc/pvi/current/L2", "%0.2f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     { TAG_PVI_AC_CURRENT, TAG_PVI_VALUE, 2, "e3dc/pvi/current/L3", "%0.2f", "", RSCP::eTypeFloat32, 1, 0, 0 },
+    { TAG_PVI_DATA, TAG_PVI_TEMPERATURE_COUNT, 0, "e3dc/pvi/temperature/count", "%i", "", RSCP::eTypeUChar8, 1, 0, false },
     { TAG_PVI_DATA, TAG_PVI_ON_GRID, 0, "e3dc/pvi/on_grid", "%s", "", RSCP::eTypeBool, 1, 0, 0 },
     // CONTAINER TAG_SE_EP_RESERVE ---------------------------------------------------------------
     { TAG_SE_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE, 0, "e3dc/reserve/percent", "%0.2f", "", RSCP::eTypeFloat32, 1, 0, 0 },
@@ -118,7 +122,6 @@ cache_t cache[] = {
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_CONSUMPTION, 0, "e3dc/home/energy", "%0.2f", "", RSCP::eTypeFloat32, 1000, 0, 0 },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_0_POWER, 0, "e3dc/pm_0/energy", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_1_POWER, 0, "e3dc/pm_1/energy", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
-    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_BAT_CHARGE_LEVEL, 0, "e3dc/battery/soc", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_CONSUMED_PRODUCTION, 0, "e3dc/consumed", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_AUTARKY, 0, "e3dc/autarky", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     // YESTERDAY
@@ -130,7 +133,7 @@ cache_t cache[] = {
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_CONSUMPTION, 1, "e3dc/yesterday/home/energy", "%0.2f", "", RSCP::eTypeFloat32, 1000, 0, 0 },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_0_POWER, 1, "e3dc/yesterday/pm_0/energy", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_1_POWER, 1, "e3dc/yesterday/pm_1/energy", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
-    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_BAT_CHARGE_LEVEL, 1, "e3dc/yesterday/battery/soc", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_BAT_CHARGE_LEVEL, 1, "e3dc/yesterday/battery/rsoc", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_CONSUMED_PRODUCTION, 1, "e3dc/yesterday/consumed", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_AUTARKY, 1, "e3dc/yesterday/autarky", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     // WEEK

@@ -445,6 +445,7 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
         protocol.appendValue(&rootValue, TAG_EMS_REQ_MODE);
         protocol.appendValue(&rootValue, TAG_EMS_REQ_STATUS);
         protocol.appendValue(&rootValue, TAG_EMS_REQ_BALANCED_PHASES);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_BAT_SOC);
 
         // Wallbox
         if (cfg.wallbox) {
@@ -480,6 +481,8 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
         if (!e3dc_ts) protocol.appendValue(&batteryContainer, TAG_BAT_REQ_DEVICE_NAME);
         protocol.appendValue(&batteryContainer, TAG_BAT_REQ_DCB_COUNT);
         protocol.appendValue(&batteryContainer, TAG_BAT_REQ_TRAINING_MODE);
+        protocol.appendValue(&batteryContainer, TAG_BAT_REQ_MAX_DCB_CELL_TEMPERATURE);
+        protocol.appendValue(&batteryContainer, TAG_BAT_REQ_MIN_DCB_CELL_TEMPERATURE);
         protocol.appendValue(&rootValue, batteryContainer);
         protocol.destroyValueData(batteryContainer);
 
@@ -529,6 +532,12 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
             protocol.appendValue(&PVIContainer, TAG_PVI_REQ_AC_CURRENT, (uint8_t)0);
             protocol.appendValue(&PVIContainer, TAG_PVI_REQ_AC_CURRENT, (uint8_t)1);
             protocol.appendValue(&PVIContainer, TAG_PVI_REQ_AC_CURRENT, (uint8_t)2);
+            if (!cfg.pvi_temp_count) {
+                protocol.appendValue(&PVIContainer, TAG_PVI_REQ_TEMPERATURE_COUNT);
+            }
+            for (uint8_t i = 0; i < cfg.pvi_temp_count; i++) {
+                protocol.appendValue(&PVIContainer, TAG_PVI_REQ_TEMPERATURE, i);
+            }
             protocol.appendValue(&rootValue, PVIContainer);
             protocol.destroyValueData(PVIContainer);
         }
@@ -828,6 +837,7 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                 logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Tag 0x%08X received error code %u.\n", response->tag, uiErrorCode);
             } else {
             switch (containerData[i].tag) {
+                case TAG_PVI_TEMPERATURE:
                 case TAG_PVI_AC_VOLTAGE:
                 case TAG_PVI_AC_CURRENT:
                 case TAG_PVI_AC_POWER:
@@ -845,6 +855,16 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                         }
                     }
                     protocol->destroyValueData(container);
+                    break;
+                }
+                case TAG_PVI_TEMPERATURE_COUNT: {
+                    cfg.pvi_temp_count = protocol->getValueAsUChar8(&containerData[i]);
+                    storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
+                    for (uint8_t c = 0; c < cfg.pvi_temp_count; c++) {
+                        RSCP_MQTT::cache_t cache = {TAG_PVI_TEMPERATURE, TAG_PVI_VALUE, c, "", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, false};
+                        sprintf(cache.topic, "e3dc/pvi/temperature/%d", c + 1);
+                        RSCP_MQTT::RscpMqttCache.push_back(cache);
+                    }
                     break;
                 }
                 case TAG_PVI_ON_GRID: {
@@ -1132,6 +1152,7 @@ int main(int argc, char *argv[]){
     cfg.interval = 1;
     cfg.pvi_requests = true;
     cfg.pvi_tracker = 2;
+    cfg.pvi_temp_count = 0;
     cfg.pm_requests = true;
     cfg.wallbox = false;
     cfg.auto_refresh = false;
