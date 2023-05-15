@@ -16,6 +16,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        with_influxdb: ["no", "yes"]
     steps:
       -
         name: Checkout
@@ -28,6 +31,8 @@ jobs:
           # list of Docker images to use as base name for tags
           images: |
             ghcr.io/${{ github.repository }}
+          flavor: |
+            suffix=${{ matrix.with_influxdb == 'yes' && '-with-influxdb' || '' }}, onlatest=true
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -47,6 +52,8 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
+          build-args: |
+            with_influxdb=${{ matrix.with_influxdb }}
           platforms: linux/amd64,linux/386,linux/arm64,linux/arm
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
