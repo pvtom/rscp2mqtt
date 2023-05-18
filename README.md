@@ -33,6 +33,11 @@ For continuous provision of values, you can configure several topics that are pu
 - E3/DC [wallbox](WALLBOX.md) topics
 - [InfluxDB](INFLUXDB.md) support
 - Topics for temperatures (battery, PVI)
+- Docker image at https://hub.docker.com/r/pvtom/rsp2mqtt
+
+## Docker
+
+Instead of installing the package you can use a [Docker image](DOCKER.md).
 
 ## Prerequisite
 
@@ -76,14 +81,18 @@ sudo chown pi:pi /opt/rscp2mqtt/
 ```
 Adjust user and group (pi:pi) if you use another user.
 
-Please copy `rscp2mqtt` and the config file into the directory `/opt/rscp2mqtt`
+Copy `rscp2mqtt` into the directory `/opt/rscp2mqtt`
 
 ```
 cp -a rscp2mqtt /opt/rscp2mqtt
-cp config.template /opt/rscp2mqtt/.config
 ```
 
-## Configuration & Test
+## Configuration
+
+Copy the config template file into the directory `/opt/rscp2mqtt`
+```
+cp config.template /opt/rscp2mqtt/.config
+```
 
 Please change to the directory `/opt/rscp2mqtt` and edit `.config` to adjust to your configuration:
 
@@ -138,6 +147,8 @@ FORCE_PUB=e3dc/battery/soc
 Find InfluxDB configurations in [InfluxDB](INFLUXDB.md).
 
 The parameter FORCE_PUB can occur several times. You can use it to define topics that will be published in each cycle, even if the values do not change. To check the definition, look at the log output after the program start.
+
+## Program start
 
 Start the program:
 
