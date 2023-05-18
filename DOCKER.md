@@ -1,6 +1,6 @@
 ## Docker
 
-A Docker image is available at https://hub.docker.com/r/pvtom/rsp2mqtt
+A Docker image is available at https://hub.docker.com/r/pvtom/rscp2mqtt
 
 ### Configuration
 

@@ -33,7 +33,7 @@ For continuous provision of values, you can configure several topics that are pu
 - E3/DC [wallbox](WALLBOX.md) topics
 - [InfluxDB](INFLUXDB.md) support
 - Topics for temperatures (battery, PVI)
-- Docker image at https://hub.docker.com/r/pvtom/rsp2mqtt
+- Docker image at https://hub.docker.com/r/pvtom/rscp2mqtt
 
 ## Docker
 
