@@ -453,6 +453,8 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
             protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_WB_SOLAR);
             protocol.appendValue(&rootValue, TAG_EMS_REQ_BATTERY_TO_CAR_MODE);
             protocol.appendValue(&rootValue, TAG_EMS_REQ_BATTERY_BEFORE_CAR_MODE);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_GET_WB_DISCHARGE_BAT_UNTIL);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_GET_WALLBOX_ENFORCE_POWER_ASSIGNMENT);
         }
 
         if (!e3dc_ts) {

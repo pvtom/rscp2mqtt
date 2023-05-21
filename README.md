@@ -322,6 +322,16 @@ Set battery before car mode (true/1/false/0)
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_before_car" -m true
 ```
 
+Set battery discharge until (%)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_discharge_until" -m 80
+```
+
+Set enforce power assignment (true/1/false/0)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/enforce_power_assignment" -m true
+```
+
 ## System Commands
 
 Post all topics and payloads to the MQTT broker again

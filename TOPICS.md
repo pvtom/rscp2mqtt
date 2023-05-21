@@ -100,19 +100,21 @@
 | Software Release | e3dc/system/software | S10_XXXX_XXX |
 | Solar Energy | e3dc/solar/energy | [kWh] |
 | Time Zone | e3dc/time/zone | "Europe/City" |
-| Wallbox power | e3dc/wallbox/total/power | [W] |
-| Wallbox power | e3dc/wallbox/solar/power | [W] |
 | Wallbox battery | e3dc/wallbox/battery_to_car | |
 | Wallbox battery | e3dc/wallbox/battery_before_car | |
-| Wallbox status | e3dc/wallbox/status | |
+| Wallbox battery | e3dc/wallbox/battery_discharge_until | % |
+| Wallbox canceled | e3dc/wallbox/canceled | (true/false) |
+| Wallbox charging | e3dc/wallbox/charging | (true/false) |
+| Wallbox current | e3dc/wallbox/max_current | (true/false) |
+| Wallbox locked | e3dc/wallbox/locked | (true/false) |
+| Wallbox mode | e3dc/wallbox/sun_mode | (true/false) |
 | Wallbox phases | e3dc/wallbox/active_phases | |
 | Wallbox phases | e3dc/wallbox/number_used_phases | |
-| Wallbox current | e3dc/wallbox/max_current | (true/false) |
 | Wallbox plugged | e3dc/wallbox/plugged | (true/false) |
-| Wallbox locked | e3dc/wallbox/locked | (true/false) |
-| Wallbox charging | e3dc/wallbox/charging | (true/false) |
-| Wallbox canceled | e3dc/wallbox/canceled | (true/false) |
-| Wallbox mode | e3dc/wallbox/sun_mode | (true/false) |
+| Wallbox power | e3dc/wallbox/total/power | [W] |
+| Wallbox power | e3dc/wallbox/solar/power | [W] |
+| Wallbox power | e3dc/wallbox/enforce_power_assignment | (true/false) |
+| Wallbox status | e3dc/wallbox/status | |
 | Week Autarky | e3dc/week/autarky | [%] |
 | Week Battery Energy Charge | e3dc/week/battery/energy/charge | [kWh] |
 | Week Consumed Production | e3dc/week/consumed | [%] |
