@@ -20,6 +20,7 @@ The following topics are sent to the MQTT broker:
 | Wallbox battery | e3dc/wallbox/battery_to_car | |
 | Wallbox battery | e3dc/wallbox/battery_before_car | |
 | New: Wallbox battery | e3dc/wallbox/battery_discharge_until | % |
+| New: Wallbox battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
 | Wallbox canceled | e3dc/wallbox/canceled | (true/false) |
 | Wallbox charging | e3dc/wallbox/charging | (true/false) |
 | Wallbox current | e3dc/wallbox/max_current | (true/false) |
@@ -30,7 +31,6 @@ The following topics are sent to the MQTT broker:
 | Wallbox plugged | e3dc/wallbox/plugged | (true/false) |
 | Wallbox power | e3dc/wallbox/total/power | [W] |
 | Wallbox power | e3dc/wallbox/solar/power | [W] |
-| New: Wallbox power | e3dc/wallbox/enforce_power_assignment | (true/false) |
 | Wallbox status | e3dc/wallbox/status | |
 
 The new topics are based on additional tags introduced by https://github.com/nischram/E3dcGui
@@ -63,7 +63,7 @@ Set battery discharge until (%)
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_discharge_until" -m 80
 ```
 
-Set enforce power assignment (true/1/false/0)
+Set disable charging battery at mix mode (true/1/false/0)
 ```
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/enforce_power_assignment" -m true
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/disable_battery_at_mix_mode" -m true
 ```

@@ -1098,7 +1098,7 @@ static void mainLoop(void){
                 mosquitto_threaded_set(mosq, true);
                 mosquitto_connect_callback_set(mosq, (void (*)(mosquitto*, void*, int))mqttCallbackOnConnect);
                 mosquitto_message_callback_set(mosq, (void (*)(mosquitto*, void*, const mosquitto_message*))mqttCallbackOnMessage);
-                if (cfg.mqtt_auth) mosquitto_username_pw_set(mosq, cfg.mqtt_user, cfg.mqtt_password);
+                if (cfg.mqtt_auth && strcmp(cfg.mqtt_user, "") && strcmp(cfg.mqtt_password, "")) mosquitto_username_pw_set(mosq, cfg.mqtt_user, cfg.mqtt_password);
                 if (!mosquitto_connect(mosq, cfg.mqtt_host, cfg.mqtt_port, 10)) {
                     std::thread th(mqttListener, mosq);
                     th.detach();
@@ -1162,6 +1162,9 @@ int main(int argc, char *argv[]){
     strcpy(cfg.influxdb_host, "");
     cfg.influxdb_port = INFLUXDB_PORT_DEFAULT;
     cfg.influxdb_on = false;
+    cfg.influxdb_auth = false;
+    strcpy(cfg.influxdb_user, "");
+    strcpy(cfg.influxdb_password, "");
 #endif
     cfg.mqtt_pub = true;
     cfg.logfile = NULL;
@@ -1203,6 +1206,12 @@ int main(int argc, char *argv[]){
                 cfg.influxdb_version = atoi(value);
             else if (strcasecmp(key, "INFLUXDB_1_DB") == 0)
                 strcpy(cfg.influxdb_db, value);
+            else if (strcasecmp(key, "INFLUXDB_1_USER") == 0)
+                strcpy(cfg.influxdb_user, value);
+            else if (strcasecmp(key, "INFLUXDB_1_PASSWORD") == 0)
+                strcpy(cfg.influxdb_password, value);
+            else if ((strcasecmp(key, "INFLUXDB_1_AUTH") == 0) && (strcasecmp(value, "true") == 0))
+                cfg.influxdb_auth = true;
             else if (strcasecmp(key, "INFLUXDB_2_ORGA") == 0)
                 strcpy(cfg.influxdb_orga, value);
             else if (strcasecmp(key, "INFLUXDB_2_BUCKET") == 0)
@@ -1317,6 +1326,11 @@ int main(int argc, char *argv[]){
         headers = curl_slist_append(headers, "Accept: application/json");
 
         if (cfg.influxdb_version == 1) {
+            if (cfg.influxdb_auth && strcmp(cfg.influxdb_user, "") && strcmp(cfg.influxdb_password, "")) {
+                curl_easy_setopt(curl, CURLOPT_HTTPAUTH, (long)CURLAUTH_BASIC);
+                curl_easy_setopt(curl, CURLOPT_USERNAME, cfg.influxdb_user);
+                curl_easy_setopt(curl, CURLOPT_PASSWORD, cfg.influxdb_password);
+            }
             sprintf(buffer, "http://%s:%d/write?db=%s", cfg.influxdb_host, cfg.influxdb_port, cfg.influxdb_db);
         } else {
             sprintf(buffer, "Authorization: Token %s", cfg.influxdb_token);

@@ -103,6 +103,7 @@
 | Wallbox battery | e3dc/wallbox/battery_to_car | |
 | Wallbox battery | e3dc/wallbox/battery_before_car | |
 | Wallbox battery | e3dc/wallbox/battery_discharge_until | % |
+| Wallbox battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
 | Wallbox canceled | e3dc/wallbox/canceled | (true/false) |
 | Wallbox charging | e3dc/wallbox/charging | (true/false) |
 | Wallbox current | e3dc/wallbox/max_current | (true/false) |
@@ -113,7 +114,6 @@
 | Wallbox plugged | e3dc/wallbox/plugged | (true/false) |
 | Wallbox power | e3dc/wallbox/total/power | [W] |
 | Wallbox power | e3dc/wallbox/solar/power | [W] |
-| Wallbox power | e3dc/wallbox/enforce_power_assignment | (true/false) |
 | Wallbox status | e3dc/wallbox/status | |
 | Week Autarky | e3dc/week/autarky | [%] |
 | Week Battery Energy Charge | e3dc/week/battery/energy/charge | [kWh] |

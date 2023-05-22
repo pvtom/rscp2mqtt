@@ -327,9 +327,9 @@ Set battery discharge until (%)
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_discharge_until" -m 80
 ```
 
-Set enforce power assignment (true/1/false/0)
+Set disable charging battery at mix mode (true/1/false/0)
 ```
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/enforce_power_assignment" -m true
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/disable_battery_at_mix_mode" -m true
 ```
 
 ## System Commands

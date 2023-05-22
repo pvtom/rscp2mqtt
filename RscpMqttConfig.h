@@ -20,6 +20,9 @@ typedef struct _config_t {
     uint32_t influxdb_port;
     char influxdb_db[128];
     char influxdb_measurement[128];
+    bool influxdb_auth;
+    char influxdb_user[128];
+    char influxdb_password[128];
     char influxdb_orga[128];
     char influxdb_bucket[128];
     char influxdb_token[128];
