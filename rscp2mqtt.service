@@ -6,11 +6,9 @@ After=network-online.target
 
 [Service]
 User=pi
-Type=forking
 WorkingDirectory=/opt/rscp2mqtt
-ExecStart=/opt/rscp2mqtt/rscp2mqtt -d
+ExecStart=/opt/rscp2mqtt/rscp2mqtt
 ExecStop=pkill rscp2mqtt
-TimeoutSec=30
 Restart=on-failure
 RestartSec=30
 StartLimitInterval=350

@@ -35,6 +35,8 @@ The following topics are sent to the MQTT broker:
 
 The new topics are based on additional tags introduced by https://github.com/nischram/E3dcGui
 
+There is a dependency of e3dc/wallbox/battery_before_car to e3dc/wallbox/battery_to_car: e3dc/wallbox/battery_before_car can only be set if e3dc/wallbox/battery_to_car is false (issue #21).
+
 In addition, these topics can be published to control the wallbox:
 
 Set solar or mix mode with the current in [A] (6..32 Ampere)
