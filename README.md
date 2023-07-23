@@ -33,6 +33,8 @@ For continuous provision of values, you can configure several topics that are pu
 - E3/DC [wallbox](WALLBOX.md) topics
 - [InfluxDB](INFLUXDB.md) support
 - Topics for temperatures (battery, PVI)
+- Idle periods
+- System error messages
 - Docker image at https://hub.docker.com/r/pvtom/rscp2mqtt
 
 ## Docker
@@ -133,6 +135,8 @@ PVI_REQUESTS=true
 PVI_TRACKER=2
 // enable PM requests, default is true
 PM_REQUESTS=true
+// use external PM (S10 Mini)
+PM_EXTERN=false
 // Auto refresh, default is false
 AUTO_REFRESH=false
 // Disable MQTT publish support (dryrun mode)
@@ -239,14 +243,14 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/manual_charge" -m 1000
 
 ### Weather Regulation
 
-Set weather regulation (true/false)
+Set weather regulation (true/1/false/0)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/weather_regulation" -m true
 ```
 
 ### Power Limits
 
-Set limits for battery charging and discharging (true/false)
+Set limits for battery charging and discharging (true/1/false/0)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/power_limits" -m true
 ```
@@ -255,13 +259,31 @@ Set the charging and discharging power limits in [W]
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/max_charge_power" -m 2300
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/max_discharge_power" -m 4500
 ```
+
+### Idle Periods
+
+Set idle periods to lock battery charging or discharging
+
+Note: The set operations will work only if the idle period functionality is turned on (via the S10 display).
+
+Parameters:
+- Day: "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday" or "today"
+- Mode: "charge" or "discharge"
+- Active: "true" or "false"
+- Period: "hh:mi-hh:mi"
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/idle_period" -m "today:charge:true:00:00-23:59"
+```
+
+With the topics "e3dc/ems/charging_lock" and "e3dc/ems/discharging_lock" you can check whether a lock is currently active or not.
+
 ### Emergency Power
 
 Set battery reserve for emergency power
 ```
-mosquitto_pub -h localhost -t "e3dc/set/reserve/energy" -m 1500 # in [Wh]
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/reserve/energy" -m 1500 # in [Wh]
 # or
-mosquitto_pub -h localhost -t "e3dc/set/reserve/percent" -m 10 # in [%]
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/reserve/percent" -m 10 # in [%]
 ```
 
 ### Power Management
@@ -322,7 +344,7 @@ Set battery before car mode (true/1/false/0)
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_before_car" -m true
 ```
 
-Set battery discharge until (%)
+Set battery discharge until [%]
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_discharge_until" -m 80
 ```
@@ -346,13 +368,13 @@ Set a new refresh interval (1..10 seconds)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/interval" -m 2
 ```
-Set PM requests on or off (true/false)
+Set PM requests on or off (true/1/false/0)
 ```
-mosquitto_pub -h localhost -t "e3dc/set/requests/pm" -m true
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/requests/pm" -m true
 ```
-Set PVI requests on or off (true/false)
+Set PVI requests on or off (true/1/false/0)
 ```
-mosquitto_pub -h localhost -t "e3dc/set/requests/pvi" -m true
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/requests/pvi" -m true
 ```
 
 ## Used Libraries and Licenses

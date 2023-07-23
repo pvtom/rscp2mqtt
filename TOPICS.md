@@ -34,9 +34,13 @@
 | EMS Discharging Lock | e3dc/ems/discharging_lock | (true/false) |
 | EMS Discharging Time Lock | e3dc/ems/discharging_time_lock | (true/false) |
 | EMS Emergency Power Available | e3dc/ems/emergency_power_available | (true/false) |
+| EMS Error Messages | e3dc/error_message/<#> | "Error Message" |
+| EMS Error Messages | e3dc/error_message/<#>/meta< | "type=<nr> code=<nr> source=<device>" |
 | EMS Grid In Limit | e3dc/grid_in_limit | (true/false) |
 | EMS Grid Power | e3dc/grid/power | [W] |
 | EMS Home Power | e3dc/home/power | [W] |
+| EMS Idle Periods | e3dc/idle_period/change | <change#> |
+| EMS Idle Periods | e3dc/idle_period/<change#>/<#> | "day:mode:active:hh:mi-hh:mi" |
 | EMS Installed Peak Power | e3dc/system/installed_peak_power | [W] |
 | EMS Max Charge Power | e3dc/ems/max_charge/power | [W] |
 | EMS Max Charge Power Status | e3dc/ems/max_charge/status | |
@@ -97,12 +101,12 @@
 | PVI Voltage L2 | e3dc/pvi/voltage/L2 | [V] |
 | PVI Voltage L3 | e3dc/pvi/voltage/L3 | [V] |
 | Serial Number | e3dc/system/serial_number | "S10-XXXXXXXXXXXX" |
-| Software Release | e3dc/system/software | S10_XXXX_XXX |
+| Software Release | e3dc/system/software | "S10_XXXX_XXX" |
 | Solar Energy | e3dc/solar/energy | [kWh] |
 | Time Zone | e3dc/time/zone | "Europe/City" |
-| Wallbox battery | e3dc/wallbox/battery_to_car | |
-| Wallbox battery | e3dc/wallbox/battery_before_car | |
-| Wallbox battery | e3dc/wallbox/battery_discharge_until | % |
+| Wallbox battery | e3dc/wallbox/battery_to_car | (0,1) |
+| Wallbox battery | e3dc/wallbox/battery_before_car | (0,1) |
+| Wallbox battery | e3dc/wallbox/battery_discharge_until | [%] |
 | Wallbox battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
 | Wallbox canceled | e3dc/wallbox/canceled | (true/false) |
 | Wallbox charging | e3dc/wallbox/charging | (true/false) |

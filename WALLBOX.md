@@ -2,10 +2,6 @@
 
 This update implements functions to support an E3/DC wallbox.
 
-Because I don't have a wallbox from E3/DC, I couldn't test the functionality.
-
-Please give me feedback if something is not working properly or can be improved.
-
 Configuration
 
 Add this line to the .config file:
@@ -17,9 +13,9 @@ The following topics are sent to the MQTT broker:
 
 | Device / Tag | MQTT Topic | Values / [Unit] |
 | --- | --- | --- |
-| Wallbox battery | e3dc/wallbox/battery_to_car | |
-| Wallbox battery | e3dc/wallbox/battery_before_car | |
-| New: Wallbox battery | e3dc/wallbox/battery_discharge_until | % |
+| Wallbox battery | e3dc/wallbox/battery_to_car | (true/false) |
+| Wallbox battery | e3dc/wallbox/battery_before_car | (true/false) |
+| New: Wallbox battery | e3dc/wallbox/battery_discharge_until | [%] |
 | New: Wallbox battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
 | Wallbox canceled | e3dc/wallbox/canceled | (true/false) |
 | Wallbox charging | e3dc/wallbox/charging | (true/false) |
@@ -60,7 +56,7 @@ Set battery before car mode (true/1/false/0)
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_before_car" -m true
 ```
 
-Set battery discharge until (%)
+Set battery discharge until [%]
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_discharge_until" -m 80
 ```

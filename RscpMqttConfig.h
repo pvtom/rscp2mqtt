@@ -33,6 +33,7 @@ typedef struct _config_t {
     bool pvi_requests;
     int pvi_tracker;
     int pvi_temp_count;
+    bool pm_extern;
     bool pm_requests;
     bool wallbox;
     bool daemon;

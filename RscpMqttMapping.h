@@ -6,12 +6,37 @@
 
 #define TOPIC_SIZE        128
 #define PAYLOAD_SIZE      80
-#define REGEX_SIZE        128
+#define REGEX_SIZE        160
 
 #define PAYLOAD_REGEX_2_DIGIT      "(^[0-9]{1,2}$)"
 #define PAYLOAD_REGEX_5_DIGIT      "(^[0-9]{1,5}$)"
+#define SET_IDLE_PERIOD_REGEX      "^(mon|tues|wednes|thurs|fri|satur|sun|to)day:(charge|discharge):(true|false):([0-9]|0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]-([0-9]|0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
 
 namespace RSCP_MQTT {
+
+std::string days[8] = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "today"};
+
+typedef struct _idle_period_t {
+    uint8_t marker;
+    uint8_t type;
+    uint8_t day;
+    uint8_t starthour;
+    uint8_t startminute;
+    uint8_t endhour;
+    uint8_t endminute;
+    bool active;
+} idle_period_t;
+
+std::vector<idle_period_t> IdlePeriodCache;
+
+typedef struct _error_t {
+    uint8_t type;
+    int32_t code;
+    char source[PAYLOAD_SIZE];
+    char message[PAYLOAD_SIZE];
+} error_t;
+
+std::vector<error_t> ErrorCache;
 
 typedef struct _cache_t {
     uint32_t container;
@@ -53,6 +78,7 @@ cache_t cache[] = {
     { 0, TAG_EMS_SET_POWER, 0, "e3dc/ems/set_power/power", "%i", "", RSCP::eTypeInt32, 1, 0, 0 },
     { 0, TAG_EMS_MODE, 0, "e3dc/mode", "%i", "", RSCP::eTypeUChar8, 1, 0, 0 },
     { 0, TAG_EMS_COUPLING_MODE, 0, "e3dc/coupling/mode", "%i", "", RSCP::eTypeUChar8, 1, 0, 0 },
+    { 0, TAG_EMS_IDLE_PERIOD_CHANGE_MARKER, 0, "e3dc/idle_period/change", "%i", "", RSCP::eTypeUChar8, 1, 0, 0 },
     // CONTAINER TAG_BAT_DATA --------------------------------------------------------------------
     { TAG_BAT_DATA, TAG_BAT_RSOC, 0, "e3dc/battery/rsoc", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
     { TAG_BAT_DATA, TAG_BAT_MODULE_VOLTAGE, 0, "e3dc/battery/voltage", "%0.1f", "", RSCP::eTypeFloat32, 1, 0, 0 },
@@ -208,15 +234,16 @@ rec_cache_t rec_cache[] = {
     { TAG_SE_REQ_SET_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE, "e3dc/set/reserve/percent", PAYLOAD_REGEX_2_DIGIT, "", "", "", "", RSCP::eTypeFloat32, -1, true },
     { TAG_SE_REQ_SET_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE_W, "e3dc/set/reserve/energy", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", RSCP::eTypeFloat32, -1, true },
     { 0, 0, "e3dc/set/power_mode", "^auto$|^idle:[0-9]{1,4}$|^charge:[0-9]{1,5}:[0-9]{1,4}$|^discharge:[0-9]{1,5}:[0-9]{1,4}$|^grid_charge:[0-9]{1,5}:[0-9]{1,4}$", "", "", "", "", RSCP::eTypeBool, -1, true },
+    { 0, 0, "e3dc/set/idle_period", SET_IDLE_PERIOD_REGEX, "", "", "", "", RSCP::eTypeBool, -1, true },
     { 0, TAG_EMS_REQ_SET_BATTERY_TO_CAR_MODE, "e3dc/set/wallbox/battery_to_car", "^true|on|1$", "1", "^false|off|0$", "0", "", RSCP::eTypeUChar8, -1, true },
     { 0, TAG_EMS_REQ_SET_BATTERY_BEFORE_CAR_MODE, "e3dc/set/wallbox/battery_before_car", "^true|on|1$", "1", "^false|off|0$", "0", "", RSCP::eTypeUChar8, -1, true },
     { 0, TAG_EMS_REQ_SET_WB_DISCHARGE_BAT_UNTIL, "e3dc/set/wallbox/battery_discharge_until", PAYLOAD_REGEX_2_DIGIT, "", "", "", "", RSCP::eTypeUChar8, -1, true },
     { 0, TAG_EMS_REQ_SET_WALLBOX_ENFORCE_POWER_ASSIGNMENT, "e3dc/set/wallbox/disable_battery_at_mix_mode", "^true|on|1$", "true", "^false|off|0$", "false", "", RSCP::eTypeBool, -1, true },
     { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "e3dc/set/wallbox/control", "^solar:[0-9]{1,2}$|^mix:[0-9]{1,2}$|^stop$", "", "", "", "", RSCP::eTypeBool, -1, true },
-    { 0, 0, "e3dc/set/requests/pm", "^true|1$", "true", "^false|0$", "false", "", RSCP::eTypeBool, -1, true },
-    { 0, 0, "e3dc/set/requests/pvi", "^true|1$", "true", "^false|0$", "false", "", RSCP::eTypeBool, -1, true },
-    { 0, 0, "e3dc/set/log", "^true|1$", "true", "", "", "", RSCP::eTypeBool, -1, true },
-    { 0, 0, "e3dc/set/force", "^true|1$", "true", "", "", "", RSCP::eTypeBool, -1, true },
+    { 0, 0, "e3dc/set/requests/pm", "^true|on|1$", "true", "^false|off|0$", "false", "", RSCP::eTypeBool, -1, true },
+    { 0, 0, "e3dc/set/requests/pvi", "^true|on|1$", "true", "^false|off|0$", "false", "", RSCP::eTypeBool, -1, true },
+    { 0, 0, "e3dc/set/log", "^true|on|1$", "true", "", "", "", RSCP::eTypeBool, -1, true },
+    { 0, 0, "e3dc/set/force", "^true|on|1$", "true", "", "", "", RSCP::eTypeBool, -1, true },
     { 0, 0, "e3dc/set/interval", "(^[1-9]|10$)", "", "", "", "", RSCP::eTypeUChar8, -1, true }
 };
 
