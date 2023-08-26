@@ -28,13 +28,17 @@ Supported topic areas are:
 
 For continuous provision of values, you can configure several topics that are published in each cycle. Default: Only modified values will be published.
 
-## New Features
+## Features
 
+- (new) Topic prefix is configurable
 - E3/DC [wallbox](WALLBOX.md) topics
 - [InfluxDB](INFLUXDB.md) support
 - Topics for temperatures (battery, PVI)
 - Idle periods
 - System error messages
+- (new) Details of the battery modules (DCB)
+- (new) Additional topics for PVI
+- (new) Units as InfluxDB tags
 - Docker image at https://hub.docker.com/r/pvtom/rscp2mqtt
 
 ## Docker
@@ -114,7 +118,7 @@ E3DC_PASSWORD=your_e3dc_password
 // AES password
 E3DC_AES_PASSWORD=your_aes_password
 // Target MQTT broker
-MQTT_HOST=localhost
+MQTT_HOST=your_mqtt_broker
 // Default port is 1883
 MQTT_PORT=1883
 // MQTT user / password authentication necessary? Depends on the MQTT broker configuration.
@@ -125,6 +129,8 @@ MQTT_PASSWORD=
 // MQTT parameters
 MQTT_QOS=0
 MQTT_RETAIN=false
+// Topic prefix (max 24 characters), default is e3dc
+PREFIX=e3dc 
 // log file
 LOGFILE=/tmp/rscp2mqtt.log
 // Interval requesting the E3/DC S10 device in seconds (1..10)
@@ -135,8 +141,10 @@ PVI_REQUESTS=true
 PVI_TRACKER=2
 // enable PM requests, default is true
 PM_REQUESTS=true
-// use external PM (S10 Mini)
+// use external PM (S10 Mini), default is false
 PM_EXTERN=false
+// enable DCB (details for battery modules) requests, default is true
+DCB_REQUESTS=true
 // Auto refresh, default is false
 AUTO_REFRESH=false
 // Disable MQTT publish support (dryrun mode)
@@ -147,6 +155,8 @@ WALLBOX=true
 FORCE_PUB=e3dc/[a-z]+/power
 FORCE_PUB=e3dc/battery/soc
 ```
+
+The prefix of the topics can be configured by the attribute PREFIX. By default all topics start with "e3dc". This can be changed to any other string that MQTT accepts as a topic, max. 24 characters. E.g. "s10" or "s10/1".
 
 Find InfluxDB configurations in [InfluxDB](INFLUXDB.md).
 
@@ -188,6 +198,9 @@ MQTT: publish topic >e3dc/coupling/mode< payload >3<
 ```
 
 Check the configuration if the connections are not established.
+
+Notes: In the following examples I assume that the MQTT broker runs on the same machine as `rscp2mqtt` under port 1883. If the MQTT broker runs on another server, please use its name instead of `localhost` and change the port if it is different.
+The default prefix `e3dc` is used for the topics. Please adjust the calls if you use a different prefix.
 
 If you use the Mosquitto tools you can subscribe the topics with (here without user / password)
 
@@ -232,7 +245,7 @@ If stdout is redirected to another process or rscp2mqtt is started with option -
 
 ## Device Control
 
-rscp2mqtt subscribes to the root topic "e3dc/set/#" and forwards incoming requests to the S10 home power station. In this way, the unit can be controlled and changes made to its configuration.
+rscp2mqtt subscribes to the root topic "prefix/set/#" and forwards incoming requests to the S10 home power station. In this way, the device can be controlled and changes made to its configuration.
 
 ### Battery Charging
 
@@ -375,6 +388,10 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/requests/pm" -m true
 Set PVI requests on or off (true/1/false/0)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/requests/pvi" -m true
+```
+Set DCB requests on or off (true/1/false/0)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/requests/dcb" -m true
 ```
 
 ## Used Libraries and Licenses

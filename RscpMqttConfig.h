@@ -27,14 +27,17 @@ typedef struct _config_t {
     char influxdb_bucket[128];
     char influxdb_token[128];
 #endif
+    char prefix[25];
     char *logfile;
     bool verbose;
     int interval;
     bool pvi_requests;
     int pvi_tracker;
     int pvi_temp_count;
+    int bat_dcb_count;
     bool pm_extern;
     bool pm_requests;
+    bool dcb_requests;
     bool wallbox;
     bool daemon;
     bool mqtt_pub;

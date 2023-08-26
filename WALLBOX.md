@@ -65,3 +65,6 @@ Set disable charging battery at mix mode (true/1/false/0)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/disable_battery_at_mix_mode" -m true
 ```
+
+If the MQTT broker runs on another server, please use its name instead of `localhost` and change the port if it is different.
+Please adjust the calls if you use a different prefix.

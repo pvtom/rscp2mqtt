@@ -1,5 +1,7 @@
 ## Topics
 
+All topics are listed with the default prefix "e3dc".
+
 | Device / Tag | MQTT Topic | Values / [Unit] |
 | --- | --- | --- |
 | Autarky | e3dc/autarky | [%] |
@@ -9,8 +11,36 @@
 | Battery Energy Charge | e3dc/battery/energy/charge | [kWh] |
 | Battery Energy Discharge | e3dc/battery/energy/discharge | [kWh] |
 | Battery Error Code | e3dc/battery/error | |
-| Battery Modules Count | e3dc/battery/dcb_count | |
-| Battery Module Voltage | e3dc/battery/voltage | [V] |
+| Battery Module Count | e3dc/battery/dcb/count | <count#> |
+| Battery Module Max Charge Voltage | e3dc/battery/dcb/<#>/max_charge_voltage | [V] |
+| Battery Module Max Charge Current | e3dc/battery/dcb/<#>/max_charge_current | [A] |
+| Battery Module Max Discharge Current | e3dc/battery/dcb/<#>/max_discharge_current | [A] |
+| Battery Module Full Charge Capacity | e3dc/battery/dcb/<#>/full_charge_capacity | [Ah] |
+| Battery Module Remaining Capacity | e3dc/battery/dcb/<#>/remaining_capacity | [Ah] |
+| Battery Module SOC | e3dc/battery/dcb/<#>/soc | [%] |
+| Battery Module SOH | e3dc/battery/dcb/<#>/soh | [%] | 
+| Battery Module Cycles | e3dc/battery/dcb/<#>/cycles | |
+| Battery Module Current | e3dc/battery/dcb/<#>/current | [A] |
+| Battery Module Voltage | e3dc/battery/dcb/<#>/voltage | [V] |
+| Battery Module Current 30s Average | e3dc/battery/dcb/<#>/current_avg_30s | [A] |
+| Battery Module Voltage 30s Average | e3dc/battery/dcb/<#>/voltage_avg_30s | [V] |
+| Battery Module Nr Sensor | e3dc/battery/dcb/<#>/nr_sensor | |
+| Battery Module Design Capacity | e3dc/battery/dcb/<#>/design_capacity | [Ah] |
+| Battery Module Design Voltage | e3dc/battery/dcb/<#>/design_voltage | [V] |
+| Battery Module Low Temperature | e3dc/battery/dcb/<#>/charge_low_temperature | [°C] |
+| Battery Module High Temperature | e3dc/battery/dcb/<#>/charge_high_temperature | [°C] |
+| Battery Module Manufacture Date | e3dc/battery/dcb/<#>/manufacture_date | |
+| Battery Module Serial Number | e3dc/battery/dcb/<#>/serial_number | |
+| Battery Module Protocol Version | e3dc/battery/dcb/<#>/protocol_version | |
+| Battery Module Firmware | e3dc/battery/dcb/<#>/firmware_version | |
+| Battery Module Table Version | e3dc/battery/dcb/<#>/table_version | |
+| Battery Module PCB Version | e3dc/battery/dcb/<#>/pcb_version | |
+| Battery Module Number of Series Cells | e3dc/battery/dcb/<#>/nr_series_cell | |
+| Battery Module Number of Parallel Cells | e3dc/battery/dcb/<#>/nr_parallel_cell | |
+| Battery Module Manufacture Name | e3dc/battery/dcb/<#>/manufacture_name | |
+| Battery Module Device Name | e3dc/battery/dcb/<#>/device_name | |
+| Battery Module Serial Code | e3dc/battery/dcb/<#>/serial_code | |
+| Battery Voltage | e3dc/battery/voltage | [V] |
 | Battery RSOC | e3dc/battery/rsoc | [%] |
 | Battery SOC | e3dc/battery/soc | [%] |
 | Battery Status Code | e3dc/battery/status | |
@@ -80,13 +110,33 @@
 | PM Voltage L2 | e3dc/pm/voltage/L2 | [V] |
 | PM Voltage L3 | e3dc/pm/voltage/L3 | [V] |
 | Production Date | e3dc/system/production_date | "KWXX_XXXX" |
+| PVI Apparent Power L1 | e3dc/pvi/apparent_power/L1 | [VA] |
+| PVI Apparent Power L2 | e3dc/pvi/apparent_power/L2 | [VA] |
+| PVI Apparent Power L3 | e3dc/pvi/apparent_power/L3 | [VA] |
 | PVI Current L1 | e3dc/pvi/current/L1 | [A] |
 | PVI Current L2 | e3dc/pvi/current/L2 | [A] |
 | PVI Current L3 | e3dc/pvi/current/L3 | [A] |
+| PVI Energy L1 | e3dc/pvi/energy_all/L1 | [Wh] |
+| PVI Energy L2 | e3dc/pvi/energy_all/L2 | [Wh] |
+| PVI Energy L3 | e3dc/pvi/energy_all/L3 | [Wh] |
+| PVI Energy Day L1 | e3dc/pvi/energy_day/L1 | [Wh] |
+| PVI Energy Day L2 | e3dc/pvi/energy_day/L2 | [Wh] |
+| PVI Energy Day L3 | e3dc/pvi/energy_day/L3 | [Wh] |
+| PVI Energy Grid L1 | e3dc/pvi/energy_grid_consumption/L1 | [Wh] |
+| PVI Energy Grid L2 | e3dc/pvi/energy_grid_consumption/L2 | [Wh] |
+| PVI Energy Grid L3 | e3dc/pvi/energy_grid_consumption/L3 | [Wh] |
+| PVI Energy String1 | e3dc/pvi/energy_all/string_1 | Wh |
+| PVI Energy String2 | e3dc/pvi/energy_all/string_2 | Wh |
+| PVI Max Apparent Power L1 | e3dc/pvi/max_apparent_power/L1 | [VA] |
+| PVI Max Apparent Power L2 | e3dc/pvi/max_apparent_power/L2 | [VA] |
+| PVI Max Apparent Power L3 | e3dc/pvi/max_apparent_power/L3 | [VA] |
 | PVI On Grid | e3dc/pvi/on_grid | (true/false) |
 | PVI Power L1 | e3dc/pvi/power/L1 | [W] |
 | PVI Power L2 | e3dc/pvi/power/L2 | [W] |
 | PVI Power L3 | e3dc/pvi/power/L3 | [W] |
+| PVI Reactive Power L1 | e3dc/pvi/reactive_power/L1 | [var] |
+| PVI Reactive Power L2 | e3dc/pvi/reactive_power/L2 | [var] |
+| PVI Reactive Power L3 | e3dc/pvi/reactive_power/L3 | [var] |
 | PVI String1 Current | e3dc/pvi/current/string_1 | [A] |
 | PVI String1 Power | e3dc/pvi/power/string_1 | [W] |
 | PVI String1 Voltage | e3dc/pvi/voltage/string_1 | [V] |
