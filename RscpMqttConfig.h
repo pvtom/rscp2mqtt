@@ -28,9 +28,12 @@ typedef struct _config_t {
     char influxdb_token[128];
 #endif
     char prefix[25];
+    int history_start_year;
     char *logfile;
+    char *historyfile;
     bool verbose;
     int interval;
+    int battery_string;
     bool pvi_requests;
     int pvi_tracker;
     int pvi_temp_count;
@@ -38,6 +41,7 @@ typedef struct _config_t {
     bool pm_extern;
     bool pm_requests;
     bool dcb_requests;
+    bool soc_limiter;
     bool wallbox;
     bool daemon;
     bool mqtt_pub;

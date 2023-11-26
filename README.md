@@ -30,22 +30,25 @@ For continuous provision of values, you can configure several topics that are pu
 
 ## Features
 
-- (new) Topic prefix is configurable
+- Topic prefix is configurable
 - E3/DC [wallbox](WALLBOX.md) topics
 - [InfluxDB](INFLUXDB.md) support
 - Topics for temperatures (battery, PVI)
 - Idle periods
 - System error messages
-- (new) Details of the battery modules (DCB)
-- (new) Additional topics for PVI
-- (new) Units as InfluxDB tags
+- Details of the battery modules (DCB)
+- Additional topics for PVI
+- Units as InfluxDB tags
+- (new) Historical data for past years
+- (new) "set/force" for specific topics
+- (new) Battery SOC limiter
 - Docker image at https://hub.docker.com/r/pvtom/rscp2mqtt
 
 ## Docker
 
 Instead of installing the package you can use a [Docker image](DOCKER.md).
 
-## Prerequisite
+## Prerequisites
 
 - An MQTT broker in your environment
 - rscp2mqtt needs the library libmosquitto. For installation please enter:
@@ -133,6 +136,13 @@ MQTT_RETAIN=false
 PREFIX=e3dc 
 // log file
 LOGFILE=/tmp/rscp2mqtt.log
+// history start year (installation of the E3/DC device)
+HISTORY_START_YEAR=2021
+// log file for selected topics
+TOPIC_LOG_FILE=/tmp/rscp2mqtt.history
+// selected topics for logging (regular expressions)
+TOPIC_LOG=e3dc/history/.*
+TOPIC_LOG=e3dc/system/software
 // Interval requesting the E3/DC S10 device in seconds (1..10)
 INTERVAL=1
 // enable PVI requests, default is true
@@ -145,6 +155,8 @@ PM_REQUESTS=true
 PM_EXTERN=false
 // enable DCB (details for battery modules) requests, default is true
 DCB_REQUESTS=true
+// enable battery SOC limiter, default is false
+SOC_LIMITER=true
 // Auto refresh, default is false
 AUTO_REFRESH=false
 // Disable MQTT publish support (dryrun mode)
@@ -226,6 +238,9 @@ The daemon can be terminated with
 ```
 pkill rscp2mqtt
 ```
+
+## Systemd
+
 Alternatively, `rscp2mqtt` can be managed by systemd. To do this, copy the file `rscp2mqtt.service` to the systemd directory:
 ```
 sudo cp -a rscp2mqtt.service /etc/systemd/system/
@@ -289,6 +304,60 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/idle_period" -m "today:charge:tr
 ```
 
 With the topics "e3dc/ems/charging_lock" and "e3dc/ems/discharging_lock" you can check whether a lock is currently active or not.
+
+### Battery SOC Limiter
+
+The SOC limiter can be used to conveniently control the charging or discharging of the house battery. It uses the Idle Periods described previously.
+
+#### Maximum SOC
+When the maximum SOC value is reached, the battery charging process is stopped.
+
+#### Minimum SOC
+The battery charge level does not fall below the minimum SOC value. When the SOC is reached, discharging stops.
+
+#### Home Power
+When the house power is above the set value, discharging will stop. This can be used, for example, to prevent charging the electric vehicle from the house battery (when using a non-E3/DC wallbox that cannot be controlled directly by the S10 device).
+
+Set the minimum SOC to limit discharging the battery [%]
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/limit/discharge/soc" -m 30
+```
+Turn off the limiter for discharging the battery
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/limit/discharge/soc" -m 0
+```
+Set the home power value which stops discharging the battery [W]
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/limit/discharge/by_home_power" -m 7000
+```
+Reset the home power value which stops discharging the battery
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/limit/discharge/by_home_power" -m 0
+```
+Reset the limiter at the day change
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/limit/discharge/durable" -m false
+```
+Keep the limiter setting even after the day change
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/limit/discharge/durable" -m true
+```
+Set the maximum SOC to limit charging the battery [%]
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/limit/charge/soc" -m 80
+```
+Turn off the limiter for charging the battery
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/limit/charge/soc" -m 0
+```
+Reset the limiter at the day change
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/limit/charge/durable" -m false
+```
+Keep the limiter setting even after the day change
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/limit/charge/durable" -m true
+```
 
 ### Emergency Power
 
@@ -369,9 +438,13 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/disable_battery_at_mix_m
 
 ## System Commands
 
-Post all topics and payloads to the MQTT broker again
+Refresh all topics
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/force" -m 1
+```
+Refresh specific topics
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/force" -m "e3dc/history/2021.*"
 ```
 Log all topics and payloads to the log file
 ```
@@ -381,17 +454,21 @@ Set a new refresh interval (1..10 seconds)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/interval" -m 2
 ```
-Set PM requests on or off (true/1/false/0)
+Turn PM requests on or off (true/1/false/0)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/requests/pm" -m true
 ```
-Set PVI requests on or off (true/1/false/0)
+Turn PVI requests on or off (true/1/false/0)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/requests/pvi" -m true
 ```
-Set DCB requests on or off (true/1/false/0)
+Turn DCB requests on or off (true/1/false/0)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/requests/dcb" -m true
+```
+Turn SOC limiter on or off (true/1/false/0)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/soc_limiter" -m true
 ```
 
 ## Used Libraries and Licenses

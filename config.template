@@ -1,38 +1,78 @@
+#-E3DC Access
 E3DC_IP=
 E3DC_PORT=5033
 E3DC_USER=
 E3DC_PASSWORD=
 E3DC_AES_PASSWORD=
+
+#-MQTT Broker
 MQTT_HOST=
 MQTT_PORT=1883
+MQTT_QOS=0
+MQTT_RETAIN=false
+#--MQTT user / password authentication
 MQTT_AUTH=false
 MQTT_USER=
 MQTT_PASSWORD=
-MQTT_QOS=0
-MQTT_RETAIN=false
-ENABLE_INFLUXDB=true
+
+#-System
+#--cycle interval in seconds
+INTERVAL=1
+#--log files
+LOGFILE=/tmp/rscp2mqtt.log
+TOPIC_LOG_FILE=/tmp/rscp2mqtt.history
+#--dry run
 DISABLE_MQTT_PUBLISH=false
+#--set power mode
+AUTO_REFRESH=false
+#--external Power Meter (i.e. S10 Mini)
+PM_EXTERN=false
+#--Year of installation
+HISTORY_START_YEAR=2021
+
+#-MQTT Topics
+#--Topic prefix (max 24 characters), default is e3dc
+PREFIX=e3dc
+
+#-Supported Topics
+PVI_REQUESTS=true
+PVI_TRACKER=2
+PM_REQUESTS=true
+DCB_REQUESTS=true
+SOC_LIMITER=true
+WALLBOX=true
+
+#-Forced Topics
+#--will be published with every cycle
+FORCE_PUB=e3dc/[a-z]+/power
+FORCE_PUB=e3dc/battery/rsoc
+FORCE_PUB=e3dc/pvi/.*/string_[1,2]
+
+#-Topic Logging
+#--logging to extra log file configured by TOPIC_LOG_FILE
+TOPIC_LOG=e3dc/history/.*
+TOPIC_LOG=e3dc/battery/dcb/[1-4]/soh
+TOPIC_LOG=e3dc/system/software
+
+#-InfluxDB
+#--if compiled with InfluxDB option
+ENABLE_INFLUXDB=true
 INFLUXDB_HOST=localhost
 INFLUXDB_PORT=8086
 INFLUXDB_VERSION=2
 INFLUXDB_MEASUREMENT=e3dc
+
+#-InfluxDB 1
+#--if compiled with InfluxDB option
+#--with INFLUXDB_VERSION=1
 INFLUXDB_1_DB=e3dc
 INFLUXDB_1_AUTH=false
 INFLUXDB_1_USER=
 INFLUXDB_1_PASSWORD=
+
+#-InfluxDB 2
+#--if compiled with InfluxDB option
+#--with INFLUXDB_VERSION=2
 INFLUXDB_2_ORGA=my_orga
 INFLUXDB_2_BUCKET=e3dc
 INFLUXDB_2_TOKEN=my_token
-PREFIX=e3dc
-LOGFILE=/tmp/rscp2mqtt.log
-INTERVAL=1
-PVI_REQUESTS=true
-PVI_TRACKER=2
-PM_REQUESTS=true
-PM_EXTERN=false
-DCB_REQUESTS=true
-AUTO_REFRESH=false
-WALLBOX=true
-FORCE_PUB=e3dc/[a-z]+/power
-FORCE_PUB=e3dc/battery/rsoc
-FORCE_PUB=e3dc/pvi/.*/string_[1,2]

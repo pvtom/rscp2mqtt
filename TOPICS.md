@@ -152,7 +152,14 @@ All topics are listed with the default prefix "e3dc".
 | PVI Voltage L3 | e3dc/pvi/voltage/L3 | [V] |
 | Serial Number | e3dc/system/serial_number | "S10-XXXXXXXXXXXX" |
 | Software Release | e3dc/system/software | "S10_XXXX_XXX" |
+| SOC limiter | e3dc/limit/charge/durable | (0,1) |
+| SOC limiter | e3dc/limit/charge/soc | [%] |
+| SOC limiter | e3dc/limit/discharge/by_home_power | [W] |
+| SOC limiter | e3dc/limit/discharge/durable | (0,1) |
+| SOC limiter | e3dc/limit/discharge/soc | [%] |
 | Solar Energy | e3dc/solar/energy | [kWh] |
+| Time local | e3dc/time/local | [s] |
+| Time UTC | e3dc/time/utc | [s] |
 | Time Zone | e3dc/time/zone | "Europe/City" |
 | Wallbox battery | e3dc/wallbox/battery_to_car | (0,1) |
 | Wallbox battery | e3dc/wallbox/battery_before_car | (0,1) |
@@ -164,6 +171,7 @@ All topics are listed with the default prefix "e3dc".
 | Wallbox locked | e3dc/wallbox/locked | (true/false) |
 | Wallbox mode | e3dc/wallbox/sun_mode | (true/false) |
 | Wallbox phases | e3dc/wallbox/active_phases | |
+| Wallbox phases | e3dc/wallbox/number_phases | |
 | Wallbox phases | e3dc/wallbox/number_used_phases | |
 | Wallbox plugged | e3dc/wallbox/plugged | (true/false) |
 | Wallbox power | e3dc/wallbox/total/power | [W] |
@@ -185,6 +193,14 @@ All topics are listed with the default prefix "e3dc".
 | Year Grid Out Energy | e3dc/year/grid/energy/out | [kWh] |
 | Year Home Energy | e3dc/year/home/energy | [kWh] |
 | Year Solar Energy | e3dc/year/solar/energy | [kWh] |
+| Year History Autarky | e3dc/history/<year>/autarky | [%] |
+| Year History Battery Energy Charge | e3dc/history/<year>/battery/energy/charge | [kWh] |
+| Year History Consumed Production | e3dc/history/<year>/consumed | [%] |
+| Year History Energy Discharge | e3dc/history/<year>/battery/energy/discharge | [kWh] |
+| Year History Grid In Energy | e3dc/history/<year>/grid/energy/in | [kWh] |
+| Year History Grid Out Energy | e3dc/history/<year>/grid/energy/out | [kWh] |
+| Year History Home Energy | e3dc/history/<year>/home/energy | [kWh] |
+| Year History Solar Energy | e3dc/history/<year>/solar/energy | [kWh] |
 | Yesterday Autarky | e3dc/yesterday/autarky | [%] |
 | Yesterday Battery Energy Charge | e3dc/yesterday/battery/energy/charge | [kWh] |
 | Yesterday Battery SOC | e3dc/yesterday/battery/rsoc | [%] |

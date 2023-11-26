@@ -23,6 +23,7 @@ The following topics are sent to the MQTT broker:
 | Wallbox locked | e3dc/wallbox/locked | (true/false) |
 | Wallbox mode | e3dc/wallbox/sun_mode | (true/false) |
 | Wallbox phases | e3dc/wallbox/active_phases | |
+| Wallbox phases | e3dc/wallbox/number_phases | |
 | Wallbox phases | e3dc/wallbox/number_used_phases | |
 | Wallbox plugged | e3dc/wallbox/plugged | (true/false) |
 | Wallbox power | e3dc/wallbox/total/power | [W] |
@@ -64,6 +65,11 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_discharge_until"
 Set disable charging battery at mix mode (true/1/false/0)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/disable_battery_at_mix_mode" -m true
+```
+
+Set number of phases (1-3)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/number_phases" -m 1
 ```
 
 If the MQTT broker runs on another server, please use its name instead of `localhost` and change the port if it is different.

@@ -727,4 +727,30 @@
 #define TAG_SE_PARAM_LAST_SOC                                   0x1B040026
 #define TAG_SE_PARAM_INT                                        0x1B040011
 
+#define TAG_PVI_REQ_AC_FREQUENCY                                0x020AC00A
+#define TAG_PVI_AC_FREQUENCY                                    0x028AC00A
+
+#define TAG_WB_REQ_SET_AUTO_PHASE_SWITCH_ENABLED                0x0E000038
+#define TAG_WB_REQ_AUTO_PHASE_SWITCH_ENABLED                    0x0E000039
+#define TAG_WB_REQ_NUMBER_PHASES                                0x0E04103B
+#define TAG_WB_REQ_SET_NUMBER_PHASES                            0x0E04103C
+#define TAG_WB_SET_AUTO_PHASE_SWITCH_ENABLED                    0x0E800038
+#define TAG_WB_AUTO_PHASE_SWITCH_ENABLED                        0x0E800039
+#define TAG_WB_NUMBER_PHASES                                    0x0E84103B
+#define TAG_WB_SET_NUMBER_PHASES                                0x0E84103C
+
+#define TAG_WB_REQ_GET_KEY_LOCK_MODE                            0x0E04104E
+#define TAG_WB_REQ_SET_KEY_LOCK_MODE                            0x0E04104F
+#define TAG_WB_REQ_KEY_STATE                                    0x0E041050
+#define TAG_WB_GET_KEY_LOCK_MODE                                0x0E84104E
+#define TAG_WB_SET_KEY_LOCK_MODE                                0x0E84104F
+#define TAG_WB_KEY_STATE                                        0x0E841050
+
+#define TAG_DB_REQ_HISTORY_UTC_TIME_START                       0x06000104
+
+#define TAG_EMS_REQ_SET_IDLE_PERIODS_2                          0x0100002F
+#define TAG_EMS_REQ_GET_IDLE_PERIODS_2                          0x01000033
+#define TAG_EMS_SET_IDLE_PERIODS_2                              0x0180002F
+#define TAG_EMS_GET_IDLE_PERIODS_2                              0x01800033
+
 #endif
