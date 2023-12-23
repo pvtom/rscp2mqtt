@@ -15,8 +15,8 @@ The following topics are sent to the MQTT broker:
 | --- | --- | --- |
 | Wallbox battery | e3dc/wallbox/battery_to_car | (true/false) |
 | Wallbox battery | e3dc/wallbox/battery_before_car | (true/false) |
-| New: Wallbox battery | e3dc/wallbox/battery_discharge_until | [%] |
-| New: Wallbox battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
+| Wallbox battery | e3dc/wallbox/battery_discharge_until | [%] |
+| Wallbox battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
 | Wallbox canceled | e3dc/wallbox/canceled | (true/false) |
 | Wallbox charging | e3dc/wallbox/charging | (true/false) |
 | Wallbox current | e3dc/wallbox/max_current | (true/false) |

@@ -1,4 +1,4 @@
-# RSCP2MQTT - Bridge between an E3/DC S10 device and an MQTT broker
+# RSCP2MQTT - Bridge between an E3/DC device and an MQTT broker
 [![GitHub sourcecode](https://img.shields.io/badge/Source-GitHub-green)](https://github.com/pvtom/rscp2mqtt/)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/pvtom/rscp2mqtt)](https://github.com/pvtom/rscp2mqtt/releases/latest)
 [![GitHub last commit](https://img.shields.io/github/last-commit/pvtom/rscp2mqtt)](https://github.com/pvtom/rscp2mqtt/commits)
@@ -7,11 +7,11 @@
 [![GitHub](https://img.shields.io/github/license/pvtom/rscp2mqtt)](https://github.com/pvtom/rscp2mqtt/blob/main/LICENSE)
 
 This software module connects a home power station from E3/DC to an MQTT broker.
-It uses the RSCP interface of the S10 device.
+It uses the RSCP interface of the device.
 
 The solution is based on the RSCP sample application provided by E3/DC and was developed and tested with a Raspberry Pi and a Linux PC (x86_64).
 
-The tool fetches the data cyclically from the S10 and publishes it to the MQTT broker under certain [topics](TOPICS.md).
+The tool fetches data cyclically and publishes it to the MQTT broker under certain [topics](TOPICS.md).
 
 Supported topic areas are:
 
@@ -39,10 +39,14 @@ For continuous provision of values, you can configure several topics that are pu
 - Details of the battery modules (DCB)
 - Additional topics for PVI
 - Units as InfluxDB tags
-- (new) Historical data for past years
-- (new) "set/force" for specific topics
-- (new) Battery SOC limiter
-- Docker image at https://hub.docker.com/r/pvtom/rscp2mqtt
+- Historical data for past years
+- "set/force" for specific topics
+- Battery SOC limiter
+- Docker images at https://hub.docker.com/r/pvtom/rscp2mqtt
+- (new) [Dashboard](https://github.com/pvtom/rscp2mqtt-dashboard) is available
+- (new) Configuration of the topics that will be published to InfluxDB (INFLUXDB_TOPIC)
+- (new) MQTT Client ID can be configured
+- (new) More detailled [TOPIC](TOPICS.md) overview
 
 ## Docker
 
@@ -109,64 +113,7 @@ Please change to the directory `/opt/rscp2mqtt` and edit `.config` to adjust to 
 cd /opt/rscp2mqtt
 nano .config
 ```
-
-```
-// IP address of the E3/DC S10 device
-E3DC_IP=xxx.xxx.xxx.xxx
-// Port of the E3/DC S10 device, default is 5033
-E3DC_PORT=5033
-// E3/DC account
-E3DC_USER=your_e3dc_user
-E3DC_PASSWORD=your_e3dc_password
-// AES password
-E3DC_AES_PASSWORD=your_aes_password
-// Target MQTT broker
-MQTT_HOST=your_mqtt_broker
-// Default port is 1883
-MQTT_PORT=1883
-// MQTT user / password authentication necessary? Depends on the MQTT broker configuration.
-MQTT_AUTH=false
-// if true, then enter here
-MQTT_USER=
-MQTT_PASSWORD=
-// MQTT parameters
-MQTT_QOS=0
-MQTT_RETAIN=false
-// Topic prefix (max 24 characters), default is e3dc
-PREFIX=e3dc 
-// log file
-LOGFILE=/tmp/rscp2mqtt.log
-// history start year (installation of the E3/DC device)
-HISTORY_START_YEAR=2021
-// log file for selected topics
-TOPIC_LOG_FILE=/tmp/rscp2mqtt.history
-// selected topics for logging (regular expressions)
-TOPIC_LOG=e3dc/history/.*
-TOPIC_LOG=e3dc/system/software
-// Interval requesting the E3/DC S10 device in seconds (1..10)
-INTERVAL=1
-// enable PVI requests, default is true
-PVI_REQUESTS=true
-// number of available PV strings(trackers), default is 2
-PVI_TRACKER=2
-// enable PM requests, default is true
-PM_REQUESTS=true
-// use external PM (S10 Mini), default is false
-PM_EXTERN=false
-// enable DCB (details for battery modules) requests, default is true
-DCB_REQUESTS=true
-// enable battery SOC limiter, default is false
-SOC_LIMITER=true
-// Auto refresh, default is false
-AUTO_REFRESH=false
-// Disable MQTT publish support (dryrun mode)
-DISABLE_MQTT_PUBLISH=false
-// Wallbox, default is false
-WALLBOX=true
-// topics to be published in each cycle (regular expressions)
-FORCE_PUB=e3dc/[a-z]+/power
-FORCE_PUB=e3dc/battery/soc
-```
+The configuration parameters are described in the file.
 
 The prefix of the topics can be configured by the attribute PREFIX. By default all topics start with "e3dc". This can be changed to any other string that MQTT accepts as a topic, max. 24 characters. E.g. "s10" or "s10/1".
 
@@ -177,41 +124,38 @@ The parameter FORCE_PUB can occur several times. You can use it to define topics
 ## Program start
 
 Start the program:
-
 ```
 ./rscp2mqtt
+```
+or in verbose mode
+```
+./rscp2mqtt -v
 ```
 
 If everything works properly, you will see something like this:
 
 ```
-Connecting...
-E3DC system 192.168.178.111:5033 user: <your E3DC user>
-MQTT broker localhost:1883 qos = 0 retain = false
+rscp2mqtt [v3.9]
+E3DC system >192.168.178.111:5033< user: >your E3DC user<
+MQTT broker >localhost:1883< qos = >0< retain = >false< client id >✗< prefix >e3dc<
+History year range from 2021 to 2023
 Fetching data every second.
+Requesting PVI (2 trackers) ✓ PM ✓ DCB ✓ Wallbox ✗ Autorefresh ✓
+Log level = 0
+Stdout to terminal
 
-Connecting to server 192.168.178.111:5033
-Connected successfully
-
-Request authentication at 2022-01-08 09:59:55 (1641632395)
-RSCP authentitication level 10
-
-Connecting to broker localhost:1883
-Connected successfully
-
-Request cyclic data at 2022-01-08 09:59:56 (1641632396)
-MQTT: publish topic >e3dc/solar/power< payload >2663<
-MQTT: publish topic >e3dc/battery/power< payload >1953<
-MQTT: publish topic >e3dc/home/power< payload >665<
-MQTT: publish topic >e3dc/grid/power< payload >-45<
-MQTT: publish topic >e3dc/addon/power< payload >0<
-MQTT: publish topic >e3dc/coupling/mode< payload >3<
+...
+[2023-12-23 12:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(2017) Connecting to server 192.168.178.111:5033
+[2023-12-23 12:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(2024) Success: E3DC connected.
+[2023-12-23 12:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(1156) RSCP authentication level 10
+[2023-12-23 12:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(1638) Connecting to broker localhost:1883
+[2023-12-23 12:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(1647) Success: MQTT broker connected.
 ...
 ```
 
 Check the configuration if the connections are not established.
 
-Notes: In the following examples I assume that the MQTT broker runs on the same machine as `rscp2mqtt` under port 1883. If the MQTT broker runs on another server, please use its name instead of `localhost` and change the port if it is different.
+Notes: In the following examples I assume that the MQTT broker runs on the same machine as rscp2mqtt under port 1883. If the MQTT broker runs on another server, please use its name instead of `localhost` and change the port if it is different.
 The default prefix `e3dc` is used for the topics. Please adjust the calls if you use a different prefix.
 
 If you use the Mosquitto tools you can subscribe the topics with (here without user / password)
@@ -220,28 +164,21 @@ If you use the Mosquitto tools you can subscribe the topics with (here without u
 mosquitto_sub -h localhost -p 1883 -t 'e3dc/#' -v
 ```
 
-Stop `rscp2mqtt` with Crtl-C and start it in the background.
-
 ## Daemon Mode
 
 Start the program in daemon mode:
 ```
 ./rscp2mqtt -d
 ```
-If you like to start `rscp2mqtt` during the system start, use `/etc/rc.local`. Add the following line before `exit 0`.
-```
-(cd /opt/rscp2mqtt ; /usr/bin/sudo -H -u pi /opt/rscp2mqtt/rscp2mqtt -d)
-```
-Adjust the user (pi) if you use another user.
-
 The daemon can be terminated with
 ```
 pkill rscp2mqtt
 ```
+Be careful that the program runs only once.
 
 ## Systemd
 
-Alternatively, `rscp2mqtt` can be managed by systemd. To do this, copy the file `rscp2mqtt.service` to the systemd directory:
+rscp2mqtt can be managed by systemd. For this purpose, copy the file `rscp2mqtt.service` to the systemd directory:
 ```
 sudo cp -a rscp2mqtt.service /etc/systemd/system/
 ```
@@ -249,18 +186,13 @@ Configure the service `sudo nano rscp2mqtt.service` (adjust user 'User=pi'), if 
 
 Register the service and start it with:
 ```
-sudo systemctl start rscp2mqtt
 sudo systemctl enable rscp2mqtt
+sudo systemctl start rscp2mqtt
 ```
-Be careful that the program runs only once.
-
-## Logging
-
-If stdout is redirected to another process or rscp2mqtt is started with option -s (silent mode), only the log information is passed (issue #10).
 
 ## Device Control
 
-rscp2mqtt subscribes to the root topic "prefix/set/#" and forwards incoming requests to the S10 home power station. In this way, the device can be controlled and changes made to its configuration.
+rscp2mqtt subscribes to the root topic "prefix/set/#" and forwards incoming requests to the home power station. In this way, the device can be controlled and changes made to its configuration.
 
 ### Battery Charging
 
@@ -316,7 +248,7 @@ When the maximum SOC value is reached, the battery charging process is stopped.
 The battery charge level does not fall below the minimum SOC value. When the SOC is reached, discharging stops.
 
 #### Home Power
-When the house power is above the set value, discharging will stop. This can be used, for example, to prevent charging the electric vehicle from the house battery (when using a non-E3/DC wallbox that cannot be controlled directly by the S10 device).
+When the house power is above the set value, discharging will stop. This can be used, for example, to prevent charging the electric vehicle from the house battery (when using a non-E3/DC wallbox that cannot be controlled directly by the device).
 
 Set the minimum SOC to limit discharging the battery [%]
 ```
@@ -434,6 +366,11 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_discharge_until"
 Set disable charging battery at mix mode (true/1/false/0)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/disable_battery_at_mix_mode" -m true
+```
+
+Set number of phases (1/3)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/number_phases" -m 1
 ```
 
 ## System Commands

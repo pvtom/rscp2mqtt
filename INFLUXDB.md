@@ -1,6 +1,6 @@
 ## InfluxDB
 
-This update implements the data transfer to an InfluxDB time-series database.
+rscp2mqtt implements the data transfer to an InfluxDB time-series database.
 InfluxDB v1.x and v2.x are supported.
 
 ### Configuration for InfluxDB v1.x
@@ -17,7 +17,11 @@ INFLUXDB_1_DB=e3dc
 INFLUXDB_1_AUTH=false
 INFLUXDB_1_USER=
 INFLUXDB_1_PASSWORD=
+INFLUXDB_TOPIC=e3dc/[a-z]+/power
 ```
+You can configure the topics to be transferred to the InfluxDB by setting the parameter INFLUXDB_TOPIC.
+INFLUXDB_TOPIC can occur several times.
+If no INFLUXDB_TOPIC configuration exists, all topics will be transferred.
 
 Start the influx client to prepare the database.
 

@@ -2,14 +2,16 @@
 
 All topics are listed with the default prefix "e3dc".
 
+### Readable Topics
+
 | Device / Tag | MQTT Topic | Values / [Unit] |
 | --- | --- | --- |
-| Autarky | e3dc/autarky | [%] |
+| Current Autarky | e3dc/autarky | [%] |
 | Battery Charge Cycles | e3dc/battery/cycles | |
 | Battery Current | e3dc/battery/current | [A] |
 | Battery Device Name | e3dc/battery/name | "BAT_XXX" |
-| Battery Energy Charge | e3dc/battery/energy/charge | [kWh] |
-| Battery Energy Discharge | e3dc/battery/energy/discharge | [kWh] |
+| Battery Energy Charge (today) | e3dc/battery/energy/charge | [kWh] |
+| Battery Energy Discharge (today) | e3dc/battery/energy/discharge | [kWh] |
 | Battery Error Code | e3dc/battery/error | |
 | Battery Module Count | e3dc/battery/dcb/count | <count#> |
 | Battery Module Max Charge Voltage | e3dc/battery/dcb/<#>/max_charge_voltage | [V] |
@@ -17,9 +19,9 @@ All topics are listed with the default prefix "e3dc".
 | Battery Module Max Discharge Current | e3dc/battery/dcb/<#>/max_discharge_current | [A] |
 | Battery Module Full Charge Capacity | e3dc/battery/dcb/<#>/full_charge_capacity | [Ah] |
 | Battery Module Remaining Capacity | e3dc/battery/dcb/<#>/remaining_capacity | [Ah] |
-| Battery Module SOC | e3dc/battery/dcb/<#>/soc | [%] |
-| Battery Module SOH | e3dc/battery/dcb/<#>/soh | [%] | 
-| Battery Module Cycles | e3dc/battery/dcb/<#>/cycles | |
+| Battery Module State of Charge (SOC) | e3dc/battery/dcb/<#>/soc | [%] |
+| Battery Module State of Health (SOH) | e3dc/battery/dcb/<#>/soh | [%] | 
+| Battery Module Charge Cycles | e3dc/battery/dcb/<#>/cycles | |
 | Battery Module Current | e3dc/battery/dcb/<#>/current | [A] |
 | Battery Module Voltage | e3dc/battery/dcb/<#>/voltage | [V] |
 | Battery Module Current 30s Average | e3dc/battery/dcb/<#>/current_avg_30s | [A] |
@@ -47,7 +49,7 @@ All topics are listed with the default prefix "e3dc".
 | Battery Temperature Max | e3dc/battery/temperature/max | [°C] |
 | Battery Temperature Min | e3dc/battery/temperature/min | [°C] |
 | Battery Training Mode | e3dc/battery/training | (0-2) |
-| Consumed Production | e3dc/consumed | [%] |
+| Current Consumed Production | e3dc/consumed | [%] |
 | EMS Addon Power | e3dc/addon/power | [W] |
 | EMS Balanced Phase | e3dc/ems/balanced_phases/L1 | (true/false) |
 | EMS Balanced Phase | e3dc/ems/balanced_phases/L2 | (true/false) |
@@ -66,7 +68,7 @@ All topics are listed with the default prefix "e3dc".
 | EMS Emergency Power Available | e3dc/ems/emergency_power_available | (true/false) |
 | EMS Error Messages | e3dc/error_message/<#> | "Error Message" |
 | EMS Error Messages | e3dc/error_message/<#>/meta< | "type=<nr> code=<nr> source=<device>" |
-| EMS Grid In Limit | e3dc/grid_in_limit | (true/false) |
+| EMS Grid In Limit (Einspeisebegrenzung aktiv) | e3dc/grid_in_limit | (true/false) |
 | EMS Grid Power | e3dc/grid/power | [W] |
 | EMS Home Power | e3dc/home/power | [W] |
 | EMS Idle Periods | e3dc/idle_period/change | <change#> |
@@ -86,15 +88,15 @@ All topics are listed with the default prefix "e3dc".
 | EP Reserve Energy | e3dc/reserve/energy | [Wh] |
 | EP Reserve Max Energy | e3dc/reserve/max | [Wh] |
 | EP Reserve Last SOC | e3dc/reserve/last_soc | [%] |
-| Grid In Energy | e3dc/grid/energy/in | [kWh] |
-| Grid Out Energy | e3dc/grid/energy/out | [kWh] |
-| Home Energy | e3dc/home/energy | [kWh] |
+| Grid In Energy "Einspeisung" (today) | e3dc/grid/energy/in | [kWh] |
+| Grid Out Energy "Netzbezug" (today) | e3dc/grid/energy/out | [kWh] |
+| Home Energy | e3dc/home/energy (today) | [kWh] |
 | Month Autarky | e3dc/month/autarky | [%] |
 | Month Battery Energy Charge | e3dc/month/battery/energy/charge | [kWh] |
 | Month Consumed Production | e3dc/month/consumed | [%] |
 | Month Energy Discharge | e3dc/month/battery/energy/discharge | [kWh] |
-| Month Grid In Energy | e3dc/month/grid/energy/in | [kWh] |
-| Month Grid Out Energy | e3dc/month/grid/energy/out | [kWh] |
+| Month Grid In Energy "Einspeisung" | e3dc/month/grid/energy/in | [kWh] |
+| Month Grid Out Energy "Netzbezug" | e3dc/month/grid/energy/out | [kWh] |
 | Month Home Energy | e3dc/month/home/energy | [kWh] |
 | Month Solar Energy | e3dc/month/solar/energy | [kWh] |
 | PM Active Phase L1 | e3dc/pm/active_phases/L1 | (true/false) |
@@ -158,8 +160,6 @@ All topics are listed with the default prefix "e3dc".
 | SOC limiter | e3dc/limit/discharge/durable | (0,1) |
 | SOC limiter | e3dc/limit/discharge/soc | [%] |
 | Solar Energy | e3dc/solar/energy | [kWh] |
-| Time local | e3dc/time/local | [s] |
-| Time UTC | e3dc/time/utc | [s] |
 | Time Zone | e3dc/time/zone | "Europe/City" |
 | Wallbox battery | e3dc/wallbox/battery_to_car | (0,1) |
 | Wallbox battery | e3dc/wallbox/battery_before_car | (0,1) |
@@ -181,24 +181,24 @@ All topics are listed with the default prefix "e3dc".
 | Week Battery Energy Charge | e3dc/week/battery/energy/charge | [kWh] |
 | Week Consumed Production | e3dc/week/consumed | [%] |
 | Week Energy Discharge | e3dc/week/battery/energy/discharge | [kWh] |
-| Week Grid In Energy | e3dc/week/grid/energy/in | [kWh] |
-| Week Grid Out Energy | e3dc/week/grid/energy/out | [kWh] |
+| Week Grid In Energy "Einspeisung" | e3dc/week/grid/energy/in | [kWh] |
+| Week Grid Out Energy "Netzbezug" | e3dc/week/grid/energy/out | [kWh] |
 | Week Home Energy | e3dc/week/home/energy | [kWh] |
 | Week Solar Energy | e3dc/week/solar/energy | [kWh] |
 | Year Autarky | e3dc/year/autarky | [%] |
 | Year Battery Energy Charge | e3dc/year/battery/energy/charge | [kWh] |
 | Year Consumed Production | e3dc/year/consumed | [%] |
 | Year Energy Discharge | e3dc/year/battery/energy/discharge | [kWh] |
-| Year Grid In Energy | e3dc/year/grid/energy/in | [kWh] |
-| Year Grid Out Energy | e3dc/year/grid/energy/out | [kWh] |
+| Year Grid In Energy "Einspeisung" | e3dc/year/grid/energy/in | [kWh] |
+| Year Grid Out Energy "Netzbezug" | e3dc/year/grid/energy/out | [kWh] |
 | Year Home Energy | e3dc/year/home/energy | [kWh] |
 | Year Solar Energy | e3dc/year/solar/energy | [kWh] |
 | Year History Autarky | e3dc/history/<year>/autarky | [%] |
 | Year History Battery Energy Charge | e3dc/history/<year>/battery/energy/charge | [kWh] |
 | Year History Consumed Production | e3dc/history/<year>/consumed | [%] |
 | Year History Energy Discharge | e3dc/history/<year>/battery/energy/discharge | [kWh] |
-| Year History Grid In Energy | e3dc/history/<year>/grid/energy/in | [kWh] |
-| Year History Grid Out Energy | e3dc/history/<year>/grid/energy/out | [kWh] |
+| Year History Grid In Energy "Einspeisung" | e3dc/history/<year>/grid/energy/in | [kWh] |
+| Year History Grid Out Energy "Netzbezug" | e3dc/history/<year>/grid/energy/out | [kWh] |
 | Year History Home Energy | e3dc/history/<year>/home/energy | [kWh] |
 | Year History Solar Energy | e3dc/history/<year>/solar/energy | [kWh] |
 | Yesterday Autarky | e3dc/yesterday/autarky | [%] |
@@ -206,7 +206,50 @@ All topics are listed with the default prefix "e3dc".
 | Yesterday Battery SOC | e3dc/yesterday/battery/rsoc | [%] |
 | Yesterday Consumed Production | e3dc/yesterday/consumed | [%] |
 | Yesterday Energy Discharge | e3dc/yesterday/battery/energy/discharge | [kWh] |
-| Yesterday Grid In Energy | e3dc/yesterday/grid/energy/in | [kWh] |
-| Yesterday Grid Out Energy | e3dc/yesterday/grid/energy/out | [kWh] |
+| Yesterday Grid In Energy "Einspeisung" | e3dc/yesterday/grid/energy/in | [kWh] |
+| Yesterday Grid Out Energy "Netzbezug" | e3dc/yesterday/grid/energy/out | [kWh] |
 | Yesterday Home Energy | e3dc/yesterday/home/energy | [kWh] |
 | Yesterday Solar Energy | e3dc/yesterday/solar/energy | [kWh] |
+
+Energy topics are collected for today, yesterday and the current week, month, year and historical years if configured.
+
+### Writeable Topics
+
+Please find detailled information and examples in the [README](README.md).
+
+| Device / Tag | MQTT Topic | Values / [Unit] |
+| --- | --- | --- |
+| Start battery charging manually | e3dc/set/manual_charge | [Wh] |
+| Set weather regulation | e3dc/set/weather_regulation | (true/false) |
+| Set limits for battery charging and discharging | e3dc/set/power_limits | (true/false) |
+|  - set the charging and discharging power limits | e3dc/set/max_charge_power | [W] |
+|  - set the charging and discharging power limits | e3dc/set/max_discharge_power | [W] |
+| Set idle periods to lock battery charging or discharging | e3dc/set/idle_period | "day:mode:active:hh:mi-hh:mi", e.g. "sunday:charge:true:00:00-23:59" |
+| Limit discharging of the house battery to SOC | e3dc/set/limit/discharge/soc | (0-100) |
+| Set the home power value which stops discharging the battery | e3dc/set/limit/discharge/by_home_power | [W] |
+| Keep the limiter setting even after the day change | e3dc/set/limit/discharge/durable | (true/false) |
+| Limit charging of the house battery to SOC | e3dc/set/limit/charge/soc | (0-100) |
+| Keep the limiter setting even after the day change | e3dc/set/limit/charge/durable | (true/false) |
+| Set battery reserve for emergency power in [Wh] | e3dc/set/reserve/energy | [Wh] |
+| or set battery reserve for emergency power in [%] | e3dc/set/reserve/percent | [%] |
+| Control the power management (normal mode) | e3dc/set/power_mode | "auto" |
+| Control the power management (idle mode) | e3dc/set/power_mode | "idle:60" |
+| Control the power management (discharge in [W], number of cycles) | e3dc/set/power_mode | "discharge:2000:60" |
+| Control the power management (charge in [W], number of cycles) | e3dc/set/power_mode | "charge:2000:60" |
+| Control the power management (charge from grid in [W], number of cycles)  | e3dc/set/power_mode | "grid_charge:2000:60" |
+| Set solar mode with the current in [A] | e3dc/set/wallbox/control | "solar:16" |
+| Set mix mode with the current in [A] | e3dc/set/wallbox/control | "mix:8" |
+| Stop charging | e3dc/set/wallbox/control | "stop" |
+| Set battery to car mode | e3dc/set/wallbox/battery_to_car | (true/false) |
+| Set battery before car mode | e3dc/set/wallbox/battery_before_car | (true/false) |
+| Set battery discharge until [%] | e3dc/set/wallbox/battery_discharge_until | [%] |
+| Set disable charging battery at mix mode | e3dc/set/wallbox/disable_battery_at_mix_mode | (true/false) |
+| Set number of phases (1,3) | e3dc/set/wallbox/number_phases | 1 |
+| Refresh all topics | e3dc/set/force | 1 |
+| Refresh specific topics | e3dc/set/force | "e3dc/history/2021.*" |
+| Log all topics and payloads to the log file | e3dc/set/log | 1 |
+| Set refresh interval [sec] | e3dc/set/interval | (1-10) |
+| Enable PM requests | e3dc/set/requests/pm | (true/false) |
+| Enable PVI requests | e3dc/set/requests/pvi | (true/false) |
+| Enable DCB requests | e3dc/set/requests/dcb | (true/false) |
+| Enable SOC limiter | e3dc/set/soc_limiter | (true/false) |

@@ -1,16 +1,21 @@
 #-E3DC Access
+#--IP address and port of your home power station
 E3DC_IP=
 E3DC_PORT=5033
+#--your E3/DC web account and the RSCP/AES password configured in the device (Issue #31)
 E3DC_USER=
 E3DC_PASSWORD=
 E3DC_AES_PASSWORD=
 
 #-MQTT Broker
+#--Name or IP address and port of your MQTT broker
 MQTT_HOST=
 MQTT_PORT=1883
+#--MQTT parameters
+MQTT_CLIENT_ID=
 MQTT_QOS=0
 MQTT_RETAIN=false
-#--MQTT user / password authentication
+#--MQTT authentication if necessary set MQTT_AUTH=true and enter user and password
 MQTT_AUTH=false
 MQTT_USER=
 MQTT_PASSWORD=
@@ -18,6 +23,8 @@ MQTT_PASSWORD=
 #-System
 #--cycle interval in seconds
 INTERVAL=1
+#--log level, set "0" to suppress "received errors"
+LOG_LEVEL=1
 #--log files
 LOGFILE=/tmp/rscp2mqtt.log
 TOPIC_LOG_FILE=/tmp/rscp2mqtt.history
@@ -28,24 +35,30 @@ AUTO_REFRESH=false
 #--external Power Meter (i.e. S10 Mini)
 PM_EXTERN=false
 #--Year of installation
-HISTORY_START_YEAR=2021
+HISTORY_START_YEAR=2022
 
 #-MQTT Topics
 #--Topic prefix (max 24 characters), default is e3dc
 PREFIX=e3dc
 
 #-Supported Topics
+#-- Photovoltaic Inverter
 PVI_REQUESTS=true
+#--number of available PV strings(trackers), default is 2
 PVI_TRACKER=2
+#--Power Meter
 PM_REQUESTS=true
+#--Battery Modules
 DCB_REQUESTS=true
+#--Battery SOC limiter
 SOC_LIMITER=true
+#--Wallbox Support
 WALLBOX=true
 
 #-Forced Topics
 #--will be published with every cycle
 FORCE_PUB=e3dc/[a-z]+/power
-FORCE_PUB=e3dc/battery/rsoc
+FORCE_PUB=e3dc/battery/soc
 FORCE_PUB=e3dc/pvi/.*/string_[1,2]
 
 #-Topic Logging
@@ -61,8 +74,9 @@ INFLUXDB_HOST=localhost
 INFLUXDB_PORT=8086
 INFLUXDB_VERSION=2
 INFLUXDB_MEASUREMENT=e3dc
+INFLUXDB_TOPIC=e3dc/[a-z]+/power
 
-#-InfluxDB 1
+#-InfluxDB v1
 #--if compiled with InfluxDB option
 #--with INFLUXDB_VERSION=1
 INFLUXDB_1_DB=e3dc
@@ -70,7 +84,7 @@ INFLUXDB_1_AUTH=false
 INFLUXDB_1_USER=
 INFLUXDB_1_PASSWORD=
 
-#-InfluxDB 2
+#-InfluxDB v2
 #--if compiled with InfluxDB option
 #--with INFLUXDB_VERSION=2
 INFLUXDB_2_ORGA=my_orga

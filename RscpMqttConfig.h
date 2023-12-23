@@ -14,6 +14,8 @@ typedef struct _config_t {
     bool mqtt_auth;
     int mqtt_qos;
     bool mqtt_retain;
+    bool fix_mqtt_client_id;
+    char mqtt_client_id[128];
 #ifdef INFLUXDB
     uint32_t influxdb_version;
     char influxdb_host[128];
@@ -33,6 +35,7 @@ typedef struct _config_t {
     char *historyfile;
     bool verbose;
     int interval;
+    int log_level;
     int battery_string;
     bool pvi_requests;
     int pvi_tracker;
