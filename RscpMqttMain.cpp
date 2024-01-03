@@ -650,7 +650,7 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                     break;
                 }
                 case RSCP::eTypeUInt64: {
-                    snprintf(buf, PAYLOAD_SIZE, "%lu", protocol->getValueAsUInt64(response));
+                    snprintf(buf, PAYLOAD_SIZE, "%llu", protocol->getValueAsUInt64(response));
                     if (strcmp(it->payload, buf)) {
                         strcpy(it->payload, buf);
                         it->changed = true;
