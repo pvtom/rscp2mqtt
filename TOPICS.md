@@ -9,6 +9,7 @@ All topics are listed with the default prefix "e3dc".
 | Current Autarky | e3dc/autarky | [%] |
 | Battery Charge Cycles | e3dc/battery/cycles | |
 | Battery Current | e3dc/battery/current | [A] |
+| Battery Design Capacity | e3dc/battery/design_capacity | [Ah] |
 | Battery Device Name | e3dc/battery/name | "BAT_XXX" |
 | Battery Energy Charge (today) | e3dc/battery/energy/charge | [kWh] |
 | Battery Energy Discharge (today) | e3dc/battery/energy/discharge | [kWh] |
@@ -43,22 +44,35 @@ All topics are listed with the default prefix "e3dc".
 | Battery Module Device Name | e3dc/battery/dcb/<#>/device_name | |
 | Battery Module Serial Code | e3dc/battery/dcb/<#>/serial_code | |
 | Battery Voltage | e3dc/battery/voltage | [V] |
+| Battery Remaining Capacity | e3dc/battery/usable_remaining_capacity | [Ah] |
+| Battery Role (?) | e3dc/battery/role | |
 | Battery RSOC | e3dc/battery/rsoc | [%] |
 | Battery SOC | e3dc/battery/soc | [%] |
+| Battery SOH | e3dc/battery/soh | [%] |
+| Battery Specified Capacity | e3dc/battery/specified_capacity | [Wh] |
+| Battery Specified Discharge Power | e3dc/battery/specified_discharge_power | [W] |
+| Battery Specified Charge Power | e3dc/battery/specified_charge_power | [W] |
+| Battery Specified Max DCB Count | e3dc/battery/specified_max_dcb_count | |
 | Battery Status Code | e3dc/battery/status | |
 | Battery Temperature Max | e3dc/battery/temperature/max | [°C] |
 | Battery Temperature Min | e3dc/battery/temperature/min | [°C] |
 | Battery Training Mode | e3dc/battery/training | (0-2) |
+| Battery Usable Capacity | e3dc/battery/usable_capacity | [Ah] |
 | Current Consumed Production | e3dc/consumed | [%] |
 | EMS Addon Power | e3dc/addon/power | [W] |
 | EMS Balanced Phase | e3dc/ems/balanced_phases/L1 | (true/false) |
 | EMS Balanced Phase | e3dc/ems/balanced_phases/L2 | (true/false) |
 | EMS Balanced Phase | e3dc/ems/balanced_phases/L3 | (true/false) |
+| EMS Battery Count | e3dc/system/battery_count | |
+| EMS Battery Charge Limit | e3dc/ems/battery_charge_limit | [W] |
+| EMS Battery Discharge Limit | e3dc/ems/battery_discharge_limit | [W] |
 | EMS Battery Power | e3dc/battery/power | [W] |
 | EMS Charging Lock | e3dc/ems/charging_lock | (true/false) |
 | EMS Charging Throttled | e3dc/ems/charging_throttled | (true/false) |
 | EMS Charging Time Lock | e3dc/ems/charging_time_lock | (true/false) |
 | EMS Coupling Mode | e3dc/coupling/mode | (0-4) |
+| EMS DCDC Charge Limit | e3dc/ems/dcdc_charge_limit | [W] |
+| EMS DCDC Discharge Limit | e3dc/ems/dcdc_discharge_limit | [W] |
 | EMS Derate at percent value | e3dc/system/derate_at_percent_value | 0.7 |
 | EMS Derate at power value | e3dc/system/derate_at_power_value | [W] |
 | EMS Discharge Start Power | e3dc/ems/discharge_start/power | [W] |
@@ -66,6 +80,7 @@ All topics are listed with the default prefix "e3dc".
 | EMS Discharging Lock | e3dc/ems/discharging_lock | (true/false) |
 | EMS Discharging Time Lock | e3dc/ems/discharging_time_lock | (true/false) |
 | EMS Emergency Power Available | e3dc/ems/emergency_power_available | (true/false) |
+| EMS Emergency Power Status | e3dc/ems/emergency_power_status | |
 | EMS Error Messages | e3dc/error_message/<#> | "Error Message" |
 | EMS Error Messages | e3dc/error_message/<#>/meta< | "type=<nr> code=<nr> source=<device>" |
 | EMS Grid In Limit (Einspeisebegrenzung aktiv) | e3dc/grid_in_limit | (true/false) |
@@ -74,6 +89,7 @@ All topics are listed with the default prefix "e3dc".
 | EMS Idle Periods | e3dc/idle_period/change | <change#> |
 | EMS Idle Periods | e3dc/idle_period/<change#>/<#> | "day:mode:active:hh:mi-hh:mi" |
 | EMS Installed Peak Power | e3dc/system/installed_peak_power | [W] |
+| EMS Inverter Count | e3dc/system/inverter_count | |
 | EMS Max Charge Power | e3dc/ems/max_charge/power | [W] |
 | EMS Max Charge Power Status | e3dc/ems/max_charge/status | |
 | EMS Max Discharge Power | e3dc/ems/max_discharge/power | [W] |
@@ -81,8 +97,14 @@ All topics are listed with the default prefix "e3dc".
 | EMS Mode | e3dc/mode | (0,1,...) |
 | EMS Power Limits Used | e3dc/ems/power_limits | (true/false) |
 | EMS Powersave Enabled | e3dc/ems/power_save | (true/false) |
+| EMS Remaining Battery Charge Power | e3dc/ems/remaining_battery_charge_power | [W] |
+| EMS Remaining Battery Discharge Power | e3dc/ems/remaining_battery_discharge_power | [W] |
 | EMS Set Power | e3dc/ems/set_power/power | [W] |
 | EMS Solar Power | e3dc/solar/power | [W] |
+| EMS Used Charge Limit | e3dc/ems/used_charge_limit | [W] |
+| EMS Used Charge Limit | e3dc/ems/used_discharge_limit | [W] |
+| EMS User Charge Limit | e3dc/ems/user_charge_limit | [W] |
+| EMS User Discharge Limit | e3dc/ems/user_discharge_limit | [W] |
 | EMS Weather Regulation Enable | e3dc/ems/weather_regulation | (true/false) |
 | EP Reserve | e3dc/reserve/procent | [%] |
 | EP Reserve Energy | e3dc/reserve/energy | [Wh] |
@@ -115,6 +137,9 @@ All topics are listed with the default prefix "e3dc".
 | PVI Apparent Power L1 | e3dc/pvi/apparent_power/L1 | [VA] |
 | PVI Apparent Power L2 | e3dc/pvi/apparent_power/L2 | [VA] |
 | PVI Apparent Power L3 | e3dc/pvi/apparent_power/L3 | [VA] |
+| PVI COS Phi | e3dc/pvi/cos_phi_value | |
+| PVI COS Phi | e3dc/pvi/cos_phi_is_active | |
+| PVI COS Phi | e3dc/pvi/cos_phi_excited | |
 | PVI Current L1 | e3dc/pvi/current/L1 | [A] |
 | PVI Current L2 | e3dc/pvi/current/L2 | [A] |
 | PVI Current L3 | e3dc/pvi/current/L3 | [A] |
@@ -129,6 +154,8 @@ All topics are listed with the default prefix "e3dc".
 | PVI Energy Grid L3 | e3dc/pvi/energy_grid_consumption/L3 | [Wh] |
 | PVI Energy String1 | e3dc/pvi/energy_all/string_1 | Wh |
 | PVI Energy String2 | e3dc/pvi/energy_all/string_2 | Wh |
+| PVI Frequency | e3dc/pvi/frequency_under | [Hz] |
+| PVI Frequency | e3dc/pvi/frequency_over | [Hz] |
 | PVI Max Apparent Power L1 | e3dc/pvi/max_apparent_power/L1 | [VA] |
 | PVI Max Apparent Power L2 | e3dc/pvi/max_apparent_power/L2 | [VA] |
 | PVI Max Apparent Power L3 | e3dc/pvi/max_apparent_power/L3 | [VA] |
@@ -139,6 +166,9 @@ All topics are listed with the default prefix "e3dc".
 | PVI Reactive Power L1 | e3dc/pvi/reactive_power/L1 | [var] |
 | PVI Reactive Power L2 | e3dc/pvi/reactive_power/L2 | [var] |
 | PVI Reactive Power L3 | e3dc/pvi/reactive_power/L3 | [var] |
+| PVI Slope | e3dc/pvi/voltage_monitoring_slope_up | [V] |
+| PVI Slope | e3dc/pvi/voltage_monitoring_slope_down | [V] |
+| PVI String Count | e3dc/pvi/used_string_count | |
 | PVI String1 Current | e3dc/pvi/current/string_1 | [A] |
 | PVI String1 Power | e3dc/pvi/power/string_1 | [W] |
 | PVI String1 Voltage | e3dc/pvi/voltage/string_1 | [V] |
@@ -149,6 +179,8 @@ All topics are listed with the default prefix "e3dc".
 | PVI Temperature 2 | e3dc/pvi/temperature/2  | [°C] |
 | PVI Temperature 3 | e3dc/pvi/temperature/3  | [°C] |
 | PVI Temperature 4 | e3dc/pvi/temperature/4  | [°C] |
+| PVI Threshold | e3dc/pvi/voltage_monitoring_threshold_top | [V] |
+| PVI Threshold | e3dc/pvi/voltage_monitoring_threshold_bottom | [V] |
 | PVI Voltage L1 | e3dc/pvi/voltage/L1 | [V] |
 | PVI Voltage L2 | e3dc/pvi/voltage/L2 | [V] |
 | PVI Voltage L3 | e3dc/pvi/voltage/L3 | [V] |
@@ -212,6 +244,10 @@ All topics are listed with the default prefix "e3dc".
 | Yesterday Solar Energy | e3dc/yesterday/solar/energy | [kWh] |
 
 Energy topics are collected for today, yesterday and the current week, month, year and historical years if configured.
+
+If your system has more than one battery string (e.g. S10 Pro), you have to configure the parameter BATTERY_STRINGS accordingly.
+Battery topics that belong to a battery string are extended by the number of the battery string.
+Battery modules (DCB topics) are numbered consecutively.
 
 ### Writeable Topics
 

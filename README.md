@@ -43,10 +43,13 @@ For continuous provision of values, you can configure several topics that are pu
 - "set/force" for specific topics
 - Battery SOC limiter
 - Docker images at https://hub.docker.com/r/pvtom/rscp2mqtt
-- (new) [Dashboard](https://github.com/pvtom/rscp2mqtt-dashboard) is available
-- (new) Configuration of the topics that will be published to InfluxDB (INFLUXDB_TOPIC)
-- (new) MQTT Client ID can be configured
-- (new) More detailled [TOPIC](TOPICS.md) overview
+- [Dashboard](https://github.com/pvtom/rscp2mqtt-dashboard) is available
+- Configuration of the topics that will be published to InfluxDB (INFLUXDB_TOPIC)
+- MQTT Client ID can be configured
+- More detailled [TOPIC](TOPICS.md) overview
+- (new) Multiple battery strings are supported (BATTERY_STRINGS parameter)
+- (new) Automatic detection of the number of PVI trackers
+- (new) Additional topics
 
 ## Docker
 
@@ -117,6 +120,10 @@ The configuration parameters are described in the file.
 
 The prefix of the topics can be configured by the attribute PREFIX. By default all topics start with "e3dc". This can be changed to any other string that MQTT accepts as a topic, max. 24 characters. E.g. "s10" or "s10/1".
 
+If your system has more than one battery string (e.g. S10 Pro), you have to configure the parameter BATTERY_STRINGS accordingly.
+Battery topics that belong to a battery string are extended by the number of the battery string.
+Battery modules (DCB topics) are numbered consecutively.
+
 Find InfluxDB configurations in [InfluxDB](INFLUXDB.md).
 
 The parameter FORCE_PUB can occur several times. You can use it to define topics that will be published in each cycle, even if the values do not change. To check the definition, look at the log output after the program start.
@@ -135,21 +142,20 @@ or in verbose mode
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [v3.9]
+rscp2mqtt [v3.10]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
 MQTT broker >localhost:1883< qos = >0< retain = >false< client id >✗< prefix >e3dc<
-History year range from 2021 to 2023
 Fetching data every second.
-Requesting PVI (2 trackers) ✓ PM ✓ DCB ✓ Wallbox ✗ Autorefresh ✓
+Requesting PVI ✓ | PM ✓ | DCB (1 battery string) ✓ | Wallbox ✗ | Autorefresh ✓
 Log level = 0
 Stdout to terminal
 
 ...
-[2023-12-23 12:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(2017) Connecting to server 192.168.178.111:5033
-[2023-12-23 12:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(2024) Success: E3DC connected.
-[2023-12-23 12:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(1156) RSCP authentication level 10
-[2023-12-23 12:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(1638) Connecting to broker localhost:1883
-[2023-12-23 12:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(1647) Success: MQTT broker connected.
+[2024-01-03 10:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(2185) Connecting to server 192.168.178.111:5033
+[2024-01-03 10:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(2192) Success: E3DC connected.
+[2024-01-03 10:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(1283) RSCP authentication level 10
+[2024-01-03 10:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(1796) Connecting to broker localhost:1883
+[2024-01-03 10:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(289) Success: MQTT broker connected.
 ...
 ```
 
@@ -387,7 +393,7 @@ Log all topics and payloads to the log file
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/log" -m 1
 ```
-Set a new refresh interval (1..10 seconds)
+Set a new refresh interval (1..300 seconds)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/interval" -m 2
 ```

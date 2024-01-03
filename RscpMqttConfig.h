@@ -1,6 +1,8 @@
 #ifndef RSCP_MQTT_CONFIG_H_
 #define RSCP_MQTT_CONFIG_H_
 
+#define MAX_DCB_COUNT 64
+
 typedef struct _config_t {
     char e3dc_ip[20];
     uint32_t e3dc_port;
@@ -14,7 +16,6 @@ typedef struct _config_t {
     bool mqtt_auth;
     int mqtt_qos;
     bool mqtt_retain;
-    bool fix_mqtt_client_id;
     char mqtt_client_id[128];
 #ifdef INFLUXDB
     uint32_t influxdb_version;
@@ -36,11 +37,12 @@ typedef struct _config_t {
     bool verbose;
     int interval;
     int log_level;
-    int battery_string;
+    int battery_strings;
     bool pvi_requests;
     int pvi_tracker;
     int pvi_temp_count;
-    int bat_dcb_count;
+    int bat_dcb_count[MAX_DCB_COUNT];
+    int bat_dcb_start[MAX_DCB_COUNT];
     bool pm_extern;
     bool pm_requests;
     bool dcb_requests;

@@ -738,7 +738,6 @@
 #define TAG_WB_AUTO_PHASE_SWITCH_ENABLED                        0x0E800039
 #define TAG_WB_NUMBER_PHASES                                    0x0E84103B
 #define TAG_WB_SET_NUMBER_PHASES                                0x0E84103C
-
 #define TAG_WB_REQ_GET_KEY_LOCK_MODE                            0x0E04104E
 #define TAG_WB_REQ_SET_KEY_LOCK_MODE                            0x0E04104F
 #define TAG_WB_REQ_KEY_STATE                                    0x0E041050
@@ -752,5 +751,38 @@
 #define TAG_EMS_REQ_GET_IDLE_PERIODS_2                          0x01000033
 #define TAG_EMS_SET_IDLE_PERIODS_2                              0x0180002F
 #define TAG_EMS_GET_IDLE_PERIODS_2                              0x01800033
+
+#define TAG_BAT_REQ_ASOC                                        0x0300000F
+#define TAG_BAT_ASOC                                            0x0380000F
+
+#define TAG_BAT_REQ_SPECIFICATION                               0x03000043
+#define TAG_BAT_SPECIFICATION                                   0x03800043
+#define TAG_BAT_SPECIFIED_CAPACITY                              0x03800125
+#define TAG_BAT_SPECIFIED_DSCHARGE_POWER                        0x03800126
+#define TAG_BAT_SPECIFIED_CHARGE_POWER                          0x03800127
+#define TAG_BAT_SPECIFIED_MAX_DCB_COUNT                         0x03800128
+#define TAG_BAT_ROLE                                            0x03800129
+
+#define TAG_BAT_REQ_AVAILABLE_BATTERIES                         0x03000056
+#define TAG_BAT_AVAILABLE_BATTERIES                             0x03800057
+#define TAG_BAT_BATTERY_SPEC                                    0x03800058 
+#define TAG_BAT_INSTANCE_DESCRIPTOR                             0x03800059
+#define TAG_BAT_REQ_BATTERY_SOFT_ON                             0x03000062
+#define TAG_BAT_BATTERY_SOFT_ON                                 0x03800062
+
+#define TAG_BAT_REQ_INFO                                        0x03000020
+#define TAG_BAT_INFO                                            0x03800020
+#define TAG_BAT_REQ_USABLE_CAPACITY                             0x03000026
+#define TAG_BAT_USABLE_CAPACITY                                 0x03800026
+#define TAG_BAT_REQ_USABLE_REMAINING_CAPACITY                   0x03000027
+#define TAG_BAT_USABLE_REMAINING_CAPACITY                       0x03800027
+#define TAG_BAT_REQ_DESIGN_CAPACITY                             0x03000045
+#define TAG_BAT_DESIGN_CAPACITY                                 0x03800045
+
+#define TAG_PVI_REQ_INVERTER_COUNT                              0x020CCCC9
+#define TAG_PVI_INVERTER_COUNT                                  0x028CCCC9
+
+#define TAG_PVI_REQ_USED_STRING_COUNT                           0x02000090
+#define TAG_PVI_USED_STRING_COUNT                               0x02800090
 
 #endif

@@ -21,10 +21,10 @@ MQTT_USER=
 MQTT_PASSWORD=
 
 #-System
-#--cycle interval in seconds
+#--cycle interval in seconds (max 300 seconds)
 INTERVAL=1
-#--log level, set "0" to suppress "received errors"
-LOG_LEVEL=1
+#--log level, set "1" to get detailled logging
+LOG_LEVEL=0
 #--log files
 LOGFILE=/tmp/rscp2mqtt.log
 TOPIC_LOG_FILE=/tmp/rscp2mqtt.history
@@ -44,10 +44,10 @@ PREFIX=e3dc
 #-Supported Topics
 #-- Photovoltaic Inverter
 PVI_REQUESTS=true
-#--number of available PV strings(trackers), default is 2
-PVI_TRACKER=2
 #--Power Meter
 PM_REQUESTS=true
+#--Number of Battery Strings, default is 1
+BATTERY_STRINGS=1
 #--Battery Modules
 DCB_REQUESTS=true
 #--Battery SOC limiter

@@ -19,7 +19,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT               "v3.9"
+#define RSCP2MQTT               "v3.10"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -27,7 +27,7 @@
 #define E3DC_FOUNDED            2010
 #define CONFIG_FILE             ".config"
 #define DEFAULT_INTERVAL_MIN    1
-#define DEFAULT_INTERVAL_MAX    10
+#define DEFAULT_INTERVAL_MAX    300
 #define IDLE_PERIOD_CACHE_SIZE  14
 #define DEFAULT_PREFIX          "e3dc"
 #define SUBSCRIBE_TOPIC         "set/#"
@@ -57,7 +57,7 @@ static time_t e3dc_ts = 0;
 static time_t e3dc_diff = 0;
 static int gmt_diff = 0;
 static config_t cfg;
-static int day, year, curr_year;
+static int day, year, curr_year, battery_nr;
 static uint8_t period_change_nr = 0;
 static bool period_trigger = false;
 
@@ -71,6 +71,19 @@ static bool mqttRcvd = false;
 #endif
 
 void logMessage(char *file, char *srcfile, int line, char *format, ...);
+
+void wsleep(int sec) {
+    for (uint8_t i = 0; i < sec; i++) {
+        mtx.lock();
+        if (mqttRcvd) {
+            mtx.unlock();
+            return;
+        }
+        mtx.unlock();
+        sleep(1);
+    }
+    return;
+}
 
 int storeMQTTReceivedValue(std::vector<RSCP_MQTT::rec_cache_t> & c, char *topic_in, char *payload) {
     char topic[TOPIC_SIZE];
@@ -213,12 +226,13 @@ int handleSetIdlePeriod(RscpProtocol *protocol, SRscpValue *rootContainer, char 
     return(0);
 }
 
-void addTemplTopics(uint32_t container, int start, int n, int inc) {
+void addTemplTopics(uint32_t container, int index, int start, int n, int inc) {
     for (int c = start; c < n; c++) {
         for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCacheTempl.begin(); it != RSCP_MQTT::RscpMqttCacheTempl.end(); ++it) {
-            if (it->container == container) {
+            if ((it->container == container) && (it->index == index)) {
                 RSCP_MQTT::cache_t cache = { it->container, it->tag, c, "", "", it->format, "", it->divisor, it->bit_to_bool, it->history_log, it->changed, it->influx, it->forced };
-                snprintf(cache.topic, TOPIC_SIZE, it->topic, c + inc);
+                if (index) snprintf(cache.topic, TOPIC_SIZE, it->topic, c + inc);
+                else strcpy(cache.topic, it->topic);
                 strcpy(cache.unit, it->unit);
                 for (std::vector<RSCP_MQTT::topic_store_t>::iterator it2 = RSCP_MQTT::TopicStore.begin(); it2 != RSCP_MQTT::TopicStore.end(); ++it2) {
                     switch (it2->type) {
@@ -402,6 +416,25 @@ void logCache(std::vector<RSCP_MQTT::cache_t> & v, char *file, char *prefix) {
     return;
 }
 
+void logTopics(std::vector<RSCP_MQTT::cache_t> & v, char *file) {
+    for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
+        if (it->forced) logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< forced\n", it->topic);
+        if (it->influx) logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< marked influx relevant\n", it->topic);
+        if (it->history_log) logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< marked for logging\n", it->topic);
+    }   
+    return;
+}
+
+void logHealth(char *file) {
+    logTopics(RSCP_MQTT::RscpMqttCache, file);
+    for (std::vector<RSCP_MQTT::not_supported_tags_t>::iterator it = RSCP_MQTT::NotSupportedTags.begin(); it != RSCP_MQTT::NotSupportedTags.end(); ++it) {
+        logMessage(file, (char *)__FILE__, __LINE__, (char *)"Container 0x%08X Tag 0x%08X not supported.\n", it->container, it->tag);
+    }
+    for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCacheTempl.begin(); it != RSCP_MQTT::RscpMqttCacheTempl.end(); ++it) {
+        logMessage(file, (char *)__FILE__, __LINE__, (char *)"Container 0x%08X Tag 0x%08X in temporary cache.\n", it->container, it->tag);
+    }
+}
+
 void logMessage(char *file, char *srcfile, int line, char *format, ...)
 {
     FILE * fp;
@@ -434,6 +467,43 @@ void logMessage(char *file, char *srcfile, int line, char *format, ...)
         fflush(NULL);
     }
     va_end(args);
+    return;
+}
+
+void copyCache(std::vector<RSCP_MQTT::cache_t> & to, std::vector<RSCP_MQTT::cache_t> & from, uint32_t container) {
+    for (std::vector<RSCP_MQTT::cache_t>::iterator it = from.begin(); it != from.end(); ++it) {
+        if (it->container == container) {
+            RSCP_MQTT::cache_t cache = { it->container, it->tag, it->index, "", "", it->format, "", it->divisor, it->bit_to_bool, it->history_log, it->changed, it->influx, it->forced };
+            strcpy(cache.topic, it->topic);
+            strcpy(cache.payload, it->payload);
+            strcpy(cache.unit, it->unit);
+            to.push_back(cache);
+        }
+    }
+    return;
+}
+
+void cleanupCache(std::vector<RSCP_MQTT::cache_t> & v) {
+    std::vector<RSCP_MQTT::cache_t> TempCache({});
+    copyCache(TempCache, v, TAG_DB_HISTORY_DATA_YEAR);
+    RSCP_MQTT::RscpMqttCacheTempl.clear();
+    copyCache(v, TempCache, TAG_DB_HISTORY_DATA_YEAR);
+    return;
+}
+
+bool existsNotSupportedTag(uint32_t container, uint32_t tag) {
+    for (std::vector<RSCP_MQTT::not_supported_tags_t>::iterator it = RSCP_MQTT::NotSupportedTags.begin(); it != RSCP_MQTT::NotSupportedTags.end(); ++it) {
+        if ((it->container == container) && (it->tag == tag)) return(true);
+    }
+    return(false);
+}
+
+void pushNotSupportedTag(uint32_t container, uint32_t tag) {
+    if (existsNotSupportedTag(container, tag)) return;
+    RSCP_MQTT::not_supported_tags_t v;
+    v.container = container;
+    v.tag = tag;
+    RSCP_MQTT::NotSupportedTags.push_back(v);
     return;
 }
 
@@ -485,15 +555,6 @@ void setTopicsInflux(std::vector<RSCP_MQTT::cache_t> & v, char *regex) {
 }
 #endif
 
-void logTopics(std::vector<RSCP_MQTT::cache_t> & v, char *file) {
-    for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
-        if (it->forced) logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< forced\n", it->topic);
-        if (it->influx) logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< marked influx relevant\n", it->topic);
-        if (it->history_log) logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< marked for logging\n", it->topic);
-    }
-    return;
-}
-
 int storeIntegerValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uint32_t tag, int value, int index) {
     char buf[PAYLOAD_SIZE];
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
@@ -531,7 +592,7 @@ int storeStringValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, ui
 
 int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protocol, SRscpValue *response, uint32_t container, int index) {
     char buf[PAYLOAD_SIZE];
-    int rc = 0;
+    int rc = -1;
 
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
         if ((!it->container || (it->container == container)) && (it->tag == response->tag) && (it->index == index)) {
@@ -539,6 +600,14 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                 case RSCP::eTypeBool: {
                     if (protocol->getValueAsBool(response)) strcpy(buf, "true");
                     else strcpy(buf, "false");
+                    if (strcmp(it->payload, buf)) {
+                        strcpy(it->payload, buf);
+                        it->changed = true;
+                    }
+                    break;
+                }
+                case RSCP::eTypeInt16: {
+                    snprintf(buf, PAYLOAD_SIZE, "%i", protocol->getValueAsInt16(response));
                     if (strcmp(it->payload, buf)) {
                         strcpy(it->payload, buf);
                         it->changed = true;
@@ -554,6 +623,19 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                     }
                     break;
                 }
+                case RSCP::eTypeUInt16: {
+                    if (it->bit_to_bool) {
+                        if (protocol->getValueAsUInt16(response) & it->bit_to_bool) strcpy(buf, "true");
+                        else strcpy(buf, "false");
+                    } else {
+                        snprintf(buf, PAYLOAD_SIZE, "%u", protocol->getValueAsUInt16(response));
+                    }
+                    if (strcmp(it->payload, buf)) {
+                        strcpy(it->payload, buf);
+                        it->changed = true;
+                    }
+                    break;
+                }
                 case RSCP::eTypeUInt32: {
                     if (it->bit_to_bool) {
                         if (protocol->getValueAsUInt32(response) & it->bit_to_bool) strcpy(buf, "true");
@@ -561,6 +643,14 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                     } else {
                         snprintf(buf, PAYLOAD_SIZE, "%u", protocol->getValueAsUInt32(response));
                     }
+                    if (strcmp(it->payload, buf)) {
+                        strcpy(it->payload, buf);
+                        it->changed = true;
+                    }
+                    break;
+                }
+                case RSCP::eTypeUInt64: {
+                    snprintf(buf, PAYLOAD_SIZE, "%lu", protocol->getValueAsUInt64(response));
                     if (strcmp(it->payload, buf)) {
                         strcpy(it->payload, buf);
                         it->changed = true;
@@ -624,6 +714,9 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                         it->changed = true;
                         it->influx = false;
                     }
+                    break;
+                }
+                default: {
                     break;
                 }
             }
@@ -727,7 +820,7 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
     l->tm_isdst = -1;
 
     if (curr_year < l->tm_year + 1900) {
-        addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, curr_year, l->tm_year + 1900, 0);
+        addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, curr_year, l->tm_year + 1900, 0);
         curr_year = l->tm_year + 1900;
     }
 
@@ -760,6 +853,17 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
         protocol.appendValue(&rootValue, TAG_EMS_REQ_BALANCED_PHASES);
         protocol.appendValue(&rootValue, TAG_EMS_REQ_BAT_SOC);
         protocol.appendValue(&rootValue, TAG_EMS_REQ_STORED_ERRORS);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_USED_CHARGE_LIMIT);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_BAT_CHARGE_LIMIT);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_DCDC_CHARGE_LIMIT);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_USER_CHARGE_LIMIT);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_USED_DISCHARGE_LIMIT);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_BAT_DISCHARGE_LIMIT);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_DCDC_DISCHARGE_LIMIT);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_USER_DISCHARGE_LIMIT);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_REMAINING_BAT_CHARGE_POWER);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_REMAINING_BAT_DISCHARGE_POWER);
+        protocol.appendValue(&rootValue, TAG_EMS_REQ_EMERGENCY_POWER_STATUS);
 
         // Wallbox
         if (cfg.wallbox) {
@@ -773,12 +877,14 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
 
         if (!e3dc_ts) {
             protocol.appendValue(&rootValue, TAG_INFO_REQ_SERIAL_NUMBER);
-            protocol.appendValue(&rootValue, TAG_INFO_REQ_SW_RELEASE);
             protocol.appendValue(&rootValue, TAG_INFO_REQ_PRODUCTION_DATE);
             protocol.appendValue(&rootValue, TAG_EMS_REQ_INSTALLED_PEAK_POWER);
             protocol.appendValue(&rootValue, TAG_EMS_REQ_DERATE_AT_PERCENT_VALUE);
             protocol.appendValue(&rootValue, TAG_EMS_REQ_DERATE_AT_POWER_VALUE);
+            protocol.appendValue(&rootValue, TAG_PVI_REQ_INVERTER_COUNT);
+            protocol.appendValue(&rootValue, TAG_BAT_REQ_AVAILABLE_BATTERIES);
         }
+        protocol.appendValue(&rootValue, TAG_INFO_REQ_SW_RELEASE);
 
         // request e3dc timestamp
         protocol.appendValue(&rootValue, TAG_INFO_REQ_TIME);
@@ -791,28 +897,40 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
 
         // request battery information
         SRscpValue batteryContainer;
-        protocol.createContainerValue(&batteryContainer, TAG_BAT_REQ_DATA);
-        protocol.appendValue(&batteryContainer, TAG_BAT_INDEX, (uint8_t)cfg.battery_string);
-        protocol.appendValue(&batteryContainer, TAG_BAT_REQ_RSOC);
-        protocol.appendValue(&batteryContainer, TAG_BAT_REQ_MODULE_VOLTAGE);
-        protocol.appendValue(&batteryContainer, TAG_BAT_REQ_CURRENT);
-        protocol.appendValue(&batteryContainer, TAG_BAT_REQ_CHARGE_CYCLES);
-        protocol.appendValue(&batteryContainer, TAG_BAT_REQ_STATUS_CODE);
-        protocol.appendValue(&batteryContainer, TAG_BAT_REQ_ERROR_CODE);
-        if (!e3dc_ts) protocol.appendValue(&batteryContainer, TAG_BAT_REQ_DEVICE_NAME);
-        protocol.appendValue(&batteryContainer, TAG_BAT_REQ_TRAINING_MODE);
-        protocol.appendValue(&batteryContainer, TAG_BAT_REQ_MAX_DCB_CELL_TEMPERATURE);
-        protocol.appendValue(&batteryContainer, TAG_BAT_REQ_MIN_DCB_CELL_TEMPERATURE);
-        if (!cfg.bat_dcb_count) {
-            protocol.appendValue(&batteryContainer, TAG_BAT_REQ_DCB_COUNT);
-        }
-        if (cfg.dcb_requests) {
-            for (uint8_t i = 0; i < cfg.bat_dcb_count; i++) {
-                protocol.appendValue(&batteryContainer, TAG_BAT_REQ_DCB_INFO, i);
+        for (uint8_t i = 0; i < cfg.battery_strings; i++) {
+            protocol.createContainerValue(&batteryContainer, TAG_BAT_REQ_DATA);
+            protocol.appendValue(&batteryContainer, TAG_BAT_INDEX, i);
+            protocol.appendValue(&batteryContainer, TAG_BAT_REQ_ASOC);
+            protocol.appendValue(&batteryContainer, TAG_BAT_REQ_RSOC);
+            protocol.appendValue(&batteryContainer, TAG_BAT_REQ_MODULE_VOLTAGE);
+            protocol.appendValue(&batteryContainer, TAG_BAT_REQ_CURRENT);
+            protocol.appendValue(&batteryContainer, TAG_BAT_REQ_CHARGE_CYCLES);
+            protocol.appendValue(&batteryContainer, TAG_BAT_REQ_STATUS_CODE);
+            protocol.appendValue(&batteryContainer, TAG_BAT_REQ_ERROR_CODE);
+            if (!e3dc_ts) protocol.appendValue(&batteryContainer, TAG_BAT_REQ_DEVICE_NAME);
+            protocol.appendValue(&batteryContainer, TAG_BAT_REQ_TRAINING_MODE);
+            protocol.appendValue(&batteryContainer, TAG_BAT_REQ_MAX_DCB_CELL_TEMPERATURE);
+            protocol.appendValue(&batteryContainer, TAG_BAT_REQ_MIN_DCB_CELL_TEMPERATURE);
+            protocol.appendValue(&batteryContainer, TAG_BAT_REQ_USABLE_CAPACITY);
+            protocol.appendValue(&batteryContainer, TAG_BAT_REQ_USABLE_REMAINING_CAPACITY);
+            protocol.appendValue(&batteryContainer, TAG_BAT_REQ_DESIGN_CAPACITY);
+            if (!cfg.bat_dcb_count[i]) {
+                protocol.appendValue(&batteryContainer, TAG_BAT_REQ_DCB_COUNT);
             }
+            if (cfg.dcb_requests) {
+                for (uint8_t j = 0; j < cfg.bat_dcb_count[i]; j++) {
+                    protocol.appendValue(&batteryContainer, TAG_BAT_REQ_DCB_INFO, j);
+                }
+            }
+            if (!e3dc_ts) {
+                SRscpValue BattSpecContainer;
+                protocol.createContainerValue(&BattSpecContainer, TAG_BAT_REQ_SPECIFICATION);
+                protocol.appendValue(&batteryContainer, BattSpecContainer);
+                protocol.destroyValueData(BattSpecContainer);
+            }
+            protocol.appendValue(&rootValue, batteryContainer);
+            protocol.destroyValueData(batteryContainer);
         }
-        protocol.appendValue(&rootValue, batteryContainer);
-        protocol.destroyValueData(batteryContainer);
 
         // request EMS information
         SRscpValue PowerContainer;
@@ -847,14 +965,17 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
             SRscpValue PVIContainer;
             protocol.createContainerValue(&PVIContainer, TAG_PVI_REQ_DATA);
             protocol.appendValue(&PVIContainer, TAG_PVI_INDEX, (uint8_t)0);
+            protocol.appendValue(&PVIContainer, TAG_PVI_REQ_USED_STRING_COUNT);
             protocol.appendValue(&PVIContainer, TAG_PVI_REQ_ON_GRID);
-            if (cfg.pvi_tracker - 1) protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_POWER, (uint8_t)1);
-            protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_POWER, (uint8_t)0);
-            if (cfg.pvi_tracker - 1) protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_VOLTAGE, (uint8_t)1);
-            protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_VOLTAGE, (uint8_t)0);
-            if (cfg.pvi_tracker - 1) protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_CURRENT, (uint8_t)1);
-            protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_CURRENT, (uint8_t)0);
-            if (cfg.pvi_tracker - 1) protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_STRING_ENERGY_ALL, (uint8_t)1);
+            if (!existsNotSupportedTag(TAG_PVI_DATA, TAG_PVI_REQ_COS_PHI)) protocol.appendValue(&PVIContainer, TAG_PVI_REQ_COS_PHI);
+            if (!existsNotSupportedTag(TAG_PVI_DATA, TAG_PVI_REQ_VOLTAGE_MONITORING)) protocol.appendValue(&PVIContainer, TAG_PVI_REQ_VOLTAGE_MONITORING);
+            if (!existsNotSupportedTag(TAG_PVI_DATA, TAG_PVI_REQ_FREQUENCY_UNDER_OVER)) protocol.appendValue(&PVIContainer, TAG_PVI_REQ_FREQUENCY_UNDER_OVER);
+            for (uint8_t i = 0; i < cfg.pvi_tracker; i++) {
+                protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_POWER, i);
+                protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_VOLTAGE, i);
+                protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_CURRENT, i);
+                protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_STRING_ENERGY_ALL, i);
+            }
             protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_STRING_ENERGY_ALL, (uint8_t)0);
             protocol.appendValue(&PVIContainer, TAG_PVI_REQ_AC_POWER, (uint8_t)0);
             protocol.appendValue(&PVIContainer, TAG_PVI_REQ_AC_POWER, (uint8_t)1);
@@ -991,6 +1112,7 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                     if (it->refresh_count > 0) it->refresh_count = it->refresh_count - 1;
                     if (!it->container && !it->tag) { //system call
                         if (!strcmp(it->topic, "set/log")) logCache(RSCP_MQTT::RscpMqttCache, cfg.logfile, buffer);
+                        if (!strcmp(it->topic, "set/health")) logHealth(cfg.logfile);
                         if (!strcmp(it->topic, "set/force")) refreshCache(RSCP_MQTT::RscpMqttCache, it->payload);
                         if ((!strcmp(it->topic, "set/interval")) && (atoi(it->payload) >= DEFAULT_INTERVAL_MIN) && (atoi(it->payload) <= DEFAULT_INTERVAL_MAX)) cfg.interval = atoi(it->payload);
                         if ((!strcmp(it->topic, "set/power_mode")) && cfg.auto_refresh) handleSetPower(RSCP_MQTT::RscpMqttReceiveCache, TAG_EMS_REQ_SET_POWER, it->payload);
@@ -1136,11 +1258,14 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
     if (response->dataType == RSCP::eTypeError) {
         // handle error for example access denied errors
         uint32_t uiErrorCode = protocol->getValueAsUInt32(response);
-        if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Tag 0x%08X received error code %u.\n", response->tag, uiErrorCode);
+        if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Container/Tag 0x%08X received error code %u.\n", response->tag, uiErrorCode);
         if ((response->tag == TAG_DB_HISTORY_DATA_YEAR) && (cfg.history_start_year < curr_year) && (year < curr_year)) {
             cfg.history_start_year++;
-            if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"History start year has been corrected >%d<\n", cfg.history_start_year);
-        }
+            logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"History start year has been corrected >%d<\n", cfg.history_start_year);
+        } else if ((response->tag == TAG_BAT_DATA) && (uiErrorCode == 6) && (cfg.battery_strings > 1)) { // Battery string not available
+            cfg.battery_strings = cfg.battery_strings - 1;
+            logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Number of battery strings has been corrected >%d<\n", cfg.battery_strings);
+        } else if (uiErrorCode == 6) pushNotSupportedTag(response->tag, 0);
         return(-1);
     }
 
@@ -1182,11 +1307,11 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
             if (containerData[i].dataType == RSCP::eTypeError) {
                 // handle error for example access denied errors
                 uint32_t uiErrorCode = protocol->getValueAsUInt32(&containerData[i]);
-                if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Tag 0x%08X received error code %u.\n", response->tag, uiErrorCode);
+                if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Container 0x%08X Tag 0x%08X received error code %u.\n", response->tag, containerData[i].tag, uiErrorCode);
                 if ((response->tag == TAG_PM_DATA) && (uiErrorCode == 6)) { // Power Meter not found (intern/extern)
                     if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Power Meter not found. Switch intern/extern.\n");
                     cfg.pm_extern = !cfg.pm_extern;
-                }
+                } else if (uiErrorCode == 6) pushNotSupportedTag(response->tag, containerData[i].tag);
             } else {
                 switch (containerData[i].tag) {
                     case TAG_BAT_DCB_INFO: {
@@ -1194,7 +1319,7 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                         std::vector<SRscpValue> container = protocol->getValueAsContainer(&containerData[i]);
                         for (size_t j = 0; j < container.size(); j++) {
                             if (container[j].tag == TAG_BAT_DCB_INDEX) {
-                                dcb_nr = protocol->getValueAsUInt16(&container[j]);
+                                dcb_nr = protocol->getValueAsUInt16(&container[j]) + cfg.bat_dcb_start[battery_nr];
                             } else {
                                 storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(container[j]), containerData[i].tag, dcb_nr);
                             }
@@ -1203,17 +1328,29 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                         break;
                     }
                     case TAG_BAT_DCB_COUNT: {
-                        cfg.bat_dcb_count = protocol->getValueAsUChar8(&containerData[i]);
+                        int dcb_nr;
+                        cfg.bat_dcb_count[battery_nr] = protocol->getValueAsUChar8(&containerData[i]);
+                        cfg.bat_dcb_start[battery_nr] = battery_nr?cfg.bat_dcb_count[battery_nr - 1]:0;
                         storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
-                        addTemplTopics(TAG_BAT_DCB_INFO, 0, cfg.bat_dcb_count, 1);
+                        addTemplTopics(TAG_BAT_DCB_INFO, 1, cfg.bat_dcb_start[battery_nr], cfg.bat_dcb_start[battery_nr] + cfg.bat_dcb_count[battery_nr], 1);
+                        if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"TAG_BAT_DCB_COUNT battery_nr = %d bat_dcb_count = %d bat_dcb_start = %d\n", battery_nr, cfg.bat_dcb_count[battery_nr], cfg.bat_dcb_start[battery_nr]);
+                        break;
+                    }
+                    case TAG_BAT_SPECIFICATION: {
+                        std::vector<SRscpValue> container = protocol->getValueAsContainer(&containerData[i]);
+                        for (size_t j = 0; j < container.size(); j++) {
+                            storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(container[j]), containerData[i].tag, battery_nr);
+                        }
+                        protocol->destroyValueData(container);
                         break;
                     }
                     default: {
-                        storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
+                        storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, (response->tag == TAG_BAT_DATA)?battery_nr:0);
                     }
                 }
             }
         }
+        if (response->tag == TAG_BAT_DATA) battery_nr++;
         protocol->destroyValueData(containerData);
         break;
     }
@@ -1223,10 +1360,11 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
             if (containerData[i].dataType == RSCP::eTypeError) {
                 // handle error for example access denied errors
                 uint32_t uiErrorCode = protocol->getValueAsUInt32(&containerData[i]);
-                if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Tag 0x%08X received error code %u.\n", response->tag, uiErrorCode);
+                if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Container 0x%08X Tag 0x%08X received error code %u.\n", response->tag, containerData[i].tag, uiErrorCode);
                 if (uiErrorCode == 6) { // Wallbox not available
                     if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Wallbox not available.\n");
                     cfg.wallbox = false;
+                    pushNotSupportedTag(response->tag, containerData[i].tag);
                 }
             } else if (containerData[i].tag == TAG_WB_EXTERN_DATA_ALG) {
                 std::vector<SRscpValue> wallboxContent = protocol->getValueAsContainer(&containerData[i]);
@@ -1234,6 +1372,7 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                     if (wallboxContent[j].dataType == RSCP::eTypeError) {
                          uint32_t uiErrorCode = protocol->getValueAsUInt32(&wallboxContent[j]);
                          if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Tag 0x%08X received error code %u.\n", wallboxContent[j].tag, uiErrorCode);
+                         if (uiErrorCode == 6) pushNotSupportedTag(response->tag, wallboxContent[i].tag);
                     } else {
                         switch (wallboxContent[j].tag) {
                             case TAG_WB_EXTERN_DATA: {
@@ -1259,7 +1398,8 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
             if (containerData[i].dataType == RSCP::eTypeError) {
                 // handle error for example access denied errors
                 uint32_t uiErrorCode = protocol->getValueAsUInt32(&containerData[i]);
-                if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Tag 0x%08X received error code %u.\n", response->tag, uiErrorCode);
+                if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Container 0x%08X Tag 0x%08X received error code %u.\n", response->tag, containerData[i].tag, uiErrorCode);
+                if (uiErrorCode == 6) pushNotSupportedTag(response->tag, containerData[i].tag);
             } else {
             switch (containerData[i].tag) {
                 case TAG_PVI_TEMPERATURE:
@@ -1276,7 +1416,10 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                 case TAG_PVI_DC_STRING_ENERGY_ALL:
                 case TAG_PVI_DC_VOLTAGE:
                 case TAG_PVI_DC_CURRENT:
-                case TAG_PVI_DC_POWER: {
+                case TAG_PVI_DC_POWER:
+                case TAG_PVI_COS_PHI:
+                case TAG_PVI_VOLTAGE_MONITORING:
+                case TAG_PVI_FREQUENCY_UNDER_OVER: {
                     int tracker;
                     std::vector<SRscpValue> container = protocol->getValueAsContainer(&containerData[i]);
                     for (size_t j = 0; j < container.size(); j++) {
@@ -1293,7 +1436,16 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                 case TAG_PVI_TEMPERATURE_COUNT: {
                     cfg.pvi_temp_count = protocol->getValueAsUChar8(&containerData[i]);
                     storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
-                    addTemplTopics(TAG_PVI_TEMPERATURE, 0, cfg.pvi_temp_count, 1);
+                    addTemplTopics(TAG_PVI_TEMPERATURE, 1, 0, cfg.pvi_temp_count, 1);
+                    break;
+                }
+                case TAG_PVI_USED_STRING_COUNT: {
+                    cfg.pvi_tracker = protocol->getValueAsUChar8(&containerData[i]);
+                    addTemplTopics(TAG_PVI_DC_POWER, 1, 0, cfg.pvi_tracker, 1);
+                    addTemplTopics(TAG_PVI_DC_VOLTAGE, 1, 0, cfg.pvi_tracker, 1);
+                    addTemplTopics(TAG_PVI_DC_CURRENT, 1, 0, cfg.pvi_tracker, 1);
+                    addTemplTopics(TAG_PVI_DC_STRING_ENERGY_ALL, 1, 0, cfg.pvi_tracker, 1);
+                    storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
                     break;
                 }
                 case TAG_PVI_ON_GRID: {
@@ -1316,8 +1468,8 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
             if (containerData[i].dataType == RSCP::eTypeError) {
                 // handle error for example access denied errors
                 uint32_t uiErrorCode = protocol->getValueAsUInt32(&containerData[i]);
-                if (!cfg.daemon) printf("Tag 0x%08X received error code %u.\n", containerData[i].tag, uiErrorCode);
-                if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Tag 0x%08X received error code %u.\n", response->tag, uiErrorCode);
+                if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Container 0x%08X Tag 0x%08X received error code %u.\n", response->tag, containerData[i].tag, uiErrorCode);
+                if (uiErrorCode == 6) pushNotSupportedTag(response->tag, containerData[i].tag);
             } else {
                 switch (containerData[i].tag) {
                     case TAG_EMS_IDLE_PERIOD: {
@@ -1424,7 +1576,8 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
             if (historyData[i].dataType == RSCP::eTypeError) {
                 // handle error for example access denied errors
                 uint32_t uiErrorCode = protocol->getValueAsUInt32(&historyData[i]);
-                if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Tag 0x%08X received error code %u.\n", response->tag, uiErrorCode);
+                if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Container 0x%08X Tag 0x%08X received error code %u.\n", response->tag, historyData[i].tag, uiErrorCode);
+                if (uiErrorCode == 6) pushNotSupportedTag(response->tag, 0);
             } else {
                 switch (historyData[i].tag) {
                 case TAG_DB_SUM_CONTAINER: {
@@ -1478,6 +1631,7 @@ static int processReceiveBuffer(const unsigned char * ucBuffer, int iLength){
     // process each SRscpValue struct seperately
     day = 0;
     year = curr_year;
+    battery_nr = 0;
     for (size_t i = 0; i < frame.data.size(); i++)
         handleResponseValue(&protocol, &frame.data[i]);
 
@@ -1588,6 +1742,8 @@ static void receiveLoop(bool & bStopExecution){
 static void mainLoop(void){
     RscpProtocol protocol;
     bool bStopExecution = false;
+    int countdown = 3;
+    int interval = 1;
 
     while (!bStopExecution) {
         //--------------------------------------------------------------------------------------------------------------
@@ -1631,7 +1787,7 @@ static void mainLoop(void){
 
         // MQTT connection
         if (!mosq) {
-            if (cfg.fix_mqtt_client_id)
+            if (strcmp(cfg.mqtt_client_id, ""))
                 mosq = mosquitto_new(cfg.mqtt_client_id, true, NULL);
             else
                 mosq = mosquitto_new(NULL, true, NULL);
@@ -1675,8 +1831,16 @@ static void mainLoop(void){
             }
         }
 
+        if (countdown >= 0) {
+            countdown--;
+            if (countdown == 0) {
+                cleanupCache(RSCP_MQTT::RscpMqttCacheTempl);
+                interval = cfg.interval;
+            }
+        }
+
         // main loop sleep / cycle time before next request
-        sleep(cfg.interval);
+        wsleep(interval);
     }
 }
 
@@ -1707,18 +1871,20 @@ int main(int argc, char *argv[]){
 
     strcpy(cfg.mqtt_host, "");
     cfg.mqtt_port = MQTT_PORT_DEFAULT;
-    cfg.fix_mqtt_client_id = false;
     strcpy(cfg.mqtt_client_id, "");
     cfg.mqtt_auth = false;
     cfg.mqtt_qos = 0;
     cfg.mqtt_retain = false;
     cfg.interval = 1;
-    cfg.log_level = 1;
-    cfg.battery_string = 0;
+    cfg.log_level = 0;
+    cfg.battery_strings = 1;
     cfg.pvi_requests = true;
-    cfg.pvi_tracker = 2;
+    cfg.pvi_tracker = 0;
     cfg.pvi_temp_count = 0;
-    cfg.bat_dcb_count = 0;
+    for (uint8_t i = 0; i < MAX_DCB_COUNT; i++) {
+        cfg.bat_dcb_count[i] = 0;
+        cfg.bat_dcb_start[i] = 0;
+    }
     cfg.pm_extern = false;
     cfg.pm_requests = true;
     cfg.dcb_requests = true;
@@ -1767,7 +1933,6 @@ int main(int argc, char *argv[]){
             else if (strcasecmp(key, "MQTT_PASSWORD") == 0)
                 strcpy(cfg.mqtt_password, value);
             else if (strcasecmp(key, "MQTT_CLIENT_ID") == 0) {
-                cfg.fix_mqtt_client_id = true;
                 strcpy(cfg.mqtt_client_id, value);
             } else if ((strcasecmp(key, "MQTT_AUTH") == 0) && (strcasecmp(value, "true") == 0))
                 cfg.mqtt_auth = true;
@@ -1817,10 +1982,8 @@ int main(int argc, char *argv[]){
                 cfg.log_level = atoi(value);
             else if ((strcasecmp(key, "PVI_REQUESTS") == 0) && (strcasecmp(value, "false") == 0))
                 cfg.pvi_requests = false;
-            else if (strcasecmp(key, "PVI_TRACKER") == 0)
-                cfg.pvi_tracker = atoi(value);
-            else if (strcasecmp(key, "BATTERY_STRING") == 0)
-                cfg.battery_string = atoi(value);
+            else if (strcasecmp(key, "BATTERY_STRINGS") == 0)
+                cfg.battery_strings = atoi(value);
             else if ((strcasecmp(key, "PM_EXTERN") == 0) && (strcasecmp(value, "true") == 0))
                 cfg.pm_extern = true;
             else if ((strcasecmp(key, "PM_REQUESTS") == 0) && (strcasecmp(value, "false") == 0))
@@ -1878,7 +2041,6 @@ int main(int argc, char *argv[]){
 
     if (cfg.interval < DEFAULT_INTERVAL_MIN) cfg.interval = DEFAULT_INTERVAL_MIN;
     if (cfg.interval > DEFAULT_INTERVAL_MAX) cfg.interval = DEFAULT_INTERVAL_MAX;
-    if ((cfg.pvi_tracker != 1) && (cfg.pvi_tracker != 2)) cfg.pvi_tracker = 1;
     if ((cfg.mqtt_qos < 0) || (cfg.mqtt_qos > 2)) cfg.mqtt_qos = 0;
 #ifdef INFLUXDB
     if ((cfg.influxdb_version < 1) || (cfg.influxdb_version > 2)) cfg.influxdb_version = 1;
@@ -1902,7 +2064,7 @@ int main(int argc, char *argv[]){
         printf("Error: MQTT prefix >%s< is not accepted.\n", cfg.prefix);
         exit(EXIT_FAILURE);
     }
-    printf("MQTT broker >%s:%u< qos = >%i< retain = >%s< client id >%s< prefix >%s<\n", cfg.mqtt_host, cfg.mqtt_port, cfg.mqtt_qos, cfg.mqtt_retain ? "true" : "false", cfg.fix_mqtt_client_id ? cfg.mqtt_client_id : "✗", cfg.prefix);
+    printf("MQTT broker >%s:%u< qos = >%i< retain = >%s< client id >%s< prefix >%s<\n", cfg.mqtt_host, cfg.mqtt_port, cfg.mqtt_qos, cfg.mqtt_retain ? "true" : "false", strcmp(cfg.mqtt_client_id, "")?cfg.mqtt_client_id:"✗", cfg.prefix);
 
     addPrefix(RSCP_MQTT::RscpMqttCache, cfg.prefix);
     addPrefix(RSCP_MQTT::RscpMqttCacheTempl, cfg.prefix);
@@ -1928,7 +2090,11 @@ int main(int argc, char *argv[]){
 
     // History year
     if (cfg.verbose) printf("History year range from %d to %d\n", cfg.history_start_year, curr_year);
-    if (cfg.history_start_year < curr_year) addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, cfg.history_start_year, curr_year, 0);
+    if (cfg.history_start_year < curr_year) addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, cfg.history_start_year, curr_year, 0);
+
+    // Battery Strings
+    addTemplTopics(TAG_BAT_DATA, (cfg.battery_strings == 1)?0:1, 0, cfg.battery_strings, 1);
+    addTemplTopics(TAG_BAT_SPECIFICATION, (cfg.battery_strings == 1)?0:1, 0, cfg.battery_strings, 1);
 
 #ifdef INFLUXDB
     if (cfg.influxdb_on && (cfg.influxdb_version == 1)) {
@@ -1941,7 +2107,7 @@ int main(int argc, char *argv[]){
 #endif
     printf("Fetching data every ");
     if (cfg.interval == 1) printf("second.\n"); else printf("%i seconds.\n", cfg.interval);
-    printf("Requesting PVI (%d trackers) %s PM %s DCB %s Wallbox %s Autorefresh %s\n", cfg.pvi_tracker, cfg.pvi_requests ? "✓" : "✗", cfg.pm_requests ? "✓" : "✗", cfg.dcb_requests ? "✓" : "✗", cfg.wallbox ? "✓" : "✗", cfg.auto_refresh ? "✓" : "✗");
+    printf("Requesting PVI %s | PM %s | DCB %s (%d battery string%s) | Wallbox %s | Autorefresh %s\n", cfg.pvi_requests?"✓":"✗", cfg.pm_requests?"✓":"✗", cfg.dcb_requests?"✓":"✗", cfg.battery_strings, (cfg.battery_strings > 1)?"s":"", cfg.wallbox?"✓":"✗", cfg.auto_refresh?"✓":"✗");
 
     if (!cfg.mqtt_pub) printf("DISABLE_MQTT_PUBLISH / DRYRUN mode\n");
     printf("Log level = %d\n", cfg.log_level);

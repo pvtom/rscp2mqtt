@@ -1,5 +1,11 @@
 ## Release Notes
 
+### Release v3.10 (03.01.2024)
+
+- Issue #30: Multiple battery strings are supported (e.g. S10 Pro)
+- Automatic detection of the number of PVI trackers
+- Additional topics
+
 ### Release v3.9 (23.12.2023)
 
 - Note: New [Dashboard](https://github.com/pvtom/rscp2mqtt-dashboard) is available
