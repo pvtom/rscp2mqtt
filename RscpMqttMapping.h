@@ -3,6 +3,7 @@
 
 #include "RscpTags.h"
 #include "RscpTypes.h"
+#include <queue>
 
 #define TOPIC_SIZE        128
 #define PAYLOAD_SIZE      128
@@ -42,6 +43,7 @@
 namespace RSCP_MQTT {
 
 std::string days[8] = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "today"};
+int nr_of_days[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
 typedef struct _topic_store_t {
     uint8_t type;
@@ -78,6 +80,15 @@ typedef struct _not_supported_tags_t {
 } not_supported_tags_t;
 
 std::vector<not_supported_tags_t> NotSupportedTags;
+
+typedef struct _date_t {
+    int day;
+    int month;
+    int year;
+} date_t;
+
+std::queue<date_t> requestQ;
+std::queue<date_t> paramQ;
 
 typedef struct _cache_t {
     uint32_t container;
@@ -133,11 +144,7 @@ cache_t cache[] = {
     { 0, TAG_EMS_COUPLING_MODE, 0, "coupling/mode", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_EMS_IDLE_PERIOD_CHANGE_MARKER, 0, "idle_period/change", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_PVI_INVERTER_COUNT, 0, "system/inverter_count", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-
-//DEV
     { 0, TAG_BAT_AVAILABLE_BATTERIES, 0, "system/battery_count", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-
-
     { 0, TAG_EMS_USED_CHARGE_LIMIT, 0, "ems/used_charge_limit", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
     { 0, TAG_EMS_BAT_CHARGE_LIMIT, 0, "ems/battery_charge_limit", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
     { 0, TAG_EMS_DCDC_CHARGE_LIMIT, 0, "ems/dcdc_charge_limit", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
@@ -229,6 +236,7 @@ cache_t cache[] = {
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_CONSUMPTION, 0, "home/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_0_POWER, 0, "pm_0/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_1_POWER, 0, "pm_1/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_BAT_CHARGE_LEVEL, 0, "battery/rsoc", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_CONSUMED_PRODUCTION, 0, "consumed", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_AUTARKY, 0, "autarky", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
     // YESTERDAY
@@ -250,6 +258,9 @@ cache_t cache[] = {
     { TAG_DB_HISTORY_DATA_WEEK, TAG_DB_GRID_POWER_IN, 0, "week/grid/energy/in", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_WEEK, TAG_DB_GRID_POWER_OUT, 0, "week/grid/energy/out", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_WEEK, TAG_DB_CONSUMPTION, 0, "week/home/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_WEEK, TAG_DB_PM_0_POWER, 0, "week/pm_0/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_WEEK, TAG_DB_PM_1_POWER, 0, "week/pm_1/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_WEEK, TAG_DB_BAT_CHARGE_LEVEL, 0, "week/battery/rsoc", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_WEEK, TAG_DB_CONSUMED_PRODUCTION, 0, "week/consumed", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_WEEK, TAG_DB_AUTARKY, 0, "week/autarky", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
     // MONTH
@@ -259,6 +270,9 @@ cache_t cache[] = {
     { TAG_DB_HISTORY_DATA_MONTH, TAG_DB_GRID_POWER_IN, 0, "month/grid/energy/in", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_MONTH, TAG_DB_GRID_POWER_OUT, 0, "month/grid/energy/out", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_MONTH, TAG_DB_CONSUMPTION, 0, "month/home/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_MONTH, TAG_DB_PM_0_POWER, 0, "month/pm_0/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_MONTH, TAG_DB_PM_1_POWER, 0, "month/pm_1/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_MONTH, TAG_DB_BAT_CHARGE_LEVEL, 0, "month/battery/rsoc", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_MONTH, TAG_DB_CONSUMED_PRODUCTION, 0, "month/consumed", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_MONTH, TAG_DB_AUTARKY, 0, "month/autarky", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
     // YEAR
@@ -268,6 +282,9 @@ cache_t cache[] = {
     { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_GRID_POWER_IN, 0, "year/grid/energy/in", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_GRID_POWER_OUT, 0, "year/grid/energy/out", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_CONSUMPTION, 0, "year/home/energy", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_PM_0_POWER, 0, "year/pm_0/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_PM_1_POWER, 0, "year/pm_1/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_BAT_CHARGE_LEVEL, 0, "year/battery/rsoc", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_CONSUMED_PRODUCTION, 0, "year/consumed", "", F_FLOAT_0, UNIT_PERCENT, 1, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_AUTARKY, 0, "year/autarky", "", F_FLOAT_0, UNIT_PERCENT, 1, 0, false, false, false },
     // WALLBOX
@@ -275,7 +292,7 @@ cache_t cache[] = {
     { 0, TAG_EMS_POWER_WB_SOLAR, 0, "wallbox/solar/power", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
     { 0, TAG_EMS_BATTERY_TO_CAR_MODE, 0, "wallbox/battery_to_car", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_EMS_BATTERY_BEFORE_CAR_MODE, 0, "wallbox/battery_before_car", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { 0, TAG_EMS_GET_WB_DISCHARGE_BAT_UNTIL, 0, "wallbox/battery_discharge_until", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { 0, TAG_EMS_GET_WB_DISCHARGE_BAT_UNTIL, 0, "wallbox/battery_discharge_until", "", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
     { 0, TAG_EMS_GET_WALLBOX_ENFORCE_POWER_ASSIGNMENT, 0, "wallbox/disable_battery_at_mix_mode", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { TAG_WB_DATA, TAG_WB_DEVICE_STATE, 0, "wallbox/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "wallbox/active_phases", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
@@ -293,6 +310,18 @@ cache_t cache[] = {
 std::vector<cache_t> RscpMqttCache(cache, cache + sizeof(cache) / sizeof(cache_t));
 
 cache_t templates[] = {
+    // DAY
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_BAT_POWER_IN, 1, "day/%d/%d/%d/battery/energy/charge", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_BAT_POWER_OUT, 1, "day/%d/%d/%d/battery/energy/discharge", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_DC_POWER, 1, "day/%d/%d/%d/solar/energy", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_GRID_POWER_IN, 1, "day/%d/%d/%d/grid/energy/in", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_GRID_POWER_OUT, 1, "day/%d/%d/%d/grid/energy/out", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_CONSUMPTION, 1, "day/%d/%d/%d/home/energy", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_0_POWER, 1, "day/%d/%d/%d/pm_0/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_1_POWER, 1, "day/%d/%d/%d/pm_1/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_BAT_CHARGE_LEVEL, 1, "day/%d/%d/%d/battery/rsoc", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_CONSUMED_PRODUCTION, 1, "day/%d/%d/%d/consumed", "", F_FLOAT_0, UNIT_PERCENT, 1, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_AUTARKY, 1, "day/%d/%d/%d/autarky", "", F_FLOAT_0, UNIT_PERCENT, 1, 0, false, false, false },
     // YEAR
     { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_BAT_POWER_IN, 1, "history/%d/battery/energy/charge", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_BAT_POWER_OUT, 1, "history/%d/battery/energy/discharge", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
@@ -300,49 +329,32 @@ cache_t templates[] = {
     { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_GRID_POWER_IN, 1, "history/%d/grid/energy/in", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_GRID_POWER_OUT, 1, "history/%d/grid/energy/out", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_CONSUMPTION, 1, "history/%d/home/energy", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_PM_0_POWER, 1, "history/%d/pm_0/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_PM_1_POWER, 1, "history/%d/pm_1/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_BAT_CHARGE_LEVEL, 1, "history/%d/battery/rsoc", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_CONSUMED_PRODUCTION, 1, "history/%d/consumed", "", F_FLOAT_0, UNIT_PERCENT, 1, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_AUTARKY, 1, "history/%d/autarky", "", F_FLOAT_0, UNIT_PERCENT, 1, 0, false, false, false },
-    // TAG_BAT_DATA (1)
-    { TAG_BAT_DATA, TAG_BAT_RSOC, 0, "battery/rsoc", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_MODULE_VOLTAGE, 0, "battery/voltage", "", F_FLOAT_2, UNIT_V, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_CURRENT, 0, "battery/current", "", F_FLOAT_2, UNIT_A, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_CHARGE_CYCLES, 0, "battery/cycles", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_STATUS_CODE, 0, "battery/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_ERROR_CODE, 0, "battery/error", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_DEVICE_NAME, 0, "battery/name", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_DCB_COUNT, 0, "battery/dcb/count", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_TRAINING_MODE, 0, "battery/training", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_MAX_DCB_CELL_TEMPERATURE, 0, "battery/temperature/max", "", F_FLOAT_1, UNIT_GRAD_C, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_MIN_DCB_CELL_TEMPERATURE, 0, "battery/temperature/min", "", F_FLOAT_1, UNIT_GRAD_C, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_ASOC, 0, "battery/soh", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
-    { TAG_BAT_SPECIFICATION, TAG_BAT_ROLE, 0, "battery/role", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_SPECIFICATION, TAG_BAT_SPECIFIED_CAPACITY, 0, "battery/specified_capacity", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
-    { TAG_BAT_SPECIFICATION, TAG_BAT_SPECIFIED_DSCHARGE_POWER, 0, "battery/specified_discharge_power", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
-    { TAG_BAT_SPECIFICATION, TAG_BAT_SPECIFIED_CHARGE_POWER, 0, "battery/specified_charge_power", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
-    { TAG_BAT_SPECIFICATION, TAG_BAT_SPECIFIED_MAX_DCB_COUNT, 0, "battery/specified_max_dcb_count", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_USABLE_CAPACITY, 0, "battery/usable_capacity", "", F_AUTO, UNIT_AH, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_USABLE_REMAINING_CAPACITY, 0, "battery/usable_remaining_capacity", "", F_AUTO, UNIT_AH, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_DESIGN_CAPACITY, 0, "battery/design_capacity", "", F_AUTO, UNIT_AH, 1, 0, false, false, false },
-    // TAG_BAT_DATA (2)
-    { TAG_BAT_DATA, TAG_BAT_RSOC, 1, "battery/%d/rsoc", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_MODULE_VOLTAGE, 1, "battery/%d/voltage", "", F_FLOAT_2, UNIT_V, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_CURRENT, 1, "battery/%d/current", "", F_FLOAT_2, UNIT_A, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_CHARGE_CYCLES, 1, "battery/%d/cycles", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_STATUS_CODE, 1, "battery/%d/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_ERROR_CODE, 1, "battery/%d/error", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_DEVICE_NAME, 1, "battery/%d/name", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_DCB_COUNT, 1, "battery/%d/dcb/count", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_TRAINING_MODE, 1, "battery/%d/training", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_MAX_DCB_CELL_TEMPERATURE, 1, "battery/%d/temperature/max", "", F_FLOAT_1, UNIT_GRAD_C, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_MIN_DCB_CELL_TEMPERATURE, 1, "battery/%d/temperature/min", "", F_FLOAT_1, UNIT_GRAD_C, 1, 0, false, false, false },
-    { TAG_BAT_SPECIFICATION, TAG_BAT_ROLE, 1, "battery/%d/role", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_SPECIFICATION, TAG_BAT_SPECIFIED_CAPACITY, 1, "battery/%d/specified_capacity", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
-    { TAG_BAT_SPECIFICATION, TAG_BAT_SPECIFIED_DSCHARGE_POWER, 1, "battery/%d/specified_discharge_power", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
-    { TAG_BAT_SPECIFICATION, TAG_BAT_SPECIFIED_CHARGE_POWER, 1, "battery/%d/specified_charge_power", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
-    { TAG_BAT_SPECIFICATION, TAG_BAT_SPECIFIED_MAX_DCB_COUNT, 1, "battery/%d/specified_max_dcb_count", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_USABLE_CAPACITY, 0, "battery/%d/usable_capacity", "", F_AUTO, UNIT_AH, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_USABLE_REMAINING_CAPACITY, 0, "battery/%d/usable_remaining_capacity", "", F_AUTO, UNIT_AH, 1, 0, false, false, false },
-    { TAG_BAT_DATA, TAG_BAT_DESIGN_CAPACITY, 0, "battery/%d/design_capacity", "", F_AUTO, UNIT_AH, 1, 0, false, false, false },
+    // TAG_BAT_DATA
+    { TAG_BAT_DATA, TAG_BAT_RSOC, 1, "%s/rsoc", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
+    { TAG_BAT_DATA, TAG_BAT_MODULE_VOLTAGE, 1, "%s/voltage", "", F_FLOAT_2, UNIT_V, 1, 0, false, false, false },
+    { TAG_BAT_DATA, TAG_BAT_CURRENT, 1, "%s/current", "", F_FLOAT_2, UNIT_A, 1, 0, false, false, false },
+    { TAG_BAT_DATA, TAG_BAT_CHARGE_CYCLES, 1, "%s/cycles", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { TAG_BAT_DATA, TAG_BAT_STATUS_CODE, 1, "%s/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { TAG_BAT_DATA, TAG_BAT_ERROR_CODE, 1, "%s/error", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { TAG_BAT_DATA, TAG_BAT_DEVICE_NAME, 1, "%s/name", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { TAG_BAT_DATA, TAG_BAT_DCB_COUNT, 1, "%s/dcb/count", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { TAG_BAT_DATA, TAG_BAT_TRAINING_MODE, 1, "%s/training", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { TAG_BAT_DATA, TAG_BAT_MAX_DCB_CELL_TEMPERATURE, 1, "%s/temperature/max", "", F_FLOAT_1, UNIT_GRAD_C, 1, 0, false, false, false },
+    { TAG_BAT_DATA, TAG_BAT_MIN_DCB_CELL_TEMPERATURE, 1, "%s/temperature/min", "", F_FLOAT_1, UNIT_GRAD_C, 1, 0, false, false, false },
+    { TAG_BAT_DATA, TAG_BAT_ASOC, 1, "%s/soh", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
+    { TAG_BAT_SPECIFICATION, TAG_BAT_ROLE, 1, "%s/role", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { TAG_BAT_SPECIFICATION, TAG_BAT_SPECIFIED_CAPACITY, 1, "%s/specified_capacity", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
+    { TAG_BAT_SPECIFICATION, TAG_BAT_SPECIFIED_DSCHARGE_POWER, 1, "%s/specified_discharge_power", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
+    { TAG_BAT_SPECIFICATION, TAG_BAT_SPECIFIED_CHARGE_POWER, 1, "%s/specified_charge_power", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
+    { TAG_BAT_SPECIFICATION, TAG_BAT_SPECIFIED_MAX_DCB_COUNT, 1, "%s/specified_max_dcb_count", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { TAG_BAT_DATA, TAG_BAT_USABLE_CAPACITY, 1, "%s/usable_capacity", "", F_AUTO, UNIT_AH, 1, 0, false, false, false },
+    { TAG_BAT_DATA, TAG_BAT_USABLE_REMAINING_CAPACITY, 1, "%s/usable_remaining_capacity", "", F_AUTO, UNIT_AH, 1, 0, false, false, false },
+    { TAG_BAT_DATA, TAG_BAT_DESIGN_CAPACITY, 1, "%s/design_capacity", "", F_AUTO, UNIT_AH, 1, 0, false, false, false },
     // DCB
     { TAG_BAT_DCB_INFO, TAG_BAT_DCB_MAX_CHARGE_VOLTAGE, 1, "battery/dcb/%d/max_charge_voltage", "", F_FLOAT_2, UNIT_V, 1, 0, false, false, false },
     { TAG_BAT_DCB_INFO, TAG_BAT_DCB_MAX_CHARGE_CURRENT, 1, "battery/dcb/%d/max_charge_current", "", F_FLOAT_2, UNIT_A, 1, 0, false, false, false },
@@ -398,40 +410,42 @@ typedef struct _rec_cache_t {
     char unit[UNIT_SIZE];
     int type;
     int refresh_count;
+    bool queue;
     bool done;
 } rec_cache_t;
 
 rec_cache_t rec_cache[] = {
-    { 0, TAG_EMS_REQ_START_MANUAL_CHARGE, "set/manual_charge", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, true },
-    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_WEATHER_REGULATED_CHARGE_ENABLED, "set/weather_regulation", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, true },
-    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_POWER_LIMITS_USED, "set/power_limits", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, true },
-    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_MAX_CHARGE_POWER, "set/max_charge_power", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, true },
-    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_MAX_DISCHARGE_POWER, "set/max_discharge_power", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, true },
-    { TAG_EMS_REQ_SET_POWER, TAG_EMS_REQ_SET_POWER_MODE, "power_mode: mode", "", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, 0, true },
-    { TAG_EMS_REQ_SET_POWER, TAG_EMS_REQ_SET_POWER_VALUE, "power_mode: value", "", "", "", "", "", UNIT_NONE, RSCP::eTypeInt32, 0, true },
-    { TAG_SE_REQ_SET_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE, "set/reserve/percent", PAYLOAD_REGEX_2_DIGIT, "", "", "", "", UNIT_PERCENT, RSCP::eTypeFloat32, -1, true },
-    { TAG_SE_REQ_SET_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE_W, "set/reserve/energy", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_WH, RSCP::eTypeFloat32, -1, true },
-    { 0, 0, "set/power_mode", "^auto$|^idle:[0-9]{1,4}$|^charge:[0-9]{1,5}:[0-9]{1,4}$|^discharge:[0-9]{1,5}:[0-9]{1,4}$|^grid_charge:[0-9]{1,5}:[0-9]{1,4}$", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, true },
-    { 0, 0, "set/idle_period", SET_IDLE_PERIOD_REGEX, "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, true },
-    { 0, TAG_EMS_REQ_SET_BATTERY_TO_CAR_MODE, "set/wallbox/battery_to_car", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, true },
-    { 0, TAG_EMS_REQ_SET_BATTERY_BEFORE_CAR_MODE, "set/wallbox/battery_before_car", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, true },
-    { 0, TAG_EMS_REQ_SET_WB_DISCHARGE_BAT_UNTIL, "set/wallbox/battery_discharge_until", PAYLOAD_REGEX_2_DIGIT, "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, true },
-    { 0, TAG_EMS_REQ_SET_WALLBOX_ENFORCE_POWER_ASSIGNMENT, "set/wallbox/disable_battery_at_mix_mode", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, true },
-    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/control", "^solar:[0-9]{1,2}$|^mix:[0-9]{1,2}$|^stop$", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, true },
-    { TAG_WB_REQ_DATA, TAG_WB_REQ_SET_NUMBER_PHASES, "set/wallbox/number_phases", "^1|3$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, true },
-    { 0, 0, "set/requests/pm", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, true },
-    { 0, 0, "set/requests/pvi", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, true },
-    { 0, 0, "set/requests/dcb", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, true },
-    { 0, 0, "set/soc_limiter", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, true },
-    { 0, 0, "set/limit/charge/soc", PAYLOAD_REGEX_0_100, "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, true },
-    { 0, 0, "set/limit/charge/durable", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, true },
-    { 0, 0, "set/limit/discharge/soc", PAYLOAD_REGEX_0_100, "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, true },
-    { 0, 0, "set/limit/discharge/durable", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, true },
-    { 0, 0, "set/limit/discharge/by_home_power", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, true },
-    { 0, 0, "set/log", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, true },
-    { 0, 0, "set/health", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, true },
-    { 0, 0, "set/force", "[a-zA-z0-9/_.*]*", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, true },
-    { 0, 0, "set/interval", "(^[1-9]|10$)", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, true }
+    { 0, TAG_EMS_REQ_START_MANUAL_CHARGE, "set/manual_charge", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
+    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_WEATHER_REGULATED_CHARGE_ENABLED, "set/weather_regulation", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_POWER_LIMITS_USED, "set/power_limits", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_MAX_CHARGE_POWER, "set/max_charge_power", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
+    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_MAX_DISCHARGE_POWER, "set/max_discharge_power", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
+    { TAG_EMS_REQ_SET_POWER, TAG_EMS_REQ_SET_POWER_MODE, "power_mode: mode", "", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, 0, false, true },
+    { TAG_EMS_REQ_SET_POWER, TAG_EMS_REQ_SET_POWER_VALUE, "power_mode: value", "", "", "", "", "", UNIT_NONE, RSCP::eTypeInt32, 0, false, true },
+    { TAG_SE_REQ_SET_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE, "set/reserve/percent", PAYLOAD_REGEX_0_100, "", "", "", "", UNIT_PERCENT, RSCP::eTypeFloat32, -1, false, true },
+    { TAG_SE_REQ_SET_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE_W, "set/reserve/energy", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_WH, RSCP::eTypeFloat32, -1, false, true },
+    { 0, 0, "set/power_mode", "^auto$|^idle:[0-9]{1,4}$|^charge:[0-9]{1,5}:[0-9]{1,4}$|^discharge:[0-9]{1,5}:[0-9]{1,4}$|^grid_charge:[0-9]{1,5}:[0-9]{1,4}$", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, "set/idle_period", SET_IDLE_PERIOD_REGEX, "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, TAG_EMS_REQ_SET_BATTERY_TO_CAR_MODE, "set/wallbox/battery_to_car", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, TAG_EMS_REQ_SET_BATTERY_BEFORE_CAR_MODE, "set/wallbox/battery_before_car", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, TAG_EMS_REQ_SET_WB_DISCHARGE_BAT_UNTIL, "set/wallbox/battery_discharge_until", PAYLOAD_REGEX_2_DIGIT, "", "", "", "", UNIT_PERCENT, RSCP::eTypeUChar8, -1, false, true },
+    { 0, TAG_EMS_REQ_SET_WALLBOX_ENFORCE_POWER_ASSIGNMENT, "set/wallbox/disable_battery_at_mix_mode", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/control", "^solar:[0-9]{1,2}$|^mix:[0-9]{1,2}$|^stop$", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { TAG_WB_REQ_DATA, TAG_WB_REQ_SET_NUMBER_PHASES, "set/wallbox/number_phases", "^1|3$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, 0, "set/requests/pm", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, "set/requests/pvi", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, "set/requests/dcb", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, "set/soc_limiter", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, "set/limit/charge/soc", PAYLOAD_REGEX_0_100, "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, 0, "set/limit/charge/durable", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, 0, "set/limit/discharge/soc", PAYLOAD_REGEX_0_100, "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, 0, "set/limit/discharge/durable", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, 0, "set/limit/discharge/by_home_power", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
+    { 0, 0, "set/log", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, "set/health", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, "set/force", "[a-zA-z0-9/_.*]*", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, "set/interval", "(^[1-9]|10$)", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, 0, "set/request/day", "^[0-9]{4}-[0-1]?[0-9]-[0-3]?[0-9]$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, true, true }
 };
 
 std::vector<rec_cache_t> RscpMqttReceiveCache(rec_cache, rec_cache + sizeof(rec_cache) / sizeof(rec_cache_t));

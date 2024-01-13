@@ -1,5 +1,10 @@
 ## Release Notes
 
+### Release v3.11 (13.01.2024)
+
+- Query of historical daily values (Issue #40)
+- Issue #41: Enables the reserve to be set to 100%
+
 ### Release v3.10 (03.01.2024)
 
 - Issue #30: Multiple battery strings are supported (e.g. S10 Pro)

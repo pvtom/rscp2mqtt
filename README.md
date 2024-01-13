@@ -7,11 +7,10 @@
 [![GitHub](https://img.shields.io/github/license/pvtom/rscp2mqtt)](https://github.com/pvtom/rscp2mqtt/blob/main/LICENSE)
 
 This software module connects a home power station from E3/DC to an MQTT broker.
-It uses the RSCP interface of the device.
 
-The solution is based on the RSCP sample application provided by E3/DC and was developed and tested with a Raspberry Pi and a Linux PC (x86_64).
+It uses the RSCP interface of the device. The solution is based on the RSCP sample application provided by E3/DC and was developed and tested with a Raspberry Pi and a Linux PC (x86_64).
 
-The tool fetches data cyclically and publishes it to the MQTT broker under certain [topics](TOPICS.md).
+The tool cyclically queries data from the home power station and publishes it to an MQTT broker using these [topics](TOPICS.md).
 
 Supported topic areas are:
 
@@ -47,9 +46,9 @@ For continuous provision of values, you can configure several topics that are pu
 - Configuration of the topics that will be published to InfluxDB (INFLUXDB_TOPIC)
 - MQTT Client ID can be configured
 - More detailled [TOPIC](TOPICS.md) overview
-- (new) Multiple battery strings are supported (BATTERY_STRINGS parameter)
-- (new) Automatic detection of the number of PVI trackers
-- (new) Additional topics
+- Multiple battery strings are supported (BATTERY_STRINGS parameter)
+- Automatic detection of the number of PVI trackers
+- (new) Query of historical daily values
 
 ## Docker
 
@@ -142,7 +141,7 @@ or in verbose mode
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [v3.10]
+rscp2mqtt [v3.11]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
 MQTT broker >localhost:1883< qos = >0< retain = >false< client id >✗< prefix >e3dc<
 Fetching data every second.
@@ -151,11 +150,11 @@ Log level = 0
 Stdout to terminal
 
 ...
-[2024-01-03 10:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(2185) Connecting to server 192.168.178.111:5033
-[2024-01-03 10:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(2192) Success: E3DC connected.
-[2024-01-03 10:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(1283) RSCP authentication level 10
-[2024-01-03 10:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(1796) Connecting to broker localhost:1883
-[2024-01-03 10:00:00] pid=30100 ppid=1 RscpMqttMain.cpp(289) Success: MQTT broker connected.
+[2024-01-13 10:50:00] pid=30110 ppid=1 RscpMqttMain.cpp(2294) Connecting to server 192.168.178.111:5033
+[2024-01-13 10:50:00] pid=30110 ppid=1 RscpMqttMain.cpp(2301) Success: E3DC connected.
+[2024-01-13 10:50:00] pid=30110 ppid=1 RscpMqttMain.cpp(1379) RSCP authentication level 10
+[2024-01-13 10:50:00] pid=30110 ppid=1 RscpMqttMain.cpp(1905) Connecting to broker localhost:1883
+[2024-01-13 10:50:00] pid=30110 ppid=1 RscpMqttMain.cpp(1914) Success: MQTT broker connected.
 ...
 ```
 
@@ -198,7 +197,7 @@ sudo systemctl start rscp2mqtt
 
 ## Device Control
 
-rscp2mqtt subscribes to the root topic "prefix/set/#" and forwards incoming requests to the home power station. In this way, the device can be controlled and changes made to its configuration.
+rscp2mqtt subscribes to the root topic "e3dc/set/#" and forwards incoming requests to the home power station. In this way, the device can be controlled, additional data can be queried and changes can be made to its configuration.
 
 ### Battery Charging
 
@@ -377,6 +376,18 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/disable_battery_at_mix_m
 Set number of phases (1/3)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/number_phases" -m 1
+```
+
+## Historical daily data
+
+Historical data for a specific day (format "YYYY-MM-DD") can be queried by
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/request/day" -m "2024-01-01"
+```
+
+Please use the script `request_days.sh` to request data for a time span.
+```
+./request_days.sh localhost 1883 e3dc 2024-01-01 2024-01-13
 ```
 
 ## System Commands

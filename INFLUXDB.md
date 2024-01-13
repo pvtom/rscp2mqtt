@@ -18,6 +18,7 @@ INFLUXDB_1_AUTH=false
 INFLUXDB_1_USER=
 INFLUXDB_1_PASSWORD=
 INFLUXDB_TOPIC=e3dc/[a-z]+/power
+INFLUXDB_TOPIC=e3dc/day/.*
 ```
 You can configure the topics to be transferred to the InfluxDB by setting the parameter INFLUXDB_TOPIC.
 INFLUXDB_TOPIC can occur several times.

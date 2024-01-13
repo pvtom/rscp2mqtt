@@ -34,7 +34,7 @@ DISABLE_MQTT_PUBLISH=false
 AUTO_REFRESH=false
 #--external Power Meter (i.e. S10 Mini)
 PM_EXTERN=false
-#--Year of installation
+#--Start of Operation
 HISTORY_START_YEAR=2022
 
 #-MQTT Topics
@@ -75,6 +75,7 @@ INFLUXDB_PORT=8086
 INFLUXDB_VERSION=2
 INFLUXDB_MEASUREMENT=e3dc
 INFLUXDB_TOPIC=e3dc/[a-z]+/power
+INFLUXDB_TOPIC=e3dc/day/.*
 
 #-InfluxDB v1
 #--if compiled with InfluxDB option

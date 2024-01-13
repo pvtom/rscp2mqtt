@@ -19,7 +19,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT               "v3.10"
+#define RSCP2MQTT               "v3.11"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -44,6 +44,7 @@
 #define DISCHARGE_LOCK_TRUE     "today:discharge:true:00:00-23:59"
 #define DISCHARGE_LOCK_FALSE    "today:discharge:false:00:00-23:59"
 #define PV_SOLAR_MIN            200
+#define MAX_DAYS_PER_ITERATION  12
 
 static int iSocket = -1;
 static int iAuthenticated = 0;
@@ -57,9 +58,10 @@ static time_t e3dc_ts = 0;
 static time_t e3dc_diff = 0;
 static int gmt_diff = 0;
 static config_t cfg;
-static int day, year, curr_year, battery_nr;
+static int day, leap_day, year, curr_year, battery_nr;
 static uint8_t period_change_nr = 0;
 static bool period_trigger = false;
+static bool history_init = true;
 
 std::mutex mtx;
 
@@ -96,7 +98,14 @@ int storeMQTTReceivedValue(std::vector<RSCP_MQTT::rec_cache_t> & c, char *topic_
             if (std::regex_match(payload, std::regex(it->regex_true))) {
                 if (strcmp(it->value_true, "")) strncpy(it->payload, it->value_true, PAYLOAD_SIZE);
                 else strncpy(it->payload, payload, PAYLOAD_SIZE);
-                it->done = false;
+                if (it->queue) {
+                    if (!strcmp(it->topic, "set/request/day")) {
+                        int year, month, day;
+                        if (sscanf(it->payload, "%d-%d-%d", &year, &month, &day)) {
+                            RSCP_MQTT::requestQ.push({day, month, year});
+                        }
+                    }
+                } else it->done = false;
                 break;
             } else if (std::regex_match(payload, std::regex(it->regex_false))) {
                 if (strcmp(it->value_false, "")) strncpy(it->payload, it->value_false, PAYLOAD_SIZE);
@@ -226,13 +235,22 @@ int handleSetIdlePeriod(RscpProtocol *protocol, SRscpValue *rootContainer, char 
     return(0);
 }
 
-void addTemplTopics(uint32_t container, int index, int start, int n, int inc) {
+void addTemplTopics(uint32_t container, int index, char *seg, int start, int n, int inc) {
     for (int c = start; c < n; c++) {
         for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCacheTempl.begin(); it != RSCP_MQTT::RscpMqttCacheTempl.end(); ++it) {
-            if ((it->container == container) && (it->index == index)) {
+            if (it->container == container) {
                 RSCP_MQTT::cache_t cache = { it->container, it->tag, c, "", "", it->format, "", it->divisor, it->bit_to_bool, it->history_log, it->changed, it->influx, it->forced };
-                if (index) snprintf(cache.topic, TOPIC_SIZE, it->topic, c + inc);
-                else strcpy(cache.topic, it->topic);
+                if ((seg == NULL) && (index == 0)) { // no args
+                    strcpy(cache.topic, it->topic);
+                } else if ((seg == NULL) && (index == 1)) { // "%d"
+                    snprintf(cache.topic, TOPIC_SIZE, it->topic, c + inc);
+                } else if ((seg != NULL) && (index == 0)) { // "%s"
+                    snprintf(cache.topic, TOPIC_SIZE, it->topic, seg);
+                } else { // "%s" with "%s/%d"
+                    char buffer[TOPIC_SIZE];
+                    snprintf(buffer, TOPIC_SIZE, "%s/%d", seg, c + inc);
+                    snprintf(cache.topic, TOPIC_SIZE, it->topic, buffer);
+                }
                 strcpy(cache.unit, it->unit);
                 for (std::vector<RSCP_MQTT::topic_store_t>::iterator it2 = RSCP_MQTT::TopicStore.begin(); it2 != RSCP_MQTT::TopicStore.end(); ++it2) {
                     switch (it2->type) {
@@ -303,7 +321,7 @@ int insertInfluxDb(char *buffer) {
     return(res);
 }
 
-void handleInfluxDb(char *buffer, char *topic, char *payload, char *unit) {
+void handleInfluxDb(char *buffer, char *topic, char *payload, char *unit, char *timestamp) {
     char line[CURL_BUFFER_SIZE];
 
     if (topic == NULL) {
@@ -313,6 +331,7 @@ void handleInfluxDb(char *buffer, char *topic, char *payload, char *unit) {
 
     if (!strcmp(payload, "true")) sprintf(line, "%s,topic=%s value=1", cfg.influxdb_measurement, topic);
     else if (!strcmp(payload, "false")) sprintf(line, "%s,topic=%s value=0", cfg.influxdb_measurement, topic);
+    else if (strcmp(unit, "") && timestamp) sprintf(line, "%s,topic=%s,unit=%s value=%s %s", cfg.influxdb_measurement, topic, unit, payload, timestamp);
     else if (strcmp(unit, "")) sprintf(line, "%s,topic=%s,unit=%s value=%s", cfg.influxdb_measurement, topic, unit, payload);
     else return;
 
@@ -347,13 +366,13 @@ int handleMQTT(std::vector<RSCP_MQTT::cache_t> & v, int qos, bool retain) {
             if (it->history_log) logMessage(cfg.historyfile, (char *)__FILE__, __LINE__, (char *)"topic >%s< payload >%s< unit >%s<\n", it->topic, it->payload, it->unit);
             if (cfg.mqtt_pub && mosq) rc = mosquitto_publish(mosq, NULL, it->topic, strlen(it->payload), it->payload, qos, retain);
 #ifdef INFLUXDB
-            if (cfg.influxdb_on && curl && it->influx) handleInfluxDb(buffer, it->topic, it->payload, it->unit);
+            if (cfg.influxdb_on && curl && it->influx) handleInfluxDb(buffer, it->topic, it->payload, it->unit, NULL);
 #endif
             it->changed = false;
         }
     }
 #ifdef INFLUXDB
-    if (cfg.influxdb_on && curl) handleInfluxDb(buffer, NULL, NULL, NULL);
+    if (cfg.influxdb_on && curl) handleInfluxDb(buffer, NULL, NULL, NULL, NULL);
 #endif
     return(rc);
 }
@@ -486,7 +505,9 @@ void copyCache(std::vector<RSCP_MQTT::cache_t> & to, std::vector<RSCP_MQTT::cach
 void cleanupCache(std::vector<RSCP_MQTT::cache_t> & v) {
     std::vector<RSCP_MQTT::cache_t> TempCache({});
     copyCache(TempCache, v, TAG_DB_HISTORY_DATA_YEAR);
+    copyCache(TempCache, v, TAG_DB_HISTORY_DATA_DAY);
     RSCP_MQTT::RscpMqttCacheTempl.clear();
+    copyCache(v, TempCache, TAG_DB_HISTORY_DATA_DAY);
     copyCache(v, TempCache, TAG_DB_HISTORY_DATA_YEAR);
     return;
 }
@@ -554,6 +575,49 @@ void setTopicsInflux(std::vector<RSCP_MQTT::cache_t> & v, char *regex) {
     return;
 }
 #endif
+
+int handleImmediately(RscpProtocol *protocol, SRscpValue *response, uint32_t container, int year, int month, int day) {
+#ifdef INFLUXDB
+    char buffer[CURL_BUFFER_SIZE];
+    char ts[24];
+    strcpy(buffer, "");
+    time_t rawtime;
+    time(&rawtime);
+    struct tm *l = localtime(&rawtime);
+    l->tm_sec = 0;
+    l->tm_min = 0;
+    l->tm_hour = 0;
+    l->tm_isdst = -1;
+#endif
+    char topic[TOPIC_SIZE];
+    char payload[PAYLOAD_SIZE];
+    int rc = 0;
+
+    for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCacheTempl.begin(); it != RSCP_MQTT::RscpMqttCacheTempl.end(); ++it) {
+        if ((it->container == container) && (it->tag == response->tag)) {
+            snprintf(topic, TOPIC_SIZE, it->topic, year, month, day);
+            snprintf(payload, PAYLOAD_SIZE, "%0.2f", protocol->getValueAsFloat32(response) / it->divisor);
+            if (cfg.mqtt_pub && mosq) rc = mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, cfg.mqtt_qos, cfg.mqtt_retain);
+#ifdef INFLUXDB
+            l->tm_mday = day;
+            l->tm_mon = month - 1;
+            l->tm_year = year - 1900;
+            sprintf(ts, "%llu000000000", timegm(l) - gmt_diff);
+            if (cfg.influxdb_on && curl) {
+                for (std::vector<RSCP_MQTT::topic_store_t>::iterator store = RSCP_MQTT::TopicStore.begin(); store != RSCP_MQTT::TopicStore.end(); ++store) {
+                    if ((store->type == INFLUXDB_TOPIC) && std::regex_match(topic, std::regex(store->topic))) {
+                        handleInfluxDb(buffer, topic, payload, it->unit, ts);
+                    }
+                }
+            }
+#endif
+        }
+    }
+#ifdef INFLUXDB
+    if (cfg.influxdb_on && curl) handleInfluxDb(buffer, NULL, NULL, NULL, NULL);
+#endif
+    return(rc);
+}
 
 int storeIntegerValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uint32_t tag, int value, int index) {
     char buf[PAYLOAD_SIZE];
@@ -650,7 +714,7 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                     break;
                 }
                 case RSCP::eTypeUInt64: {
-                    snprintf(buf, PAYLOAD_SIZE, "%llu", protocol->getValueAsUInt64(response));
+                    snprintf(buf, PAYLOAD_SIZE, "%lu", protocol->getValueAsUInt64(response));
                     if (strcmp(it->payload, buf)) {
                         strcpy(it->payload, buf);
                         it->changed = true;
@@ -721,6 +785,12 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                 }
             }
             rc = response->dataType;
+            if ((container == TAG_DB_HISTORY_DATA_DAY) && (index == 0) && (it->changed)) {
+                time_t rawtime; 
+                time(&rawtime);
+                struct tm *l = localtime(&rawtime);
+                handleImmediately(protocol, response, TAG_DB_HISTORY_DATA_DAY, l->tm_year + 1900, l->tm_mon + 1, l->tm_mday);
+            }
         }
     }
     return(rc);
@@ -809,6 +879,7 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
     time_t rawtime;
     time(&rawtime);
     struct tm *l = localtime(&rawtime);
+    int day_iteration;
 
     strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", l);
 
@@ -820,7 +891,7 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
     l->tm_isdst = -1;
 
     if (curr_year < l->tm_year + 1900) {
-        addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, curr_year, l->tm_year + 1900, 0);
+        addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, NULL, curr_year, l->tm_year + 1900, 0);
         curr_year = l->tm_year + 1900;
     }
 
@@ -1099,9 +1170,34 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                 protocol.destroyValueData(dbContainer);
             }
         }
-
-        // handle incoming MQTT requests
         mtx.lock();
+        day_iteration = 0;
+        while ((day_iteration++ < MAX_DAYS_PER_ITERATION) && (!RSCP_MQTT::requestQ.empty())) {
+            if (!RSCP_MQTT::requestQ.empty()) {
+                RSCP_MQTT::date_t x;
+
+                x = RSCP_MQTT::requestQ.front();
+                RSCP_MQTT::requestQ.pop();
+                leap_day = ((x.month == 2) && (!(x.year%4) && ((x.year%100) || !(x.year%400))))?1:0;
+                if ((x.year > cfg.history_start_year) && (x.year <= curr_year) && (x.month > 0) && (x.month <= 12) && (x.day > 0) && (x.day <= (RSCP_MQTT::nr_of_days[x.month - 1] + leap_day))) {
+                    RSCP_MQTT::paramQ.push({x.day, x.month, x.year});
+                    SRscpValue dbContainer;
+                    l->tm_mday = x.day;
+                    l->tm_mon = x.month - 1;
+                    l->tm_year = x.year - 1900;
+                    start.seconds = timegm(l) - gmt_diff - 15 * 60;
+                    interval.seconds = 24 * 3600;
+                    span.seconds = 24 * 3600;
+                    protocol.createContainerValue(&dbContainer, TAG_DB_REQ_HISTORY_DATA_DAY);
+                    protocol.appendValue(&dbContainer, TAG_DB_REQ_HISTORY_UTC_TIME_START, start);
+                    protocol.appendValue(&dbContainer, TAG_DB_REQ_HISTORY_TIME_INTERVAL, interval);
+                    protocol.appendValue(&dbContainer, TAG_DB_REQ_HISTORY_TIME_SPAN, span);
+                    protocol.appendValue(&rootValue, dbContainer);
+                    protocol.destroyValueData(dbContainer);
+                }
+            }
+        }
+        // handle incoming MQTT requests
         if (mqttRcvd || cfg.auto_refresh) {
             mqttRcvd = false;
             uint32_t container = 0;
@@ -1254,6 +1350,8 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
 }
 
 int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
+    RSCP_MQTT::date_t x;
+
     // check if any of the response has the error flag set and react accordingly
     if (response->dataType == RSCP::eTypeError) {
         // handle error for example access denied errors
@@ -1332,7 +1430,7 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                         cfg.bat_dcb_count[battery_nr] = protocol->getValueAsUChar8(&containerData[i]);
                         cfg.bat_dcb_start[battery_nr] = battery_nr?cfg.bat_dcb_count[battery_nr - 1]:0;
                         storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
-                        addTemplTopics(TAG_BAT_DCB_INFO, 1, cfg.bat_dcb_start[battery_nr], cfg.bat_dcb_start[battery_nr] + cfg.bat_dcb_count[battery_nr], 1);
+                        addTemplTopics(TAG_BAT_DCB_INFO, 1, NULL, cfg.bat_dcb_start[battery_nr], cfg.bat_dcb_start[battery_nr] + cfg.bat_dcb_count[battery_nr], 1);
                         if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"TAG_BAT_DCB_COUNT battery_nr = %d bat_dcb_count = %d bat_dcb_start = %d\n", battery_nr, cfg.bat_dcb_count[battery_nr], cfg.bat_dcb_start[battery_nr]);
                         break;
                     }
@@ -1363,7 +1461,7 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                 if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Container 0x%08X Tag 0x%08X received error code %u.\n", response->tag, containerData[i].tag, uiErrorCode);
                 if (uiErrorCode == 6) { // Wallbox not available
                     if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Wallbox not available.\n");
-                    cfg.wallbox = false;
+                    //cfg.wallbox = false;
                     pushNotSupportedTag(response->tag, containerData[i].tag);
                 }
             } else if (containerData[i].tag == TAG_WB_EXTERN_DATA_ALG) {
@@ -1436,15 +1534,15 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                 case TAG_PVI_TEMPERATURE_COUNT: {
                     cfg.pvi_temp_count = protocol->getValueAsUChar8(&containerData[i]);
                     storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
-                    addTemplTopics(TAG_PVI_TEMPERATURE, 1, 0, cfg.pvi_temp_count, 1);
+                    addTemplTopics(TAG_PVI_TEMPERATURE, 1, NULL, 0, cfg.pvi_temp_count, 1);
                     break;
                 }
                 case TAG_PVI_USED_STRING_COUNT: {
                     cfg.pvi_tracker = protocol->getValueAsUChar8(&containerData[i]);
-                    addTemplTopics(TAG_PVI_DC_POWER, 1, 0, cfg.pvi_tracker, 1);
-                    addTemplTopics(TAG_PVI_DC_VOLTAGE, 1, 0, cfg.pvi_tracker, 1);
-                    addTemplTopics(TAG_PVI_DC_CURRENT, 1, 0, cfg.pvi_tracker, 1);
-                    addTemplTopics(TAG_PVI_DC_STRING_ENERGY_ALL, 1, 0, cfg.pvi_tracker, 1);
+                    addTemplTopics(TAG_PVI_DC_POWER, 1, NULL, 0, cfg.pvi_tracker, 1);
+                    addTemplTopics(TAG_PVI_DC_VOLTAGE, 1, NULL, 0, cfg.pvi_tracker, 1);
+                    addTemplTopics(TAG_PVI_DC_CURRENT, 1, NULL, 0, cfg.pvi_tracker, 1);
+                    addTemplTopics(TAG_PVI_DC_STRING_ENERGY_ALL, 1, NULL, 0, cfg.pvi_tracker, 1);
                     storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
                     break;
                 }
@@ -1567,7 +1665,14 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
         protocol->destroyValueData(containerData);
         break;
     }
-    case TAG_DB_HISTORY_DATA_DAY:
+    case TAG_DB_HISTORY_DATA_DAY: {
+        if (day >= 2) {
+            if (!RSCP_MQTT::paramQ.empty()) {
+                x = RSCP_MQTT::paramQ.front();
+                RSCP_MQTT::paramQ.pop();
+            }
+        }
+    }
     case TAG_DB_HISTORY_DATA_WEEK:
     case TAG_DB_HISTORY_DATA_MONTH:
     case TAG_DB_HISTORY_DATA_YEAR: {
@@ -1584,7 +1689,11 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                     std::vector<SRscpValue> dbData = protocol->getValueAsContainer(&(historyData[i]));
                     for (size_t j = 0; j < dbData.size(); ++j) {
                         if (response->tag == TAG_DB_HISTORY_DATA_DAY) {
-                            storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(dbData[j]), response->tag, day);
+                            if (day >= 2) {
+                                handleImmediately(protocol, &(dbData[j]), TAG_DB_HISTORY_DATA_DAY, x.year, x.month, x.day);
+                            } else storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(dbData[j]), response->tag, day);
+                        } else if (response->tag == TAG_DB_HISTORY_DATA_MONTH) {
+                            storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(dbData[j]), response->tag, 0);
                         } else if (response->tag == TAG_DB_HISTORY_DATA_YEAR) {
                             if (year == curr_year) storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(dbData[j]), response->tag, 0);
                             else storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(dbData[j]), response->tag, year);
@@ -1595,8 +1704,10 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                     protocol->destroyValueData(dbData);
                     break;
                 }
+                case TAG_DB_VALUE_CONTAINER: {
+                    break;
+                }
                 default:
-                    //if (!cfg.daemon) printf("Unknown db history tag %08X\n", historyData[i].tag);
                     break;
                 }
             }
@@ -2049,7 +2160,7 @@ int main(int argc, char *argv[]){
 
     // prepare RscpMqttReceiveCache
     for (uint8_t c = 0; c < IDLE_PERIOD_CACHE_SIZE; c++) {
-        RSCP_MQTT::rec_cache_t cache = { 0, 0, "set/idle_period", SET_IDLE_PERIOD_REGEX, "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, true };
+        RSCP_MQTT::rec_cache_t cache = { 0, 0, "set/idle_period", SET_IDLE_PERIOD_REGEX, "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true };
         RSCP_MQTT::RscpMqttReceiveCache.push_back(cache);
     }
     sort(RSCP_MQTT::RscpMqttReceiveCache.begin(), RSCP_MQTT::RscpMqttReceiveCache.end(), RSCP_MQTT::compareRecCache);
@@ -2090,11 +2201,11 @@ int main(int argc, char *argv[]){
 
     // History year
     if (cfg.verbose) printf("History year range from %d to %d\n", cfg.history_start_year, curr_year);
-    if (cfg.history_start_year < curr_year) addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, cfg.history_start_year, curr_year, 0);
+    if (cfg.history_start_year < curr_year) addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, NULL, cfg.history_start_year, curr_year, 0);
 
     // Battery Strings
-    addTemplTopics(TAG_BAT_DATA, (cfg.battery_strings == 1)?0:1, 0, cfg.battery_strings, 1);
-    addTemplTopics(TAG_BAT_SPECIFICATION, (cfg.battery_strings == 1)?0:1, 0, cfg.battery_strings, 1);
+    addTemplTopics(TAG_BAT_DATA, (cfg.battery_strings == 1)?0:1, (char *)"battery", 0, cfg.battery_strings, 1);
+    addTemplTopics(TAG_BAT_SPECIFICATION, (cfg.battery_strings == 1)?0:1, (char *)"battery", 0, cfg.battery_strings, 1);
 
 #ifdef INFLUXDB
     if (cfg.influxdb_on && (cfg.influxdb_version == 1)) {
