@@ -83,7 +83,7 @@ All topics are listed with the default prefix "e3dc".
 | EMS Emergency Power Available | e3dc/ems/emergency_power_available | (true/false) |
 | EMS Emergency Power Status | e3dc/ems/emergency_power_status | |
 | EMS Error Messages | e3dc/error_message/<#> | "Error Message" |
-| EMS Error Messages | e3dc/error_message/<#>/meta< | "type=<nr> code=<nr> source=<device>" |
+| EMS Error Messages | e3dc/error_message/<#>/meta< | "type=<nr#> code=<nr#> source=<device#>" |
 | EMS Grid In Limit (Einspeisebegrenzung aktiv) | e3dc/grid_in_limit | (true/false) |
 | EMS Grid Power | e3dc/grid/power | [W] |
 | EMS Home Power | e3dc/home/power | [W] |
@@ -114,17 +114,17 @@ All topics are listed with the default prefix "e3dc".
 | Grid In Energy "Einspeisung" (today) | e3dc/grid/energy/in | [kWh] |
 | Grid Out Energy "Netzbezug" (today) | e3dc/grid/energy/out | [kWh] |
 | Grid Status | e3dc/grid/state | "IN", "OUT" |
-| Historical Data Autarky * | e3dc/day/<year>/<month>/<day>/autarky | [%] |
-| Historical Data Battery Energy Charge * | e3dc/day/<year>/<month>/<day>/battery/energy/charge | [kWh] |
-| Historical Data Consumed Production * | e3dc/day/<year>/<month>/<day>/consumed | [%] |
-| Historical Data Energy Discharge * | e3dc/day/<year>/<month>/<day>/battery/energy/discharge | [kWh] |
-| Historical Data Grid In Energy "Einspeisung" * | e3dc/day/<year>/<month>/<day>/grid/energy/in | [kWh] |
-| Historical Data Grid Out Energy "Netzbezug" * | e3dc/day/<year>/<month>/<day>/grid/energy/out | [kWh] |
-| Historical Data Home Energy * | e3dc/day/<year>/<month>/<day>/home/energy | [kWh] | 
-| Historical Data PM 0 Energy * | e3dc/day/<year>/<month>/<day>/pm_0/energy | [kWh] |
-| Historical Data PM 1 Energy * | e3dc/day/<year>/<month>/<day>/pm_1/energy | [kWh] |
-| Historical Data SOC * | e3dc/day/<year>/<month>/<day>/battery/rsoc | [%] |
-| Historical Data Solar Energy * | e3dc/day/<year>/<month>/<day>/solar/energy | [kWh] |
+| Historical Data Autarky * | e3dc/day/<year#>/<month#>/<day#>/autarky | [%] |
+| Historical Data Battery Energy Charge * | e3dc/day/<year#>/<month#>/<day#>/battery/energy/charge | [kWh] |
+| Historical Data Consumed Production * | e3dc/day/<year#>/<month#>/<day#>/consumed | [%] |
+| Historical Data Energy Discharge * | e3dc/day/<year#>/<month#>/<day#>/battery/energy/discharge | [kWh] |
+| Historical Data Grid In Energy "Einspeisung" * | e3dc/day/<year#>/<month#>/<day#>/grid/energy/in | [kWh] |
+| Historical Data Grid Out Energy "Netzbezug" * | e3dc/day/<year#>/<month#>/<day#>/grid/energy/out | [kWh] |
+| Historical Data Home Energy * | e3dc/day/<year#>/<month#>/<day#>/home/energy | [kWh] | 
+| Historical Data PM 0 Energy * | e3dc/day/<year#>/<month#>/<day#>/pm_0/energy | [kWh] |
+| Historical Data PM 1 Energy * | e3dc/day/<year#>/<month#>/<day#>/pm_1/energy | [kWh] |
+| Historical Data SOC * | e3dc/day/<year#>/<month#>/<day#>/battery/rsoc | [%] |
+| Historical Data Solar Energy * | e3dc/day/<year#>/<month#>/<day#>/solar/energy | [kWh] |
 | Home Energy | e3dc/home/energy (today) | [kWh] |
 | Month Autarky | e3dc/month/autarky | [%] |
 | Month Battery Energy Charge | e3dc/month/battery/energy/charge | [kWh] |
@@ -236,14 +236,14 @@ All topics are listed with the default prefix "e3dc".
 | Year Energy Discharge | e3dc/year/battery/energy/discharge | [kWh] |
 | Year Grid In Energy "Einspeisung" | e3dc/year/grid/energy/in | [kWh] |
 | Year Grid Out Energy "Netzbezug" | e3dc/year/grid/energy/out | [kWh] |
-| Year History Autarky | e3dc/history/<year>/autarky | [%] |
-| Year History Battery Energy Charge | e3dc/history/<year>/battery/energy/charge | [kWh] |
-| Year History Consumed Production | e3dc/history/<year>/consumed | [%] |
-| Year History Energy Discharge | e3dc/history/<year>/battery/energy/discharge | [kWh] |
-| Year History Grid In Energy "Einspeisung" | e3dc/history/<year>/grid/energy/in | [kWh] |
-| Year History Grid Out Energy "Netzbezug" | e3dc/history/<year>/grid/energy/out | [kWh] |
-| Year History Home Energy | e3dc/history/<year>/home/energy | [kWh] |
-| Year History Solar Energy | e3dc/history/<year>/solar/energy | [kWh] |
+| Year History Autarky | e3dc/history/<year#>/autarky | [%] |
+| Year History Battery Energy Charge | e3dc/history/<year#>/battery/energy/charge | [kWh] |
+| Year History Consumed Production | e3dc/history/<year#>/consumed | [%] |
+| Year History Energy Discharge | e3dc/history/<year#>/battery/energy/discharge | [kWh] |
+| Year History Grid In Energy "Einspeisung" | e3dc/history/<year#>/grid/energy/in | [kWh] |
+| Year History Grid Out Energy "Netzbezug" | e3dc/history/<year#>/grid/energy/out | [kWh] |
+| Year History Home Energy | e3dc/history/<year#>/home/energy | [kWh] |
+| Year History Solar Energy | e3dc/history/<year#>/solar/energy | [kWh] |
 | Year Home Energy | e3dc/year/home/energy | [kWh] |
 | Year Solar Energy | e3dc/year/solar/energy | [kWh] |
 | Yesterday Autarky | e3dc/yesterday/autarky | [%] |
