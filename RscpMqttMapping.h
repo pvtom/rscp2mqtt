@@ -444,7 +444,7 @@ rec_cache_t rec_cache[] = {
     { 0, 0, "set/log", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
     { 0, 0, "set/health", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
     { 0, 0, "set/force", "[a-zA-z0-9/_.*]*", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { 0, 0, "set/interval", "(^[1-9]|10$)", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, 0, "set/interval", "^[1-9]|[1-9][0-9]|[1-2][0-9][0-9]|300$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
     { 0, 0, "set/request/day", "^[0-9]{4}-[0-1]?[0-9]-[0-3]?[0-9]$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, true, true }
 };
 

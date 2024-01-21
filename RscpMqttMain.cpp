@@ -19,7 +19,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT               "v3.11"
+#define RSCP2MQTT               "v3.12"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -1036,7 +1036,9 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
             SRscpValue PVIContainer;
             protocol.createContainerValue(&PVIContainer, TAG_PVI_REQ_DATA);
             protocol.appendValue(&PVIContainer, TAG_PVI_INDEX, (uint8_t)0);
-            protocol.appendValue(&PVIContainer, TAG_PVI_REQ_USED_STRING_COUNT);
+            if (cfg.pvi_tracker == 0) {
+                protocol.appendValue(&PVIContainer, TAG_PVI_REQ_USED_STRING_COUNT); // auto detection
+            }
             protocol.appendValue(&PVIContainer, TAG_PVI_REQ_ON_GRID);
             if (!existsNotSupportedTag(TAG_PVI_DATA, TAG_PVI_REQ_COS_PHI)) protocol.appendValue(&PVIContainer, TAG_PVI_REQ_COS_PHI);
             if (!existsNotSupportedTag(TAG_PVI_DATA, TAG_PVI_REQ_VOLTAGE_MONITORING)) protocol.appendValue(&PVIContainer, TAG_PVI_REQ_VOLTAGE_MONITORING);
@@ -1544,6 +1546,7 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                     addTemplTopics(TAG_PVI_DC_CURRENT, 1, NULL, 0, cfg.pvi_tracker, 1);
                     addTemplTopics(TAG_PVI_DC_STRING_ENERGY_ALL, 1, NULL, 0, cfg.pvi_tracker, 1);
                     storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
+                    logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Number of PVI strings: %d (auto detection)\n", cfg.pvi_tracker);
                     break;
                 }
                 case TAG_PVI_ON_GRID: {
@@ -2093,6 +2096,8 @@ int main(int argc, char *argv[]){
                 cfg.log_level = atoi(value);
             else if ((strcasecmp(key, "PVI_REQUESTS") == 0) && (strcasecmp(value, "false") == 0))
                 cfg.pvi_requests = false;
+            else if (strcasecmp(key, "PVI_TRACKER") == 0)
+                cfg.pvi_tracker = atoi(value);
             else if (strcasecmp(key, "BATTERY_STRINGS") == 0)
                 cfg.battery_strings = atoi(value);
             else if ((strcasecmp(key, "PM_EXTERN") == 0) && (strcasecmp(value, "true") == 0))
@@ -2206,6 +2211,14 @@ int main(int argc, char *argv[]){
     // Battery Strings
     addTemplTopics(TAG_BAT_DATA, (cfg.battery_strings == 1)?0:1, (char *)"battery", 0, cfg.battery_strings, 1);
     addTemplTopics(TAG_BAT_SPECIFICATION, (cfg.battery_strings == 1)?0:1, (char *)"battery", 0, cfg.battery_strings, 1);
+
+    // PVI strings (no auto detection)
+    if (cfg.pvi_tracker) {
+        addTemplTopics(TAG_PVI_DC_POWER, 1, NULL, 0, cfg.pvi_tracker, 1);
+        addTemplTopics(TAG_PVI_DC_VOLTAGE, 1, NULL, 0, cfg.pvi_tracker, 1);
+        addTemplTopics(TAG_PVI_DC_CURRENT, 1, NULL, 0, cfg.pvi_tracker, 1);
+        addTemplTopics(TAG_PVI_DC_STRING_ENERGY_ALL, 1, NULL, 0, cfg.pvi_tracker, 1);
+    }
 
 #ifdef INFLUXDB
     if (cfg.influxdb_on && (cfg.influxdb_version == 1)) {

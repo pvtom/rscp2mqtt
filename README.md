@@ -45,10 +45,9 @@ For continuous provision of values, you can configure several topics that are pu
 - [Dashboard](https://github.com/pvtom/rscp2mqtt-dashboard) is available
 - Configuration of the topics that will be published to InfluxDB (INFLUXDB_TOPIC)
 - MQTT Client ID can be configured
-- More detailled [TOPIC](TOPICS.md) overview
 - Multiple battery strings are supported (BATTERY_STRINGS parameter)
 - Automatic detection of the number of PVI trackers
-- (new) Query of historical daily values
+- Query of historical daily values
 
 ## Docker
 
@@ -141,7 +140,7 @@ or in verbose mode
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [v3.11]
+rscp2mqtt [v3.12]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
 MQTT broker >localhost:1883< qos = >0< retain = >false< client id >✗< prefix >e3dc<
 Fetching data every second.
@@ -149,13 +148,11 @@ Requesting PVI ✓ | PM ✓ | DCB (1 battery string) ✓ | Wallbox ✗ | Autoref
 Log level = 0
 Stdout to terminal
 
-...
-[2024-01-13 10:50:00] pid=30110 ppid=1 RscpMqttMain.cpp(2294) Connecting to server 192.168.178.111:5033
-[2024-01-13 10:50:00] pid=30110 ppid=1 RscpMqttMain.cpp(2301) Success: E3DC connected.
-[2024-01-13 10:50:00] pid=30110 ppid=1 RscpMqttMain.cpp(1379) RSCP authentication level 10
-[2024-01-13 10:50:00] pid=30110 ppid=1 RscpMqttMain.cpp(1905) Connecting to broker localhost:1883
-[2024-01-13 10:50:00] pid=30110 ppid=1 RscpMqttMain.cpp(1914) Success: MQTT broker connected.
-...
+[2024-01-21 22:00:00] pid=30120 ppid=1 RscpMqttMain.cpp(2307) Connecting to server 192.168.178.111:5033
+[2024-01-21 22:00:00] pid=30120 ppid=1 RscpMqttMain.cpp(2314) Success: E3DC connected.
+[2024-01-21 22:00:00] pid=30120 ppid=1 RscpMqttMain.cpp(1381) RSCP authentication level 10
+[2024-01-21 22:00:00] pid=30120 ppid=1 RscpMqttMain.cpp(1908) Connecting to broker localhost:1883
+[2024-01-21 22:00:00] pid=30120 ppid=1 RscpMqttMain.cpp(1917) Success: MQTT broker connected.
 ```
 
 Check the configuration if the connections are not established.

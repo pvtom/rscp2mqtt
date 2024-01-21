@@ -44,6 +44,8 @@ PREFIX=e3dc
 #-Supported Topics
 #-- Photovoltaic Inverter
 PVI_REQUESTS=true
+#-- Number of PVI strings/trackers (disables the auto detection)
+PVI_TRACKER=2
 #--Power Meter
 PM_REQUESTS=true
 #--Number of Battery Strings, default is 1
