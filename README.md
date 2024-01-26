@@ -140,7 +140,7 @@ or in verbose mode
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [v3.12]
+rscp2mqtt [v3.13]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
 MQTT broker >localhost:1883< qos = >0< retain = >false< client id >✗< prefix >e3dc<
 Fetching data every second.
@@ -148,11 +148,11 @@ Requesting PVI ✓ | PM ✓ | DCB (1 battery string) ✓ | Wallbox ✗ | Autoref
 Log level = 0
 Stdout to terminal
 
-[2024-01-21 22:00:00] pid=30120 ppid=1 RscpMqttMain.cpp(2307) Connecting to server 192.168.178.111:5033
-[2024-01-21 22:00:00] pid=30120 ppid=1 RscpMqttMain.cpp(2314) Success: E3DC connected.
-[2024-01-21 22:00:00] pid=30120 ppid=1 RscpMqttMain.cpp(1381) RSCP authentication level 10
-[2024-01-21 22:00:00] pid=30120 ppid=1 RscpMqttMain.cpp(1908) Connecting to broker localhost:1883
-[2024-01-21 22:00:00] pid=30120 ppid=1 RscpMqttMain.cpp(1917) Success: MQTT broker connected.
+[2024-01-26 16:45:00] pid=30130 ppid=1 RscpMqttMain.cpp(2317) Connecting to server 192.168.178.111:5033
+[2024-01-26 16:45:00] pid=30130 ppid=1 RscpMqttMain.cpp(2324) Success: E3DC connected.
+[2024-01-26 16:45:00] pid=30130 ppid=1 RscpMqttMain.cpp(1391) RSCP authentication level 10
+[2024-01-26 16:45:00] pid=30130 ppid=1 RscpMqttMain.cpp(1918) Connecting to broker localhost:1883
+[2024-01-26 16:45:00] pid=30130 ppid=1 RscpMqttMain.cpp(1927) Success: MQTT broker connected.
 ```
 
 Check the configuration if the connections are not established.

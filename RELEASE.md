@@ -1,5 +1,9 @@
 ## Release Notes
 
+### Release v3.13 (26.01.2024)
+
+- Issue #44: Cleanup rsoc / soc topics. Prevention of SOC toggling.
+
 ### Release v3.12 (21.01.2024)
 
 - Issue #43: Disable auto detection of the number of PVI trackers by setting PVI_TRACKER in .config

@@ -188,6 +188,8 @@
 #define TAG_BAT_INDEX                                       	0x03040001
 #define TAG_BAT_DATA                                        	0x03840000
 #define TAG_BAT_RSOC                                        	0x03800001
+#define TAG_BAT_RSOC_REAL                                       0x0380000E
+#define TAG_BAT_REQ_RSOC_REAL                                   0x0300000E
 #define TAG_BAT_MODULE_VOLTAGE                              	0x03800002
 #define TAG_BAT_CURRENT                                     	0x03800003
 #define TAG_BAT_MAX_BAT_VOLTAGE                             	0x03800004

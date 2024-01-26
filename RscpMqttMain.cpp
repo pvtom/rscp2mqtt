@@ -19,7 +19,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT               "v3.12"
+#define RSCP2MQTT               "v3.13"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -596,13 +596,27 @@ int handleImmediately(RscpProtocol *protocol, SRscpValue *response, uint32_t con
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCacheTempl.begin(); it != RSCP_MQTT::RscpMqttCacheTempl.end(); ++it) {
         if ((it->container == container) && (it->tag == response->tag)) {
             snprintf(topic, TOPIC_SIZE, it->topic, year, month, day);
-            snprintf(payload, PAYLOAD_SIZE, "%0.2f", protocol->getValueAsFloat32(response) / it->divisor);
+            // only float is handled
+            switch (it->format) {
+                case F_FLOAT_0 : {
+                    snprintf(payload, PAYLOAD_SIZE, "%.0f", protocol->getValueAsFloat32(response) / it->divisor);
+                    break;
+                }
+                case F_FLOAT_1 : {
+                    snprintf(payload, PAYLOAD_SIZE, "%0.1f", protocol->getValueAsFloat32(response) / it->divisor);
+                    break;
+                }
+                case F_FLOAT_2 : {
+                    snprintf(payload, PAYLOAD_SIZE, "%0.2f", protocol->getValueAsFloat32(response) / it->divisor);
+                    break;
+                }
+            }
             if (cfg.mqtt_pub && mosq) rc = mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, cfg.mqtt_qos, cfg.mqtt_retain);
 #ifdef INFLUXDB
             l->tm_mday = day;
             l->tm_mon = month - 1;
             l->tm_year = year - 1900;
-            sprintf(ts, "%llu000000000", timegm(l) - gmt_diff);
+            sprintf(ts, "%llu000000000", (long long unsigned)(timegm(l) - gmt_diff));
             if (cfg.influxdb_on && curl) {
                 for (std::vector<RSCP_MQTT::topic_store_t>::iterator store = RSCP_MQTT::TopicStore.begin(); store != RSCP_MQTT::TopicStore.end(); ++store) {
                     if ((store->type == INFLUXDB_TOPIC) && std::regex_match(topic, std::regex(store->topic))) {
@@ -652,6 +666,17 @@ int storeStringValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, ui
         }
     }
     return(1);
+}
+
+int getIntegerValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uint32_t tag, int index) {
+    int value = 0;
+    for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
+        if ((it->container == container) && (it->tag == tag) && (it->index == index)) {
+            value = atoi(it->payload);
+            break;
+        }
+    }
+    return(value);
 }
 
 int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protocol, SRscpValue *response, uint32_t container, int index) {
@@ -707,14 +732,6 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                     } else {
                         snprintf(buf, PAYLOAD_SIZE, "%u", protocol->getValueAsUInt32(response));
                     }
-                    if (strcmp(it->payload, buf)) {
-                        strcpy(it->payload, buf);
-                        it->changed = true;
-                    }
-                    break;
-                }
-                case RSCP::eTypeUInt64: {
-                    snprintf(buf, PAYLOAD_SIZE, "%lu", protocol->getValueAsUInt64(response));
                     if (strcmp(it->payload, buf)) {
                         strcpy(it->payload, buf);
                         it->changed = true;
@@ -791,20 +808,12 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                 struct tm *l = localtime(&rawtime);
                 handleImmediately(protocol, response, TAG_DB_HISTORY_DATA_DAY, l->tm_year + 1900, l->tm_mon + 1, l->tm_mday);
             }
+            if ((it->tag == TAG_EMS_BAT_SOC) && (!strcmp(it->payload, "0")) && (cfg.battery_strings == 1) && (it->changed)) { // Issue #44 - prevent SOC toggling
+                snprintf(it->payload, PAYLOAD_SIZE, "%d", getIntegerValue(c, TAG_BAT_DATA, TAG_BAT_RSOC, 0));
+            }
         }
     }
     return(rc);
-}
-
-int getIntegerValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uint32_t tag, int index) {
-    int value = 0;
-    for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
-        if ((it->container == container) && (it->tag == tag) && (it->index == index)) {
-            value = atoi(it->payload);
-            break;
-        }
-    }
-    return(value);
 }
 
 void socLimiter(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protocol, SRscpValue *rootContainer, bool day_switch) {
@@ -973,6 +982,7 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
             protocol.appendValue(&batteryContainer, TAG_BAT_INDEX, i);
             protocol.appendValue(&batteryContainer, TAG_BAT_REQ_ASOC);
             protocol.appendValue(&batteryContainer, TAG_BAT_REQ_RSOC);
+            protocol.appendValue(&batteryContainer, TAG_BAT_REQ_RSOC_REAL);
             protocol.appendValue(&batteryContainer, TAG_BAT_REQ_MODULE_VOLTAGE);
             protocol.appendValue(&batteryContainer, TAG_BAT_REQ_CURRENT);
             protocol.appendValue(&batteryContainer, TAG_BAT_REQ_CHARGE_CYCLES);

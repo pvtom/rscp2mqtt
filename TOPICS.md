@@ -6,13 +6,13 @@ All topics are listed with the default prefix "e3dc".
 
 | Device / Tag | MQTT Topic | Values / [Unit] |
 | --- | --- | --- |
-| Battery Charge Cycles | e3dc/battery/cycles | |
-| Battery Current | e3dc/battery/current | [A] |
-| Battery Design Capacity | e3dc/battery/design_capacity | [Ah] |
-| Battery Device Name | e3dc/battery/name | "BAT_XXX" |
+| Battery Charge Cycles ** | e3dc/battery/cycles | |
+| Battery Current ** | e3dc/battery/current | [A] |
+| Battery Design Capacity ** | e3dc/battery/design_capacity | [Ah] |
+| Battery Device Name ** | e3dc/battery/name | "BAT_XXX" |
 | Battery Energy Charge (today) | e3dc/battery/energy/charge | [kWh] |
 | Battery Energy Discharge (today) | e3dc/battery/energy/discharge | [kWh] |
-| Battery Error Code | e3dc/battery/error | |
+| Battery Error Code ** | e3dc/battery/error | |
 | Battery Module Charge Cycles | e3dc/battery/dcb/<#>/cycles | |
 | Battery Module Count | e3dc/battery/dcb/count | <count#> |
 | Battery Module Current 30s Average | e3dc/battery/dcb/<#>/current_avg_30s | [A] |
@@ -42,22 +42,23 @@ All topics are listed with the default prefix "e3dc".
 | Battery Module Table Version | e3dc/battery/dcb/<#>/table_version | |
 | Battery Module Voltage 30s Average | e3dc/battery/dcb/<#>/voltage_avg_30s | [V] |
 | Battery Module Voltage | e3dc/battery/dcb/<#>/voltage | [V] |
-| Battery Remaining Capacity | e3dc/battery/usable_remaining_capacity | [Ah] |
-| Battery Role (?) | e3dc/battery/role | |
-| Battery RSOC | e3dc/battery/rsoc | [%] |
+| Battery Remaining Capacity ** | e3dc/battery/usable_remaining_capacity | [Ah] |
+| Battery Role (?) ** | e3dc/battery/role | |
+| Battery RSOC ** | e3dc/battery/rsoc_real | [%] |
 | Battery SOC | e3dc/battery/soc | [%] |
-| Battery SOH | e3dc/battery/soh | [%] |
-| Battery Specified Capacity | e3dc/battery/specified_capacity | [Wh] |
-| Battery Specified Charge Power | e3dc/battery/specified_charge_power | [W] |
-| Battery Specified Discharge Power | e3dc/battery/specified_discharge_power | [W] |
-| Battery Specified Max DCB Count | e3dc/battery/specified_max_dcb_count | |
-| Battery Status Code | e3dc/battery/status | |
+| Battery SOC ** | e3dc/battery/soc_float | [%] |
+| Battery SOH ** | e3dc/battery/soh | [%] |
+| Battery Specified Capacity ** | e3dc/battery/specified_capacity | [Wh] |
+| Battery Specified Charge Power ** | e3dc/battery/specified_charge_power | [W] |
+| Battery Specified Discharge Power ** | e3dc/battery/specified_discharge_power | [W] |
+| Battery Specified Max DCB Count ** | e3dc/battery/specified_max_dcb_count | |
+| Battery Status Code ** | e3dc/battery/status | |
 | Battery Status | e3dc/battery/state | "EMPTY", "CHARGING", "DISCHARGING", "FULL", "PENDING" |
-| Battery Temperature Max | e3dc/battery/temperature/max | [°C] |
-| Battery Temperature Min | e3dc/battery/temperature/min | [°C] |
-| Battery Training Mode | e3dc/battery/training | (0-2) |
-| Battery Usable Capacity | e3dc/battery/usable_capacity | [Ah] |
-| Battery Voltage | e3dc/battery/voltage | [V] |
+| Battery Temperature Max ** | e3dc/battery/temperature/max | [°C] |
+| Battery Temperature Min ** | e3dc/battery/temperature/min | [°C] |
+| Battery Training Mode ** | e3dc/battery/training | (0-2) |
+| Battery Usable Capacity ** | e3dc/battery/usable_capacity | [Ah] |
+| Battery Voltage ** | e3dc/battery/voltage | [V] |
 | Current Autarky | e3dc/autarky | [%] |
 | Current Consumed Production | e3dc/consumed | [%] |
 | EMS Addon Power | e3dc/addon/power | [W] |
@@ -259,8 +260,8 @@ All topics are listed with the default prefix "e3dc".
 Energy topics are collected for today, yesterday and the current week, month, year and historical years if configured.
 *) Historical data for a specific day can be queried by publishing "e3dc/set/request/day".
 
-If your system has more than one battery string (e.g. S10 Pro), you have to configure the parameter BATTERY_STRINGS accordingly.
-Battery topics that belong to a battery string are extended by the number of the battery string.
+**) If your system has more than one battery string (e.g. S10 Pro), you have to configure the parameter BATTERY_STRINGS accordingly. Battery topics that belong to a battery string are extended by the number of the battery string.
+
 Battery modules (DCB topics) are numbered consecutively.
 
 ### Writeable Topics
