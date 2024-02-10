@@ -311,7 +311,7 @@ Please find detailled information and examples in the [README](README.md).
 | Set battery discharge until [%] | e3dc/set/wallbox/battery_discharge_until | [%] |
 | Set disable charging battery at mix mode | e3dc/set/wallbox/disable_battery_at_mix_mode | (true/false) |
 | Set number of phases (1,3) | e3dc/set/wallbox/number_phases | (1,3) |
-| History | | |
+| Historical daily data | | |
 | Query data for a specific day | e3dc/set/request/day | "2023-12-31" |
 | Settings and others | | |
 | Refresh all topics | e3dc/set/force | 1 |

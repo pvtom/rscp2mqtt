@@ -348,6 +348,13 @@ AUTO_REFRESH=true
 
 ## Wallbox Control
 
+Select the wallbox (0..7) to be used
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/index" -m "0"
+```
+
+The following calls will use the set wallbox.
+
 Set solar or mix mode with the current in [A] (6..32 Ampere)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/control" -m "solar:16"
