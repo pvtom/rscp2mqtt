@@ -2,6 +2,8 @@
 #define RSCP_MQTT_CONFIG_H_
 
 #define MAX_DCB_COUNT 64
+#define MAX_PM_COUNT  8
+#define MAX_WB_COUNT  8
 
 typedef struct _config_t {
     char e3dc_ip[20];
@@ -44,10 +46,13 @@ typedef struct _config_t {
     int bat_dcb_count[MAX_DCB_COUNT];
     int bat_dcb_start[MAX_DCB_COUNT];
     bool pm_extern;
+    int pm_number;
+    int pm_index[MAX_PM_COUNT];
     bool pm_requests;
     bool dcb_requests;
     bool soc_limiter;
     bool wallbox;
+    int wb_index;
     bool daemon;
     bool mqtt_pub;
 #ifdef INFLUXDB

@@ -46,6 +46,8 @@ All topics are listed with the default prefix "e3dc".
 | Battery Role (?) ** | e3dc/battery/role | |
 | Battery RSOC ** | e3dc/battery/rsoc_real | [%] |
 | Battery SOC | e3dc/battery/soc | [%] |
+| Battery SOC Min (today) | e3dc/battery/soc_min | [%] |
+| Battery SOC Max (today) | e3dc/battery/soc_max | [%] |
 | Battery SOC ** | e3dc/battery/soc_float | [%] |
 | Battery SOH ** | e3dc/battery/soh | [%] |
 | Battery Specified Capacity ** | e3dc/battery/specified_capacity | [Wh] |
@@ -86,8 +88,13 @@ All topics are listed with the default prefix "e3dc".
 | EMS Error Messages | e3dc/error_message/<#> | "Error Message" |
 | EMS Error Messages | e3dc/error_message/<#>/meta< | "type=<nr#> code=<nr#> source=<device#>" |
 | EMS Grid In Limit (Einspeisebegrenzung aktiv) | e3dc/grid_in_limit | (true/false) |
+| EMS Grid In Duration (today) | e3dc/grid_in_duration | [min] |
 | EMS Grid Power | e3dc/grid/power | [W] |
+| EMS Grid Power Min (today) | e3dc/grid/power_min | [W] |
+| EMS Grid Power Max (today) | e3dc/grid/power_max | [W] |
 | EMS Home Power | e3dc/home/power | [W] |
+| EMS Home Power Min (today) | e3dc/home/power_min | [W] |
+| EMS Home Power Max (today) | e3dc/home/power_max | [W] |
 | EMS Idle Periods | e3dc/idle_period/change | <change#> |
 | EMS Idle Periods | e3dc/idle_period/<change#>/<#> | "day:mode:active:hh:mi-hh:mi" |
 | EMS Installed Peak Power | e3dc/system/installed_peak_power | [W] |
@@ -103,6 +110,7 @@ All topics are listed with the default prefix "e3dc".
 | EMS Remaining Battery Discharge Power | e3dc/ems/remaining_battery_discharge_power | [W] |
 | EMS Set Power | e3dc/ems/set_power/power | [W] |
 | EMS Solar Power | e3dc/solar/power | [W] |
+| EMS Solar Power Max (today) | e3dc/solar/power_max | [W] |
 | EMS Used Charge Limit | e3dc/ems/used_charge_limit | [W] |
 | EMS Used Charge Limit | e3dc/ems/used_discharge_limit | [W] |
 | EMS User Charge Limit | e3dc/ems/user_charge_limit | [W] |
@@ -198,6 +206,7 @@ All topics are listed with the default prefix "e3dc".
 | PVI Voltage L1 | e3dc/pvi/voltage/L1 | [V] |
 | PVI Voltage L2 | e3dc/pvi/voltage/L2 | [V] |
 | PVI Voltage L3 | e3dc/pvi/voltage/L3 | [V] |
+| Sunshine Duration (today) | e3dc/sunshine_duration | [min] |
 | Serial Number | e3dc/system/serial_number | "S10-XXXXXXXXXXXX" |
 | SOC limiter | e3dc/limit/charge/durable | (0,1) |
 | SOC limiter | e3dc/limit/charge/soc | [%] |
@@ -214,6 +223,7 @@ All topics are listed with the default prefix "e3dc".
 | Wallbox Canceled | e3dc/wallbox/canceled | (true/false) |
 | Wallbox Charging | e3dc/wallbox/charging | (true/false) |
 | Wallbox Current | e3dc/wallbox/max_current | (true/false) |
+| Wallbox Index | e3dc/wallbox/index | (0..7) |
 | Wallbox Locked | e3dc/wallbox/locked | (true/false) |
 | Wallbox Mode | e3dc/wallbox/sun_mode | (true/false) |
 | Wallbox Phases | e3dc/wallbox/active_phases | |
@@ -276,18 +286,23 @@ Please find detailled information and examples in the [README](README.md).
 |  - set the charging and discharging power limits | e3dc/set/max_charge_power | [W] |
 |  - set the charging and discharging power limits | e3dc/set/max_discharge_power | [W] |
 | Set idle periods to lock battery charging or discharging | e3dc/set/idle_period | "day:mode:active:hh:mi-hh:mi", e.g. "sunday:charge:true:00:00-23:59" |
+| SOC Limiter | | |
 | Limit discharging of the house battery to SOC | e3dc/set/limit/discharge/soc | (0-100) |
 | Set the home power value which stops discharging the battery | e3dc/set/limit/discharge/by_home_power | [W] |
 | Keep the limiter setting even after the day change | e3dc/set/limit/discharge/durable | (true/false) |
 | Limit charging of the house battery to SOC | e3dc/set/limit/charge/soc | (0-100) |
 | Keep the limiter setting even after the day change | e3dc/set/limit/charge/durable | (true/false) |
+| Emergency Power | | |
 | Set battery reserve for emergency power in [Wh] | e3dc/set/reserve/energy | [Wh] |
 | or set battery reserve for emergency power in [%] | e3dc/set/reserve/percent | [%] |
+| Power Management | | |
 | Control the power management (normal mode) | e3dc/set/power_mode | "auto" |
 | Control the power management (idle mode) | e3dc/set/power_mode | "idle:60" |
 | Control the power management (discharge in [W], number of cycles) | e3dc/set/power_mode | "discharge:2000:60" |
 | Control the power management (charge in [W], number of cycles) | e3dc/set/power_mode | "charge:2000:60" |
 | Control the power management (charge from grid in [W], number of cycles)  | e3dc/set/power_mode | "grid_charge:2000:60" |
+| Wallbox | | |
+| Set the active wallbox by index (0..7) | e3dc/set/wallbox/index | (0..7) |
 | Set solar mode with the current in [A] | e3dc/set/wallbox/control | "solar:16" |
 | Set mix mode with the current in [A] | e3dc/set/wallbox/control | "mix:8" |
 | Stop charging | e3dc/set/wallbox/control | "stop" |
@@ -296,9 +311,11 @@ Please find detailled information and examples in the [README](README.md).
 | Set battery discharge until [%] | e3dc/set/wallbox/battery_discharge_until | [%] |
 | Set disable charging battery at mix mode | e3dc/set/wallbox/disable_battery_at_mix_mode | (true/false) |
 | Set number of phases (1,3) | e3dc/set/wallbox/number_phases | (1,3) |
+| History | | |
+| Query data for a specific day | e3dc/set/request/day | "2023-12-31" |
+| Settings and others | | |
 | Refresh all topics | e3dc/set/force | 1 |
 | Refresh specific topics | e3dc/set/force | "e3dc/history/2021.*" |
-| Query data for a specific day | e3dc/set/request/day | "2023-12-31" |
 | Log all topics and payloads to the log file | e3dc/set/log | 1 |
 | Log internal stuff to the log file | e3dc/set/health | 1 |
 | Set refresh interval [sec] | e3dc/set/interval | (1-300) |

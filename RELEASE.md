@@ -1,5 +1,13 @@
 ## Release Notes
 
+### Release v3.14 (10.02.2024)
+
+- Issue #46: Multiple power meters support
+- Issue #45: Configuration of the external power meter
+- Switch for the wallbox to be used
+- Statistic topics for daily max and min power and SOC values, daily grid-in and sunshine durations
+- Minor bug fixes and improvements
+
 ### Release v3.13 (26.01.2024)
 
 - Issue #44: Cleanup rsoc / soc topics. Prevention of SOC toggling.

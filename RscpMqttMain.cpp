@@ -19,7 +19,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT               "v3.13"
+#define RSCP2MQTT_VERSION       "v3.14"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -35,8 +35,11 @@
 #define MQTT_PORT_DEFAULT       1883
 
 #ifdef INFLUXDB
+    #define RSCP2MQTT               RSCP2MQTT_VERSION".influxdb"
     #define INFLUXDB_PORT_DEFAULT   8086
     #define CURL_BUFFER_SIZE        1024
+#else
+    #define RSCP2MQTT               RSCP2MQTT_VERSION
 #endif
 
 #define CHARGE_LOCK_TRUE        "today:charge:true:00:00-23:59"
@@ -45,6 +48,7 @@
 #define DISCHARGE_LOCK_FALSE    "today:discharge:false:00:00-23:59"
 #define PV_SOLAR_MIN            200
 #define MAX_DAYS_PER_ITERATION  12
+#define RETRY_AFTER_DELAY       20
 
 static int iSocket = -1;
 static int iAuthenticated = 0;
@@ -58,10 +62,12 @@ static time_t e3dc_ts = 0;
 static time_t e3dc_diff = 0;
 static int gmt_diff = 0;
 static config_t cfg;
-static int day, leap_day, year, curr_year, battery_nr;
+static int day, leap_day, year, curr_day, curr_year, battery_nr, pm_nr;
 static uint8_t period_change_nr = 0;
 static bool period_trigger = false;
 static bool history_init = true;
+static bool day_end = false;
+static bool new_day = false;
 
 std::mutex mtx;
 
@@ -134,7 +140,7 @@ void hotfixSetEntry(std::vector<RSCP_MQTT::rec_cache_t> & c, uint32_t tag, int t
     return;
 }
 
-// topic: <prefix>/set/power_mode payload: auto / idle:60 (cycles) / discharge:2000:60 (Watt:cycles) / charge:2000:60 (Watt und sec) / grid_charge:2000:60 (Watt:cycles)
+// topic: <prefix>/set/power_mode payload: auto / idle:60 (cycles) / discharge:2000:60 (Watt:cycles) / charge:2000:60 (Watt:cycles) / grid_charge:2000:60 (Watt:cycles)
 int handleSetPower(std::vector<RSCP_MQTT::rec_cache_t> & c, uint32_t container, char *payload) {
     char cycles[12];
     char cmd[12];
@@ -445,6 +451,10 @@ void logTopics(std::vector<RSCP_MQTT::cache_t> & v, char *file) {
 }
 
 void logHealth(char *file) {
+    logMessage(file, (char *)__FILE__, __LINE__, (char *)"[%s] PVI %s | PM %s | DCB %s (%d) | Wallbox (%d) %s | Autorefresh %s Interval %d\n", RSCP2MQTT, cfg.pvi_requests?"✓":"✗", cfg.pm_requests?"✓":"✗", cfg.dcb_requests?"✓":"✗", cfg.battery_strings, cfg.wb_index, cfg.wallbox?"✓":"✗", cfg.auto_refresh?"✓":"✗", cfg.interval);
+    for (uint8_t i = 0; i < cfg.pm_number; i++) {
+        logMessage(file, (char *)__FILE__, __LINE__, (char *)"PM_INDEX >%d<\n", cfg.pm_index[i]);
+    }
     logTopics(RSCP_MQTT::RscpMqttCache, file);
     for (std::vector<RSCP_MQTT::not_supported_tags_t>::iterator it = RSCP_MQTT::NotSupportedTags.begin(); it != RSCP_MQTT::NotSupportedTags.end(); ++it) {
         logMessage(file, (char *)__FILE__, __LINE__, (char *)"Container 0x%08X Tag 0x%08X not supported.\n", it->container, it->tag);
@@ -649,7 +659,7 @@ int storeIntegerValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, u
             }
         }
     }
-    return(1);
+    return(value);
 }
 
 int storeStringValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uint32_t tag, char *value, int index) {
@@ -681,6 +691,7 @@ int getIntegerValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uin
 
 int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protocol, SRscpValue *response, uint32_t container, int index) {
     char buf[PAYLOAD_SIZE];
+    static int battery_soc = -1;
     int rc = -1;
 
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
@@ -802,14 +813,16 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                 }
             }
             rc = response->dataType;
-            if ((container == TAG_DB_HISTORY_DATA_DAY) && (index == 0) && (it->changed)) {
+            if ((container == TAG_DB_HISTORY_DATA_DAY) && (index == 0) && (it->changed || new_day)) {
                 time_t rawtime; 
                 time(&rawtime);
                 struct tm *l = localtime(&rawtime);
                 handleImmediately(protocol, response, TAG_DB_HISTORY_DATA_DAY, l->tm_year + 1900, l->tm_mon + 1, l->tm_mday);
             }
-            if ((it->tag == TAG_EMS_BAT_SOC) && (!strcmp(it->payload, "0")) && (cfg.battery_strings == 1) && (it->changed)) { // Issue #44 - prevent SOC toggling
-                snprintf(it->payload, PAYLOAD_SIZE, "%d", getIntegerValue(c, TAG_BAT_DATA, TAG_BAT_RSOC, 0));
+            // Issue #44
+            if ((it->tag == TAG_EMS_BAT_SOC) && (it->changed)) {
+                if ((atoi(it->payload) == 0) && (battery_soc > 1)) snprintf(it->payload, PAYLOAD_SIZE, "%d", battery_soc--);
+                else battery_soc = atoi(it->payload);
             }
         }
     }
@@ -822,19 +835,18 @@ void socLimiter(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protocol, SRs
     int solar_power = getIntegerValue(c, 0, TAG_EMS_POWER_PV, 0);
     int battery_soc = getIntegerValue(c, 0, TAG_EMS_BAT_SOC, 0);
     int home_power = getIntegerValue(c, 0, TAG_EMS_POWER_HOME, 0);
-    int limit_charge_soc = getIntegerValue(c, 0, 0, 1);
-    int limit_discharge_soc = getIntegerValue(c, 0, 0, 2);
-    int limit_discharge_by_home_power = getIntegerValue(c, 0, 0, 5);
+    int limit_charge_soc = getIntegerValue(c, 0, 0, IDX_LIMIT_CHARGE_SOC);
+    int limit_discharge_soc = getIntegerValue(c, 0, 0, IDX_LIMIT_DISCHARGE_SOC);
+    int limit_discharge_by_home_power = getIntegerValue(c, 0, 0, IDX_LIMIT_DISCHARGE_BY_HOME_POWER);
 
     // reset for the next day if durable is false
     if (day_switch) {
-        if (!getIntegerValue(c, 0, 0, 3)) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, 1); // reset charge soc limit
-        if (!getIntegerValue(c, 0, 0, 4)) {
-            storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, 2); // reset discharge soc limit
-            storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, 5); // reset discharge by_home_power limit
+        if (!getIntegerValue(c, 0, 0, IDX_LIMIT_CHARGE_DURABLE)) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_LIMIT_CHARGE_SOC);
+        if (!getIntegerValue(c, 0, 0, IDX_LIMIT_DISCHARGE_DURABLE)) {
+            storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_LIMIT_DISCHARGE_SOC);
+            storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_LIMIT_DISCHARGE_BY_HOME_POWER);
         }
     }
-
     // control charge limit
     if (!day_switch && limit_charge_soc && (solar_power >= PV_SOLAR_MIN) && (battery_soc >= limit_charge_soc) && (battery_soc != 100) && !charge_locked) {
         charge_locked = 1;
@@ -843,7 +855,6 @@ void socLimiter(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protocol, SRs
         charge_locked = 0;
         handleSetIdlePeriod(protocol, rootContainer, (char *)CHARGE_LOCK_FALSE);
     }
-
     // control discharge limit
     if ((!day_switch && limit_discharge_soc && (battery_soc <= limit_discharge_soc) && (battery_soc != 0) && !discharge_locked)
       || (!day_switch && limit_discharge_by_home_power && (home_power >= limit_discharge_by_home_power) && !discharge_locked)) {
@@ -853,24 +864,79 @@ void socLimiter(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protocol, SRs
         discharge_locked = 0;
         handleSetIdlePeriod(protocol, rootContainer, (char *)DISCHARGE_LOCK_FALSE);
     }
-
     return;
 }
 
-void classifyValues(std::vector<RSCP_MQTT::cache_t> & c) {
+void classifyValues(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
+    static time_t last = 0;
+    static int solar_power_max = 0;
+    static int home_power_min = getIntegerValue(c, 0, TAG_EMS_POWER_HOME, 0);
+    static int home_power_max = 0;
+    static int grid_power_min = 0;
+    static int grid_power_max = 0;
+    static int battery_soc_min = 101;
+    static int battery_soc_max = 0;
+    static int grid_in_duration = 0;
+    static int sun_duration = 0;
     int battery_power = getIntegerValue(c, 0, TAG_EMS_POWER_BAT, 0);
     int battery_soc = getIntegerValue(c, 0, TAG_EMS_BAT_SOC, 0);
     int grid_power = getIntegerValue(c, 0, TAG_EMS_POWER_GRID, 0);
+    int solar_power = getIntegerValue(c, 0, TAG_EMS_POWER_PV, 0);
+    int home_power = getIntegerValue(c, 0, TAG_EMS_POWER_HOME, 0);
+    int grid_in_limit = getIntegerValue(c, 0, TAG_EMS_STATUS, 0) & 16;
+    time_t now;
+    time(&now);
 
-    if (battery_power < 0) storeStringValue(RSCP_MQTT::RscpMqttCache, 0, 0, (char *)"DISCHARGING", 6);
-    else if ((battery_power == 0) && (!battery_soc)) storeStringValue(RSCP_MQTT::RscpMqttCache, 0, 0, (char *)"EMPTY", 6);
-    else if ((battery_power == 0) && (battery_soc == 100)) storeStringValue(RSCP_MQTT::RscpMqttCache, 0, 0, (char *)"FULL", 6);
-    else if (battery_power == 0) storeStringValue(RSCP_MQTT::RscpMqttCache, 0, 0, (char *)"PENDING", 6);
-    else storeStringValue(RSCP_MQTT::RscpMqttCache, 0, 0, (char *)"CHARGING", 6);
+    if (battery_power < 0) storeStringValue(c, 0, 0, (char *)"DISCHARGING", IDX_BATTERY_STATE);
+    else if ((battery_power == 0) && (!battery_soc)) storeStringValue(c, 0, 0, (char *)"EMPTY", IDX_BATTERY_STATE);
+    else if ((battery_power == 0) && (battery_soc == 100)) storeStringValue(c, 0, 0, (char *)"FULL", IDX_BATTERY_STATE);
+    else if (battery_power == 0) storeStringValue(c, 0, 0, (char *)"PENDING", IDX_BATTERY_STATE);
+    else storeStringValue(c, 0, 0, (char *)"CHARGING", IDX_BATTERY_STATE);
 
-    if (grid_power <= 0) storeStringValue(RSCP_MQTT::RscpMqttCache, 0, 0, (char *)"IN", 7);
-    else storeStringValue(RSCP_MQTT::RscpMqttCache, 0, 0, (char *)"OUT", 7);
+    if (grid_power <= 0) storeStringValue(c, 0, 0, (char *)"IN", IDX_GRID_STATE);
+    else storeStringValue(c, 0, 0, (char *)"OUT", IDX_GRID_STATE);
 
+    if (reset) {
+        solar_power_max = storeIntegerValue(c, 0, 0, solar_power - 1, IDX_SOLAR_POWER_MAX);
+        home_power_min = storeIntegerValue(c, 0, 0, home_power + 1, IDX_HOME_POWER_MIN);
+        home_power_max = storeIntegerValue(c, 0, 0, home_power - 1, IDX_HOME_POWER_MAX);
+        grid_power_min = storeIntegerValue(c, 0, 0, grid_power + 1, IDX_GRID_POWER_MIN);
+        grid_power_max = storeIntegerValue(c, 0, 0, grid_power - 1, IDX_GRID_POWER_MAX);
+        battery_soc_min = storeIntegerValue(c, 0, 0, battery_soc + 1, IDX_BATTERY_SOC_MIN);
+        battery_soc_max = storeIntegerValue(c, 0, 0, battery_soc - 1, IDX_BATTERY_SOC_MAX);
+        grid_in_duration = storeIntegerValue(c, 0, 0, 0, IDX_GRID_IN_DURATION);
+        sun_duration = storeIntegerValue(c, 0, 0, 0, IDX_GRID_SUN_DURATION);
+    }
+    if (solar_power > solar_power_max) {
+        solar_power_max = storeIntegerValue(c, 0, 0, solar_power, IDX_SOLAR_POWER_MAX);
+    }
+    if (home_power && (home_power < home_power_min)) {
+        home_power_min = storeIntegerValue(c, 0, 0, home_power, IDX_HOME_POWER_MIN);
+    }
+    if (home_power > home_power_max) {
+        home_power_max = storeIntegerValue(c, 0, 0, home_power, IDX_HOME_POWER_MAX);
+    }
+    if (grid_power < grid_power_min) {
+        grid_power_min = storeIntegerValue(c, 0, 0, grid_power, IDX_GRID_POWER_MIN);
+    }
+    if (grid_power > grid_power_max) {
+        grid_power_max = storeIntegerValue(c, 0, 0, grid_power, IDX_GRID_POWER_MAX);
+    }
+    if (battery_soc < battery_soc_min) {
+        battery_soc_min = storeIntegerValue(c, 0, 0, battery_soc, IDX_BATTERY_SOC_MIN);
+    }
+    if (battery_soc > battery_soc_max) {
+        battery_soc_max = storeIntegerValue(c, 0, 0, battery_soc, IDX_BATTERY_SOC_MAX);
+    }
+    if (grid_in_limit) {
+        grid_in_duration += (int)(last?now - last:0);
+        storeIntegerValue(c, 0, 0, grid_in_duration / 60, IDX_GRID_IN_DURATION);
+    }
+    if (solar_power) {
+        sun_duration += (int)(last?now - last:0);
+        storeIntegerValue(c, 0, 0, sun_duration / 60, IDX_GRID_SUN_DURATION);
+    }
+    last = now;
     return;
 }
 
@@ -884,7 +950,6 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
     SRscpTimestamp start, interval, span;
 
     char buffer[64];
-    bool day_switch_phase = false;
     time_t rawtime;
     time(&rawtime);
     struct tm *l = localtime(&rawtime);
@@ -892,17 +957,24 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
 
     strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", l);
 
-    if ((l->tm_hour == 23) && (l->tm_min == 59)) day_switch_phase = true;
+    day_end = false;
+    if ((l->tm_hour == 23) && (l->tm_min >= (59 - cfg.interval / 60))) day_end = true;
+
+    new_day = false;
+    if (curr_day != l->tm_mday) {
+        curr_day = l->tm_mday;
+        new_day = true;
+    }
+
+    if (curr_year < l->tm_year + 1900) {
+        addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, NULL, curr_year, l->tm_year + 1900, 0);
+        curr_year = l->tm_year + 1900;
+    } 
 
     l->tm_sec = 0;
     l->tm_min = 0;
     l->tm_hour = 0;
     l->tm_isdst = -1;
-
-    if (curr_year < l->tm_year + 1900) {
-        addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, NULL, curr_year, l->tm_year + 1900, 0);
-        curr_year = l->tm_year + 1900;
-    }
 
     //---------------------------------------------------------------------------------------------------------
     // Create a request frame
@@ -1022,23 +1094,22 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
         // request PM information
         if (cfg.pm_requests) {
             SRscpValue PMContainer;
-            protocol.createContainerValue(&PMContainer, TAG_PM_REQ_DATA);
-            if (!cfg.pm_extern)
-                protocol.appendValue(&PMContainer, TAG_PM_INDEX, (uint8_t)0);
-            else
-                protocol.appendValue(&PMContainer, TAG_PM_INDEX, (uint8_t)6);
-            protocol.appendValue(&PMContainer, TAG_PM_REQ_POWER_L1);
-            protocol.appendValue(&PMContainer, TAG_PM_REQ_POWER_L2);
-            protocol.appendValue(&PMContainer, TAG_PM_REQ_POWER_L3);
-            protocol.appendValue(&PMContainer, TAG_PM_REQ_VOLTAGE_L1);
-            protocol.appendValue(&PMContainer, TAG_PM_REQ_VOLTAGE_L2);
-            protocol.appendValue(&PMContainer, TAG_PM_REQ_VOLTAGE_L3);
-            protocol.appendValue(&PMContainer, TAG_PM_REQ_ENERGY_L1);
-            protocol.appendValue(&PMContainer, TAG_PM_REQ_ENERGY_L2);
-            protocol.appendValue(&PMContainer, TAG_PM_REQ_ENERGY_L3);
-            protocol.appendValue(&PMContainer, TAG_PM_REQ_ACTIVE_PHASES);
-            protocol.appendValue(&rootValue, PMContainer);
-            protocol.destroyValueData(PMContainer);
+            for (uint8_t i = 0; i < cfg.pm_number; i++) {
+                protocol.createContainerValue(&PMContainer, TAG_PM_REQ_DATA);
+                protocol.appendValue(&PMContainer, TAG_PM_INDEX, (uint8_t)cfg.pm_index[i]);
+                protocol.appendValue(&PMContainer, TAG_PM_REQ_POWER_L1);
+                protocol.appendValue(&PMContainer, TAG_PM_REQ_POWER_L2);
+                protocol.appendValue(&PMContainer, TAG_PM_REQ_POWER_L3);
+                protocol.appendValue(&PMContainer, TAG_PM_REQ_VOLTAGE_L1);
+                protocol.appendValue(&PMContainer, TAG_PM_REQ_VOLTAGE_L2);
+                protocol.appendValue(&PMContainer, TAG_PM_REQ_VOLTAGE_L3);
+                protocol.appendValue(&PMContainer, TAG_PM_REQ_ENERGY_L1);
+                protocol.appendValue(&PMContainer, TAG_PM_REQ_ENERGY_L2);
+                protocol.appendValue(&PMContainer, TAG_PM_REQ_ENERGY_L3);
+                protocol.appendValue(&PMContainer, TAG_PM_REQ_ACTIVE_PHASES);
+                protocol.appendValue(&rootValue, PMContainer);
+                protocol.destroyValueData(PMContainer);
+            }
         }
 
         // request PVI information
@@ -1105,7 +1176,7 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
         if (cfg.wallbox) {
             SRscpValue WBContainer;
             protocol.createContainerValue(&WBContainer, TAG_WB_REQ_DATA) ;
-            protocol.appendValue(&WBContainer, TAG_WB_INDEX, 0); // first wallbox
+            protocol.appendValue(&WBContainer, TAG_WB_INDEX, (uint8_t)cfg.wb_index);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_DEVICE_STATE);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ACTIVE_PHASES);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_EXTERN_DATA_ALG);
@@ -1223,12 +1294,16 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                         if (!strcmp(it->topic, "set/health")) logHealth(cfg.logfile);
                         if (!strcmp(it->topic, "set/force")) refreshCache(RSCP_MQTT::RscpMqttCache, it->payload);
                         if ((!strcmp(it->topic, "set/interval")) && (atoi(it->payload) >= DEFAULT_INTERVAL_MIN) && (atoi(it->payload) <= DEFAULT_INTERVAL_MAX)) cfg.interval = atoi(it->payload);
+                        if ((!strcmp(it->topic, "set/wallbox/index")) && (atoi(it->payload) >= 0) && (atoi(it->payload) < MAX_WB_COUNT)) {
+                            cfg.wb_index = atoi(it->payload);
+                            storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, cfg.wb_index, IDX_WALLBOX_INDEX);
+                        }
                         if ((!strcmp(it->topic, "set/power_mode")) && cfg.auto_refresh) handleSetPower(RSCP_MQTT::RscpMqttReceiveCache, TAG_EMS_REQ_SET_POWER, it->payload);
-                        if (!strcmp(it->topic, "set/limit/charge/soc")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), 1);
-                        if (!strcmp(it->topic, "set/limit/discharge/soc")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), 2);
-                        if (!strcmp(it->topic, "set/limit/charge/durable")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), 3);
-                        if (!strcmp(it->topic, "set/limit/discharge/durable")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), 4);
-                        if (!strcmp(it->topic, "set/limit/discharge/by_home_power")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), 5);
+                        if (!strcmp(it->topic, "set/limit/charge/soc")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_CHARGE_SOC);
+                        if (!strcmp(it->topic, "set/limit/discharge/soc")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_DISCHARGE_SOC);
+                        if (!strcmp(it->topic, "set/limit/charge/durable")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_CHARGE_DURABLE);
+                        if (!strcmp(it->topic, "set/limit/discharge/durable")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_DISCHARGE_DURABLE);
+                        if (!strcmp(it->topic, "set/limit/discharge/by_home_power")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_DISCHARGE_BY_HOME_POWER);
                         if (!strcmp(it->topic, "set/idle_period")) handleSetIdlePeriod(&protocol, &rootValue, it->payload);
                         if (!strcmp(it->topic, "set/requests/pm")) {
                             if (!strcmp(it->payload, "true")) cfg.pm_requests = true; else cfg.pm_requests = false;
@@ -1252,7 +1327,7 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                     if (it->container && (it->container != container)) {
                         protocol.createContainerValue(&ReqContainer, it->container);
                         if (it->container == TAG_SE_REQ_SET_EP_RESERVE) protocol.appendValue(&ReqContainer, TAG_SE_PARAM_INDEX, 0);
-                        if (it->container == TAG_WB_REQ_DATA) protocol.appendValue(&ReqContainer, TAG_WB_INDEX, 0); // first wallbox
+                        if (it->container == TAG_WB_REQ_DATA) protocol.appendValue(&ReqContainer, TAG_WB_INDEX, (uint8_t)cfg.wb_index);
                         container = it->container;
                     }
 
@@ -1350,7 +1425,7 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
         }
         mtx.unlock();
 
-        if (cfg.soc_limiter) socLimiter(RSCP_MQTT::RscpMqttCache, &protocol, &rootValue, day_switch_phase);
+        if (cfg.soc_limiter) socLimiter(RSCP_MQTT::RscpMqttCache, &protocol, &rootValue, day_end);
     }
 
     // create buffer frame to send data to the S10
@@ -1418,10 +1493,7 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                 // handle error for example access denied errors
                 uint32_t uiErrorCode = protocol->getValueAsUInt32(&containerData[i]);
                 if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Container 0x%08X Tag 0x%08X received error code %u.\n", response->tag, containerData[i].tag, uiErrorCode);
-                if ((response->tag == TAG_PM_DATA) && (uiErrorCode == 6)) { // Power Meter not found (intern/extern)
-                    if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Power Meter not found. Switch intern/extern.\n");
-                    cfg.pm_extern = !cfg.pm_extern;
-                } else if (uiErrorCode == 6) pushNotSupportedTag(response->tag, containerData[i].tag);
+                if (uiErrorCode == 6) pushNotSupportedTag(response->tag, containerData[i].tag);
             } else {
                 switch (containerData[i].tag) {
                     case TAG_BAT_DCB_INFO: {
@@ -1455,12 +1527,14 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                         break;
                     }
                     default: {
-                        storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, (response->tag == TAG_BAT_DATA)?battery_nr:0);
+                        if (response->tag == TAG_BAT_DATA) storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, battery_nr);
+                        else storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, (response->tag == TAG_PM_DATA)?pm_nr:0);
                     }
                 }
             }
         }
         if (response->tag == TAG_BAT_DATA) battery_nr++;
+        if (response->tag == TAG_PM_DATA) pm_nr++;
         protocol->destroyValueData(containerData);
         break;
     }
@@ -1473,7 +1547,6 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                 if (cfg.log_level) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Container 0x%08X Tag 0x%08X received error code %u.\n", response->tag, containerData[i].tag, uiErrorCode);
                 if (uiErrorCode == 6) { // Wallbox not available
                     if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Wallbox not available.\n");
-                    //cfg.wallbox = false;
                     pushNotSupportedTag(response->tag, containerData[i].tag);
                 }
             } else if (containerData[i].tag == TAG_WB_EXTERN_DATA_ALG) {
@@ -1756,6 +1829,7 @@ static int processReceiveBuffer(const unsigned char * ucBuffer, int iLength){
     day = 0;
     year = curr_year;
     battery_nr = 0;
+    pm_nr = 0;
     for (size_t i = 0; i < frame.data.size(); i++)
         handleResponseValue(&protocol, &frame.data[i]);
 
@@ -1861,6 +1935,7 @@ static void receiveLoop(bool & bStopExecution){
             }
         }
     }
+    if (bStopExecution) sleep(RETRY_AFTER_DELAY);
 }
 
 static void mainLoop(void){
@@ -1907,7 +1982,7 @@ static void mainLoop(void){
         // free frame buffer memory
         protocol.destroyFrameData(&frameBuffer);
 
-        classifyValues(RSCP_MQTT::RscpMqttCache);
+        if (countdown <= 0) classifyValues(RSCP_MQTT::RscpMqttCache, new_day);
 
         // MQTT connection
         if (!mosq) {
@@ -1992,6 +2067,7 @@ int main(int argc, char *argv[]){
     time(&rawtime);
     struct tm *l = localtime(&rawtime);
     curr_year = l->tm_year + 1900;
+    curr_day = l->tm_mday;
 
     strcpy(cfg.mqtt_host, "");
     cfg.mqtt_port = MQTT_PORT_DEFAULT;
@@ -2009,11 +2085,16 @@ int main(int argc, char *argv[]){
         cfg.bat_dcb_count[i] = 0;
         cfg.bat_dcb_start[i] = 0;
     }
+    for (uint8_t i = 0; i < MAX_PM_COUNT; i++) {
+        cfg.pm_index[i] = 0;
+    }
+    cfg.pm_number = 0;
     cfg.pm_extern = false;
     cfg.pm_requests = true;
     cfg.dcb_requests = true;
     cfg.soc_limiter = false;
     cfg.wallbox = false;
+    cfg.wb_index = 0;
     cfg.auto_refresh = false;
     strcpy(cfg.prefix, DEFAULT_PREFIX);
     cfg.history_start_year = curr_year - 1;
@@ -2112,7 +2193,9 @@ int main(int argc, char *argv[]){
                 cfg.battery_strings = atoi(value);
             else if ((strcasecmp(key, "PM_EXTERN") == 0) && (strcasecmp(value, "true") == 0))
                 cfg.pm_extern = true;
-            else if ((strcasecmp(key, "PM_REQUESTS") == 0) && (strcasecmp(value, "false") == 0))
+            else if (strcasecmp(key, "PM_INDEX") == 0) {
+                if ((cfg.pm_number < MAX_PM_COUNT) && (atoi(value) >= 0) && (atoi(value) <= 127)) cfg.pm_index[cfg.pm_number++] = atoi(value);
+            } else if ((strcasecmp(key, "PM_REQUESTS") == 0) && (strcasecmp(value, "false") == 0))
                 cfg.pm_requests = false;
             else if ((strcasecmp(key, "DCB_REQUESTS") == 0) && (strcasecmp(value, "false") == 0))
                 cfg.dcb_requests = false;
@@ -2120,6 +2203,18 @@ int main(int argc, char *argv[]){
                 cfg.soc_limiter = true;
             else if ((strcasecmp(key, "WALLBOX") == 0) && (strcasecmp(value, "true") == 0))
                 cfg.wallbox = true;
+            else if (strcasecmp(key, "WB_INDEX") == 0)
+                cfg.wb_index = atoi(value);
+            else if ((strcasecmp(key, "LIMIT_CHARGE_SOC") == 0) && (atoi(value) >= 0) && (atoi(value) <= 100))
+                storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(value), IDX_LIMIT_CHARGE_SOC);
+            else if ((strcasecmp(key, "LIMIT_DISCHARGE_SOC") == 0) && (atoi(value) >= 0) && (atoi(value) <= 100))
+                storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(value), IDX_LIMIT_DISCHARGE_SOC);
+            else if ((strcasecmp(key, "LIMIT_CHARGE_DURABLE") == 0) && (strcasecmp(value, "true") == 0))
+                storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 1, IDX_LIMIT_CHARGE_DURABLE);
+            else if ((strcasecmp(key, "LIMIT_DISCHARGE_DURABLE") == 0) && (strcasecmp(value, "true") == 0))
+                storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 1, IDX_LIMIT_DISCHARGE_DURABLE);
+            else if ((strcasecmp(key, "LIMIT_DISCHARGE_BY_HOME_POWER") == 0) && (atoi(value) >= 0) && (atoi(value) <= 99999))
+                storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(value), IDX_LIMIT_DISCHARGE_BY_HOME_POWER);
             else if (((strcasecmp(key, "DISABLE_MQTT_PUBLISH") == 0) || (strcasecmp(key, "DRYRUN") == 0)) && (strcasecmp(value, "true") == 0))
                 cfg.mqtt_pub = false;
             else if ((strcasecmp(key, "AUTO_REFRESH") == 0) && (strcasecmp(value, "true") == 0))
@@ -2168,6 +2263,11 @@ int main(int argc, char *argv[]){
     if (cfg.interval < DEFAULT_INTERVAL_MIN) cfg.interval = DEFAULT_INTERVAL_MIN;
     if (cfg.interval > DEFAULT_INTERVAL_MAX) cfg.interval = DEFAULT_INTERVAL_MAX;
     if ((cfg.mqtt_qos < 0) || (cfg.mqtt_qos > 2)) cfg.mqtt_qos = 0;
+    if ((cfg.pvi_tracker < 0) || (cfg.pvi_tracker > 127)) cfg.pvi_tracker = 0;
+    if ((cfg.battery_strings < 1) || (cfg.battery_strings > 127)) cfg.battery_strings = 1;
+    if ((cfg.wb_index < 0) || (cfg.wb_index > MAX_WB_COUNT)) cfg.wb_index = 0;
+    if (cfg.pm_number == 0) cfg.pm_number = 1;
+    if (cfg.pm_extern) cfg.pm_index[0] = 6;
 #ifdef INFLUXDB
     if ((cfg.influxdb_version < 1) || (cfg.influxdb_version > 2)) cfg.influxdb_version = 1;
 #endif
@@ -2222,6 +2322,9 @@ int main(int argc, char *argv[]){
     addTemplTopics(TAG_BAT_DATA, (cfg.battery_strings == 1)?0:1, (char *)"battery", 0, cfg.battery_strings, 1);
     addTemplTopics(TAG_BAT_SPECIFICATION, (cfg.battery_strings == 1)?0:1, (char *)"battery", 0, cfg.battery_strings, 1);
 
+    // Power Meters
+    addTemplTopics(TAG_PM_DATA, (cfg.pm_number == 1)?0:1, (char *)"pm", 0, cfg.pm_number, 1);
+
     // PVI strings (no auto detection)
     if (cfg.pvi_tracker) {
         addTemplTopics(TAG_PVI_DC_POWER, 1, NULL, 0, cfg.pvi_tracker, 1);
@@ -2241,7 +2344,13 @@ int main(int argc, char *argv[]){
 #endif
     printf("Fetching data every ");
     if (cfg.interval == 1) printf("second.\n"); else printf("%i seconds.\n", cfg.interval);
-    printf("Requesting PVI %s | PM %s | DCB %s (%d battery string%s) | Wallbox %s | Autorefresh %s\n", cfg.pvi_requests?"✓":"✗", cfg.pm_requests?"✓":"✗", cfg.dcb_requests?"✓":"✗", cfg.battery_strings, (cfg.battery_strings > 1)?"s":"", cfg.wallbox?"✓":"✗", cfg.auto_refresh?"✓":"✗");
+
+    printf("Requesting PVI %s | PM (", cfg.pvi_requests?"✓":"✗");
+    for (uint8_t i = 0; i < cfg.pm_number; i++) {
+        if (i) printf(",");
+        printf("%d", cfg.pm_index[i]);
+    }
+    printf(") | DCB %s (%d battery string%s) | Wallbox (%d) %s | Autorefresh %s\n", cfg.dcb_requests?"✓":"✗", cfg.battery_strings, (cfg.battery_strings > 1)?"s":"", cfg.wb_index, cfg.wallbox?"✓":"✗", cfg.auto_refresh?"✓":"✗");
 
     if (!cfg.mqtt_pub) printf("DISABLE_MQTT_PUBLISH / DRYRUN mode\n");
     printf("Log level = %d\n", cfg.log_level);
@@ -2279,6 +2388,10 @@ int main(int argc, char *argv[]){
     }
 
     if (cfg.verbose) logTopics(RSCP_MQTT::RscpMqttCache, cfg.logfile);
+
+    storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_IN_DURATION);
+    storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_SUN_DURATION);
+    storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, cfg.wb_index, IDX_WALLBOX_INDEX);
 
     // MQTT init
     mosquitto_lib_init();

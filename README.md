@@ -48,6 +48,10 @@ For continuous provision of values, you can configure several topics that are pu
 - Multiple battery strings are supported (BATTERY_STRINGS parameter)
 - Automatic detection of the number of PVI trackers
 - Query of historical daily values
+- Multiple power meters
+- Switch wallbox
+
+Please also take a look at the [release notes](RELEASE.md).
 
 ## Docker
 
@@ -140,19 +144,19 @@ or in verbose mode
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [v3.13]
+rscp2mqtt [v3.14]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
 MQTT broker >localhost:1883< qos = >0< retain = >false< client id >✗< prefix >e3dc<
 Fetching data every second.
-Requesting PVI ✓ | PM ✓ | DCB (1 battery string) ✓ | Wallbox ✗ | Autorefresh ✓
+Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox (0) ✓ | Autorefresh ✓
 Log level = 0
 Stdout to terminal
 
-[2024-01-26 16:45:00] pid=30130 ppid=1 RscpMqttMain.cpp(2317) Connecting to server 192.168.178.111:5033
-[2024-01-26 16:45:00] pid=30130 ppid=1 RscpMqttMain.cpp(2324) Success: E3DC connected.
-[2024-01-26 16:45:00] pid=30130 ppid=1 RscpMqttMain.cpp(1391) RSCP authentication level 10
-[2024-01-26 16:45:00] pid=30130 ppid=1 RscpMqttMain.cpp(1918) Connecting to broker localhost:1883
-[2024-01-26 16:45:00] pid=30130 ppid=1 RscpMqttMain.cpp(1927) Success: MQTT broker connected.
+[2024-02-10 12:00:00] pid=30140 ppid=1 RscpMqttMain.cpp(2430) Connecting to server 192.168.178.111:5033
+[2024-02-10 12:00:00] pid=30140 ppid=1 RscpMqttMain.cpp(2437) Success: E3DC connected.
+[2024-02-10 12:00:00] pid=30140 ppid=1 RscpMqttMain.cpp(1466) RSCP authentication level 10
+[2024-02-10 12:00:00] pid=30140 ppid=1 RscpMqttMain.cpp(1993) Connecting to broker localhost:1883
+[2024-02-10 12:00:00] pid=30140 ppid=1 RscpMqttMain.cpp(2002) Success: MQTT broker connected.
 ```
 
 Check the configuration if the connections are not established.
@@ -190,6 +194,11 @@ Register the service and start it with:
 ```
 sudo systemctl enable rscp2mqtt
 sudo systemctl start rscp2mqtt
+```
+
+Check log output
+```
+journalctl _SYSTEMD_UNIT=rscp2mqtt.service
 ```
 
 ## Device Control

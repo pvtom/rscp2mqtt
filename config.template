@@ -32,8 +32,6 @@ TOPIC_LOG_FILE=/tmp/rscp2mqtt.history
 DISABLE_MQTT_PUBLISH=false
 #--set power mode
 AUTO_REFRESH=false
-#--external Power Meter (i.e. S10 Mini)
-PM_EXTERN=false
 #--Start of Operation
 HISTORY_START_YEAR=2022
 
@@ -41,21 +39,36 @@ HISTORY_START_YEAR=2022
 #--Topic prefix (max 24 characters), default is e3dc
 PREFIX=e3dc
 
-#-Supported Topics
-#-- Photovoltaic Inverter
-PVI_REQUESTS=true
-#-- Number of PVI strings/trackers (disables the auto detection)
-PVI_TRACKER=2
-#--Power Meter
+#-Power Meter
+#--PM_INDEX can be set multiple times if several power meters exist, default is 0
+#--PM_EXTERN=true has the same effect as PM_INDEX=6 (6 for S10 Mini, compatibilty with previous releases)
+PM_EXTERN=false
+PM_INDEX=0
 PM_REQUESTS=true
+
+#-Photovoltaic Inverter
+PVI_REQUESTS=true
+#--Number of PVI strings/trackers (disables the auto detection)
+PVI_TRACKER=2
+
+#-Battery Settings
 #--Number of Battery Strings, default is 1
 BATTERY_STRINGS=1
 #--Battery Modules
 DCB_REQUESTS=true
-#--Battery SOC limiter
+
+#-Battery SOC limiter
 SOC_LIMITER=true
-#--Wallbox Support
+LIMIT_CHARGE_SOC=0
+LIMIT_DISCHARGE_SOC=0
+LIMIT_CHARGE_DURABLE=false
+LIMIT_DISCHARGE_DURABLE=false
+LIMIT_DISCHARGE_BY_HOME_POWER=0
+
+#-Wallbox Support for the wallbox with the specified index
+#--only one WB_INDEX entry is supported, default is 0
 WALLBOX=true
+WB_INDEX=0
 
 #-Forced Topics
 #--will be published with every cycle

@@ -1,6 +1,7 @@
 ## Wallbox
 
-This update implements functions to support an E3/DC wallbox.
+This update implements functions to support E3/DC wallboxes.
+Use "e3dc/set/wallbox/index" to switch to another wallbox, if you have more than one in your environment.
 
 Configuration
 
@@ -20,6 +21,7 @@ The following topics are sent to the MQTT broker:
 | Wallbox canceled | e3dc/wallbox/canceled | (true/false) |
 | Wallbox charging | e3dc/wallbox/charging | (true/false) |
 | Wallbox current | e3dc/wallbox/max_current | (true/false) |
+| Wallbox index | e3dc/wallbox/index | (0..7) |
 | Wallbox locked | e3dc/wallbox/locked | (true/false) |
 | Wallbox mode | e3dc/wallbox/sun_mode | (true/false) |
 | Wallbox phases | e3dc/wallbox/active_phases | |
@@ -30,11 +32,16 @@ The following topics are sent to the MQTT broker:
 | Wallbox power | e3dc/wallbox/solar/power | [W] |
 | Wallbox status | e3dc/wallbox/status | |
 
-The new topics are based on additional tags introduced by https://github.com/nischram/E3dcGui
-
 There is a dependency of e3dc/wallbox/battery_before_car to e3dc/wallbox/battery_to_car: e3dc/wallbox/battery_before_car can only be set if e3dc/wallbox/battery_to_car is false (issue #21).
 
 In addition, these topics can be published to control the wallbox:
+
+Select the wallbox (0..7) to be used
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/index" -m "0"
+```
+
+The following calls will use the set wallbox.
 
 Set solar or mix mode with the current in [A] (6..32 Ampere)
 ```

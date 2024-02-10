@@ -28,6 +28,7 @@
 #define UNIT_A            "A"
 #define UNIT_AH           "Ah"
 #define UNIT_SEC          "s"
+#define UNIT_MIN          "min"
 #define UNIT_HZ           "Hz"
 
 #define F_AUTO            0
@@ -39,6 +40,24 @@
 #define FORCED_TOPIC      0
 #define LOG_TOPIC         1
 #define INFLUXDB_TOPIC    2
+
+#define IDX_LIMIT_CHARGE_SOC               0
+#define IDX_LIMIT_DISCHARGE_SOC            1
+#define IDX_LIMIT_CHARGE_DURABLE           2
+#define IDX_LIMIT_DISCHARGE_DURABLE        3
+#define IDX_LIMIT_DISCHARGE_BY_HOME_POWER  4
+#define IDX_BATTERY_STATE                  5
+#define IDX_GRID_STATE                     6
+#define IDX_SOLAR_POWER_MAX                7
+#define IDX_HOME_POWER_MIN                 8
+#define IDX_HOME_POWER_MAX                 9
+#define IDX_GRID_POWER_MIN                 10
+#define IDX_GRID_POWER_MAX                 11
+#define IDX_BATTERY_SOC_MIN                12
+#define IDX_BATTERY_SOC_MAX                13
+#define IDX_GRID_IN_DURATION               14
+#define IDX_GRID_SUN_DURATION              15
+#define IDX_WALLBOX_INDEX                  16
 
 namespace RSCP_MQTT {
 
@@ -107,13 +126,23 @@ typedef struct _cache_t {
 } cache_t;
 
 cache_t cache[] = {
-    { 0, 0, 1, "limit/charge/soc", "0", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
-    { 0, 0, 2, "limit/discharge/soc", "0", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
-    { 0, 0, 3, "limit/charge/durable", "0", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { 0, 0, 4, "limit/discharge/durable", "0", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { 0, 0, 5, "limit/discharge/by_home_power", "0", F_AUTO, UNIT_W, 1, 0, false, false, false },
-    { 0, 0, 6, "battery/state", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { 0, 0, 7, "grid/state", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { 0, 0, IDX_LIMIT_CHARGE_SOC, "limit/charge/soc", "0", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
+    { 0, 0, IDX_LIMIT_DISCHARGE_SOC, "limit/discharge/soc", "0", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
+    { 0, 0, IDX_LIMIT_CHARGE_DURABLE, "limit/charge/durable", "0", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { 0, 0, IDX_LIMIT_DISCHARGE_DURABLE, "limit/discharge/durable", "0", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { 0, 0, IDX_LIMIT_DISCHARGE_BY_HOME_POWER, "limit/discharge/by_home_power", "0", F_AUTO, UNIT_W, 1, 0, false, false, false },
+    { 0, 0, IDX_BATTERY_STATE, "battery/state", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { 0, 0, IDX_GRID_STATE, "grid/state", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { 0, 0, IDX_SOLAR_POWER_MAX, "solar/power_max", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
+    { 0, 0, IDX_HOME_POWER_MIN, "home/power_min", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
+    { 0, 0, IDX_HOME_POWER_MAX, "home/power_max", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
+    { 0, 0, IDX_GRID_POWER_MIN, "grid/power_min", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
+    { 0, 0, IDX_GRID_POWER_MAX, "grid/power_max", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
+    { 0, 0, IDX_BATTERY_SOC_MIN, "battery/soc_min", "", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
+    { 0, 0, IDX_BATTERY_SOC_MAX, "battery/soc_max", "", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
+    { 0, 0, IDX_GRID_IN_DURATION, "grid_in_duration", "", F_AUTO, UNIT_MIN, 1, 0, false, false, false },
+    { 0, 0, IDX_GRID_SUN_DURATION, "sunshine_duration", "", F_AUTO, UNIT_MIN, 1, 0, false, false, false },
+    { 0, 0, IDX_WALLBOX_INDEX, "wallbox/index", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_INFO_SW_RELEASE, 0, "system/software", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_INFO_PRODUCTION_DATE, 0, "system/production_date", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_INFO_SERIAL_NUMBER, 0, "system/serial_number", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
@@ -126,6 +155,7 @@ cache_t cache[] = {
     { 0, TAG_EMS_POWER_GRID, 0, "grid/power", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
     { 0, TAG_EMS_POWER_ADD, 0, "addon/power", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
     { 0, TAG_EMS_BAT_SOC, 0, "battery/soc", "", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
+    { 0, TAG_EMS_STATUS, 0, "ems/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_EMS_STATUS, 0, "ems/charging_lock", "", F_AUTO, UNIT_NONE, 1, 1, false, false, false },
     { 0, TAG_EMS_STATUS, 0, "ems/discharging_lock", "", F_AUTO, UNIT_NONE, 1, 2, false, false, false },
     { 0, TAG_EMS_STATUS, 0, "ems/emergency_power_available", "", F_AUTO, UNIT_NONE, 1, 4, false, false, false },
@@ -167,19 +197,6 @@ cache_t cache[] = {
     { TAG_EMS_SET_POWER_SETTINGS, TAG_EMS_RES_DISCHARGE_START_POWER, 0, "ems/discharge_start/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { TAG_EMS_SET_POWER_SETTINGS, TAG_EMS_RES_MAX_CHARGE_POWER, 0, "ems/max_charge/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { TAG_EMS_SET_POWER_SETTINGS, TAG_EMS_RES_MAX_DISCHARGE_POWER, 0, "ems/max_discharge/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    // CONTAINER TAG_PM_DATA
-    { TAG_PM_DATA, TAG_PM_POWER_L1, 0, "pm/power/L1", "", F_FLOAT_D, UNIT_W, 1, 0, false, false, false },
-    { TAG_PM_DATA, TAG_PM_POWER_L2, 0, "pm/power/L2", "", F_FLOAT_D, UNIT_W, 1, 0, false, false, false },
-    { TAG_PM_DATA, TAG_PM_POWER_L3, 0, "pm/power/L3", "", F_FLOAT_D, UNIT_W, 1, 0, false, false, false },
-    { TAG_PM_DATA, TAG_PM_ENERGY_L1, 0, "pm/energy/L1", "", F_FLOAT_D, UNIT_WH, 1000, 0, false, false, false },
-    { TAG_PM_DATA, TAG_PM_ENERGY_L2, 0, "pm/energy/L2", "", F_FLOAT_D, UNIT_WH, 1000, 0, false, false, false },
-    { TAG_PM_DATA, TAG_PM_ENERGY_L3, 0, "pm/energy/L3", "", F_FLOAT_D, UNIT_WH, 1000, 0, false, false, false },
-    { TAG_PM_DATA, TAG_PM_VOLTAGE_L1, 0, "pm/voltage/L1", "", F_FLOAT_2, UNIT_V, 1, 0, false, false, false },
-    { TAG_PM_DATA, TAG_PM_VOLTAGE_L2, 0, "pm/voltage/L2", "", F_FLOAT_2, UNIT_V, 1, 0, false, false, false },
-    { TAG_PM_DATA, TAG_PM_VOLTAGE_L3, 0, "pm/voltage/L3", "", F_FLOAT_2, UNIT_V, 1, 0, false, false, false },
-    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "pm/active_phases/L1", "", F_AUTO, UNIT_NONE, 1, 1, false, false, false },
-    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "pm/active_phases/L2", "", F_AUTO, UNIT_NONE, 2, 1, false, false, false },
-    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "pm/active_phases/L3", "", F_AUTO, UNIT_NONE, 4, 1, false, false, false },
     // CONTAINER TAG_PVI_DATA
     { TAG_PVI_AC_POWER, TAG_PVI_VALUE, 0, "pvi/power/L1", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
     { TAG_PVI_AC_POWER, TAG_PVI_VALUE, 1, "pvi/power/L2", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
@@ -394,7 +411,20 @@ cache_t templates[] = {
     { TAG_PVI_DC_POWER, TAG_PVI_VALUE, 1, "pvi/power/string_%d", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
     { TAG_PVI_DC_VOLTAGE, TAG_PVI_VALUE, 1, "pvi/voltage/string_%d", "", F_FLOAT_0, UNIT_V, 1, 0, false, false, false },
     { TAG_PVI_DC_CURRENT, TAG_PVI_VALUE, 1, "pvi/current/string_%d", "", F_FLOAT_2, UNIT_A, 1, 0, false, false, false },
-    { TAG_PVI_DC_STRING_ENERGY_ALL, TAG_PVI_VALUE, 1, "pvi/energy_all/string_%d", "", F_FLOAT_D, UNIT_WH, 1, 0, false, false, false }
+    { TAG_PVI_DC_STRING_ENERGY_ALL, TAG_PVI_VALUE, 1, "pvi/energy_all/string_%d", "", F_FLOAT_D, UNIT_WH, 1, 0, false, false, false },
+    // PM
+    { TAG_PM_DATA, TAG_PM_POWER_L1, 0, "%s/power/L1", "", F_FLOAT_D, UNIT_W, 1, 0, false, false, false },
+    { TAG_PM_DATA, TAG_PM_POWER_L2, 0, "%s/power/L2", "", F_FLOAT_D, UNIT_W, 1, 0, false, false, false },
+    { TAG_PM_DATA, TAG_PM_POWER_L3, 0, "%s/power/L3", "", F_FLOAT_D, UNIT_W, 1, 0, false, false, false },
+    { TAG_PM_DATA, TAG_PM_ENERGY_L1, 0, "%s/energy/L1", "", F_FLOAT_D, UNIT_WH, 1000, 0, false, false, false },
+    { TAG_PM_DATA, TAG_PM_ENERGY_L2, 0, "%s/energy/L2", "", F_FLOAT_D, UNIT_WH, 1000, 0, false, false, false },
+    { TAG_PM_DATA, TAG_PM_ENERGY_L3, 0, "%s/energy/L3", "", F_FLOAT_D, UNIT_WH, 1000, 0, false, false, false },
+    { TAG_PM_DATA, TAG_PM_VOLTAGE_L1, 0, "%s/voltage/L1", "", F_FLOAT_2, UNIT_V, 1, 0, false, false, false },
+    { TAG_PM_DATA, TAG_PM_VOLTAGE_L2, 0, "%s/voltage/L2", "", F_FLOAT_2, UNIT_V, 1, 0, false, false, false },
+    { TAG_PM_DATA, TAG_PM_VOLTAGE_L3, 0, "%s/voltage/L3", "", F_FLOAT_2, UNIT_V, 1, 0, false, false, false },
+    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "%s/active_phases/L1", "", F_AUTO, UNIT_NONE, 1, 1, false, false, false },
+    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "%s/active_phases/L2", "", F_AUTO, UNIT_NONE, 2, 1, false, false, false },
+    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "%s/active_phases/L3", "", F_AUTO, UNIT_NONE, 4, 1, false, false, false }
 };
 
 std::vector<cache_t> RscpMqttCacheTempl(templates, templates + sizeof(templates) / sizeof(cache_t));
@@ -446,6 +476,7 @@ rec_cache_t rec_cache[] = {
     { 0, 0, "set/health", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
     { 0, 0, "set/force", "[a-zA-z0-9/_.*]*", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
     { 0, 0, "set/interval", "^[1-9]|[1-9][0-9]|[1-2][0-9][0-9]|300$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, 0, "set/wallbox/index", "^[0-7]$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
     { 0, 0, "set/request/day", "^[0-9]{4}-[0-1]?[0-9]-[0-3]?[0-9]$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, true, true }
 };
 
