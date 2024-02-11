@@ -5,7 +5,7 @@
 - Issue #46: Multiple power meters support
 - Issue #45: Configuration of the external power meter
 - Switch for the wallbox to be used
-- Statistic topics for daily max and min power and SOC values, daily grid-in and sunshine durations
+- Statistic topics for daily max and min power and SOC values, daily grid-in-limit and sunshine durations
 - Minor bug fixes and improvements
 
 ### Release v3.13 (26.01.2024)

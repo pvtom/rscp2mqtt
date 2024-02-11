@@ -88,7 +88,7 @@ All topics are listed with the default prefix "e3dc".
 | EMS Error Messages | e3dc/error_message/<#> | "Error Message" |
 | EMS Error Messages | e3dc/error_message/<#>/meta< | "type=<nr#> code=<nr#> source=<device#>" |
 | EMS Grid In Limit (Einspeisebegrenzung aktiv) | e3dc/grid_in_limit | (true/false) |
-| EMS Grid In Duration (today) | e3dc/grid_in_duration | [min] |
+| EMS Grid In Limit Duration (today) | e3dc/grid_in_duration (will be renamed to e3dc/grid_in_limit_duration soon) | [min] |
 | EMS Grid Power | e3dc/grid/power | [W] |
 | EMS Grid Power Min (today) | e3dc/grid/power_min | [W] |
 | EMS Grid Power Max (today) | e3dc/grid/power_max | [W] |
