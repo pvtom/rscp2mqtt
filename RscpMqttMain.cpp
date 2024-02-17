@@ -19,7 +19,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "v3.14"
+#define RSCP2MQTT_VERSION       "v3.15"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -813,7 +813,7 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                 }
             }
             rc = response->dataType;
-            if ((container == TAG_DB_HISTORY_DATA_DAY) && (index == 0) && (it->changed || new_day)) {
+            if (cfg.daily_values && (container == TAG_DB_HISTORY_DATA_DAY) && (index == 0) && (it->changed || new_day)) {
                 time_t rawtime; 
                 time(&rawtime);
                 struct tm *l = localtime(&rawtime);
@@ -867,25 +867,10 @@ void socLimiter(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protocol, SRs
     return;
 }
 
-void classifyValues(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
-    static time_t last = 0;
-    static int solar_power_max = 0;
-    static int home_power_min = getIntegerValue(c, 0, TAG_EMS_POWER_HOME, 0);
-    static int home_power_max = 0;
-    static int grid_power_min = 0;
-    static int grid_power_max = 0;
-    static int battery_soc_min = 101;
-    static int battery_soc_max = 0;
-    static int grid_in_duration = 0;
-    static int sun_duration = 0;
+void classifyValues(std::vector<RSCP_MQTT::cache_t> & c) {
     int battery_power = getIntegerValue(c, 0, TAG_EMS_POWER_BAT, 0);
     int battery_soc = getIntegerValue(c, 0, TAG_EMS_BAT_SOC, 0);
     int grid_power = getIntegerValue(c, 0, TAG_EMS_POWER_GRID, 0);
-    int solar_power = getIntegerValue(c, 0, TAG_EMS_POWER_PV, 0);
-    int home_power = getIntegerValue(c, 0, TAG_EMS_POWER_HOME, 0);
-    int grid_in_limit = getIntegerValue(c, 0, TAG_EMS_STATUS, 0) & 16;
-    time_t now;
-    time(&now);
 
     if (battery_power < 0) storeStringValue(c, 0, 0, (char *)"DISCHARGING", IDX_BATTERY_STATE);
     else if ((battery_power == 0) && (!battery_soc)) storeStringValue(c, 0, 0, (char *)"EMPTY", IDX_BATTERY_STATE);
@@ -896,6 +881,28 @@ void classifyValues(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
     if (grid_power <= 0) storeStringValue(c, 0, 0, (char *)"IN", IDX_GRID_STATE);
     else storeStringValue(c, 0, 0, (char *)"OUT", IDX_GRID_STATE);
 
+    return;
+}
+
+void statisticValues(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
+    static time_t last = 0;
+    static int solar_power_max = 0;
+    static int home_power_min = getIntegerValue(c, 0, TAG_EMS_POWER_HOME, 0);
+    static int home_power_max = 0;
+    static int grid_power_min = 0;
+    static int grid_power_max = 0;
+    static int battery_soc_min = 101;
+    static int battery_soc_max = 0;
+    static int grid_in_limit_duration = 0;
+    static int sun_duration = 0;
+    int battery_soc = getIntegerValue(c, 0, TAG_EMS_BAT_SOC, 0);
+    int grid_power = getIntegerValue(c, 0, TAG_EMS_POWER_GRID, 0);
+    int solar_power = getIntegerValue(c, 0, TAG_EMS_POWER_PV, 0);
+    int home_power = getIntegerValue(c, 0, TAG_EMS_POWER_HOME, 0);
+    int grid_in_limit = getIntegerValue(c, 0, TAG_EMS_STATUS, 0) & 16;
+    time_t now;
+    time(&now); 
+
     if (reset) {
         solar_power_max = storeIntegerValue(c, 0, 0, solar_power - 1, IDX_SOLAR_POWER_MAX);
         home_power_min = storeIntegerValue(c, 0, 0, home_power + 1, IDX_HOME_POWER_MIN);
@@ -904,7 +911,7 @@ void classifyValues(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
         grid_power_max = storeIntegerValue(c, 0, 0, grid_power - 1, IDX_GRID_POWER_MAX);
         battery_soc_min = storeIntegerValue(c, 0, 0, battery_soc + 1, IDX_BATTERY_SOC_MIN);
         battery_soc_max = storeIntegerValue(c, 0, 0, battery_soc - 1, IDX_BATTERY_SOC_MAX);
-        grid_in_duration = storeIntegerValue(c, 0, 0, 0, IDX_GRID_IN_DURATION);
+        grid_in_limit_duration = storeIntegerValue(c, 0, 0, 0, IDX_GRID_IN_DURATION);
         sun_duration = storeIntegerValue(c, 0, 0, 0, IDX_GRID_SUN_DURATION);
     }
     if (solar_power > solar_power_max) {
@@ -929,8 +936,8 @@ void classifyValues(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
         battery_soc_max = storeIntegerValue(c, 0, 0, battery_soc, IDX_BATTERY_SOC_MAX);
     }
     if (grid_in_limit) {
-        grid_in_duration += (int)(last?now - last:0);
-        storeIntegerValue(c, 0, 0, grid_in_duration / 60, IDX_GRID_IN_DURATION);
+        grid_in_limit_duration += (int)(last?now - last:0);
+        storeIntegerValue(c, 0, 0, grid_in_limit_duration / 60, IDX_GRID_IN_DURATION);
     }
     if (solar_power) {
         sun_duration += (int)(last?now - last:0);
@@ -1178,10 +1185,19 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
             protocol.createContainerValue(&WBContainer, TAG_WB_REQ_DATA) ;
             protocol.appendValue(&WBContainer, TAG_WB_INDEX, (uint8_t)cfg.wb_index);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_DEVICE_STATE);
+            protocol.appendValue(&WBContainer, TAG_WB_REQ_SOC);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ACTIVE_PHASES);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_EXTERN_DATA_ALG);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_NUMBER_PHASES);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_KEY_STATE);
+            protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_POWER_L1);
+            protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_POWER_L2);
+            protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_POWER_L3);
+            protocol.appendValue(&WBContainer, TAG_WB_REQ_ENERGY_ALL);
+            protocol.appendValue(&WBContainer, TAG_WB_REQ_ENERGY_SOLAR);
+            protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ENERGY_L1);
+            protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ENERGY_L2);
+            protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ENERGY_L3);
             protocol.appendValue(&rootValue, WBContainer);
             protocol.destroyValueData(WBContainer);
         }
@@ -1262,7 +1278,7 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                 x = RSCP_MQTT::requestQ.front();
                 RSCP_MQTT::requestQ.pop();
                 leap_day = ((x.month == 2) && (!(x.year%4) && ((x.year%100) || !(x.year%400))))?1:0;
-                if ((x.year > cfg.history_start_year) && (x.year <= curr_year) && (x.month > 0) && (x.month <= 12) && (x.day > 0) && (x.day <= (RSCP_MQTT::nr_of_days[x.month - 1] + leap_day))) {
+                if ((x.year >= cfg.history_start_year) && (x.year <= curr_year) && (x.month > 0) && (x.month <= 12) && (x.day > 0) && (x.day <= (RSCP_MQTT::nr_of_days[x.month - 1] + leap_day))) {
                     RSCP_MQTT::paramQ.push({x.day, x.month, x.year});
                     SRscpValue dbContainer;
                     l->tm_mday = x.day;
@@ -1316,6 +1332,12 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                         }
                         if (!strcmp(it->topic, "set/soc_limiter")) {
                             if (!strcmp(it->payload, "true")) cfg.soc_limiter = true; else cfg.soc_limiter = false;
+                        }
+                        if (!strcmp(it->topic, "set/daily_values")) {
+                            if (!strcmp(it->payload, "true")) cfg.daily_values = true; else cfg.daily_values = false;
+                        }
+                        if (!strcmp(it->topic, "set/statistic_values")) {
+                            if (!strcmp(it->payload, "true")) cfg.statistic_values = true; else cfg.statistic_values = false;
                         }
                         it->done = true;
                         continue;
@@ -1982,7 +2004,10 @@ static void mainLoop(void){
         // free frame buffer memory
         protocol.destroyFrameData(&frameBuffer);
 
-        if (countdown <= 0) classifyValues(RSCP_MQTT::RscpMqttCache, new_day);
+        if (countdown <= 0) {
+            classifyValues(RSCP_MQTT::RscpMqttCache);
+            if (cfg.statistic_values) statisticValues(RSCP_MQTT::RscpMqttCache, new_day);
+        }
 
         // MQTT connection
         if (!mosq) {
@@ -2093,6 +2118,8 @@ int main(int argc, char *argv[]){
     cfg.pm_requests = true;
     cfg.dcb_requests = true;
     cfg.soc_limiter = false;
+    cfg.daily_values = true;
+    cfg.statistic_values = true;
     cfg.wallbox = false;
     cfg.wb_index = 0;
     cfg.auto_refresh = false;
@@ -2201,6 +2228,10 @@ int main(int argc, char *argv[]){
                 cfg.dcb_requests = false;
             else if ((strcasecmp(key, "SOC_LIMITER") == 0) && (strcasecmp(value, "true") == 0))
                 cfg.soc_limiter = true;
+            else if ((strcasecmp(key, "DAILY_VALUES") == 0) && (strcasecmp(value, "false") == 0))
+                cfg.daily_values = false;
+            else if ((strcasecmp(key, "STATISTIC_VALUES") == 0) && (strcasecmp(value, "false") == 0))
+                cfg.statistic_values = false;
             else if ((strcasecmp(key, "WALLBOX") == 0) && (strcasecmp(value, "true") == 0))
                 cfg.wallbox = true;
             else if (strcasecmp(key, "WB_INDEX") == 0)
@@ -2389,9 +2420,11 @@ int main(int argc, char *argv[]){
 
     if (cfg.verbose) logTopics(RSCP_MQTT::RscpMqttCache, cfg.logfile);
 
-    storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_IN_DURATION);
-    storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_SUN_DURATION);
-    storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, cfg.wb_index, IDX_WALLBOX_INDEX);
+    if (cfg.statistic_values) {
+        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_IN_DURATION);
+        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_SUN_DURATION);
+    }
+    if (cfg.wallbox) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, cfg.wb_index, IDX_WALLBOX_INDEX);
 
     // MQTT init
     mosquitto_lib_init();

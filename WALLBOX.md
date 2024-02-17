@@ -14,23 +14,32 @@ The following topics are sent to the MQTT broker:
 
 | Device / Tag | MQTT Topic | Values / [Unit] |
 | --- | --- | --- |
-| Wallbox battery | e3dc/wallbox/battery_to_car | (true/false) |
-| Wallbox battery | e3dc/wallbox/battery_before_car | (true/false) |
-| Wallbox battery | e3dc/wallbox/battery_discharge_until | [%] |
-| Wallbox battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
-| Wallbox canceled | e3dc/wallbox/canceled | (true/false) |
-| Wallbox charging | e3dc/wallbox/charging | (true/false) |
-| Wallbox current | e3dc/wallbox/max_current | (true/false) |
-| Wallbox index | e3dc/wallbox/index | (0..7) |
-| Wallbox locked | e3dc/wallbox/locked | (true/false) |
-| Wallbox mode | e3dc/wallbox/sun_mode | (true/false) |
-| Wallbox phases | e3dc/wallbox/active_phases | |
-| Wallbox phases | e3dc/wallbox/number_phases | |
-| Wallbox phases | e3dc/wallbox/number_used_phases | |
-| Wallbox plugged | e3dc/wallbox/plugged | (true/false) |
-| Wallbox power | e3dc/wallbox/total/power | [W] |
-| Wallbox power | e3dc/wallbox/solar/power | [W] |
-| Wallbox status | e3dc/wallbox/status | |
+| Wallbox Battery | e3dc/wallbox/battery_to_car | (true/false) |
+| Wallbox Battery | e3dc/wallbox/battery_before_car | (true/false) |
+| Wallbox Battery | e3dc/wallbox/battery_discharge_until | [%] |
+| Wallbox Battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
+| Wallbox Canceled | e3dc/wallbox/canceled | (true/false) |
+| Wallbox Charging | e3dc/wallbox/charging | (true/false) |
+| Wallbox Current | e3dc/wallbox/max_current | (true/false) |
+| Wallbox Energy All | e3dc/wallbox/total/energy | [kWh] |
+| Wallbox Energy Solar | e3dc/wallbox/solar/energy | [kWh] |
+| Wallbox Energy L1 | e3dc/wallbox/energy/L1 | [kWh] |
+| Wallbox Energy L2 | e3dc/wallbox/energy/L2 | [kWh] |
+| Wallbox Energy L3 | e3dc/wallbox/energy/L3 | [kWh] |
+| Wallbox Index | e3dc/wallbox/index | (0..7) |
+| Wallbox Locked | e3dc/wallbox/locked | (true/false) |
+| Wallbox Mode | e3dc/wallbox/sun_mode | (true/false) |
+| Wallbox Phases | e3dc/wallbox/active_phases | |
+| Wallbox Phases | e3dc/wallbox/number_phases | |
+| Wallbox Phases | e3dc/wallbox/number_used_phases | |
+| Wallbox Plugged | e3dc/wallbox/plugged | (true/false) |
+| Wallbox Power All | e3dc/wallbox/total/power | [W] |
+| Wallbox Power Solar | e3dc/wallbox/solar/power | [W] |
+| Wallbox Power L1 | e3dc/wallbox/power/L1 | [W] |
+| Wallbox Power L2 | e3dc/wallbox/power/L2 | [W] |
+| Wallbox Power L3 | e3dc/wallbox/power/L3 | [W] |
+| Wallbox SOC | e3dc/wallbox/soc | [%] |
+| Wallbox Status | e3dc/wallbox/status | |
 
 There is a dependency of e3dc/wallbox/battery_before_car to e3dc/wallbox/battery_to_car: e3dc/wallbox/battery_before_car can only be set if e3dc/wallbox/battery_to_car is false (issue #21).
 

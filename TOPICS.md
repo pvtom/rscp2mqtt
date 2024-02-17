@@ -88,7 +88,7 @@ All topics are listed with the default prefix "e3dc".
 | EMS Error Messages | e3dc/error_message/<#> | "Error Message" |
 | EMS Error Messages | e3dc/error_message/<#>/meta< | "type=<nr#> code=<nr#> source=<device#>" |
 | EMS Grid In Limit (Einspeisebegrenzung aktiv) | e3dc/grid_in_limit | (true/false) |
-| EMS Grid In Limit Duration (today) | e3dc/grid_in_duration (will be renamed to e3dc/grid_in_limit_duration soon) | [min] |
+| EMS Grid In Limit Duration (today) | e3dc/grid_in_limit_duration | [min] |
 | EMS Grid Power | e3dc/grid/power | [W] |
 | EMS Grid Power Min (today) | e3dc/grid/power_min | [W] |
 | EMS Grid Power Max (today) | e3dc/grid/power_max | [W] |
@@ -223,6 +223,11 @@ All topics are listed with the default prefix "e3dc".
 | Wallbox Canceled | e3dc/wallbox/canceled | (true/false) |
 | Wallbox Charging | e3dc/wallbox/charging | (true/false) |
 | Wallbox Current | e3dc/wallbox/max_current | (true/false) |
+| Wallbox Energy All | e3dc/wallbox/total/energy | [kWh] |
+| Wallbox Energy Solar | e3dc/wallbox/solar/energy | [kWh] |
+| Wallbox Energy L1 | e3dc/wallbox/energy/L1 | [kWh] |
+| Wallbox Energy L2 | e3dc/wallbox/energy/L2 | [kWh] |
+| Wallbox Energy L3 | e3dc/wallbox/energy/L3 | [kWh] |
 | Wallbox Index | e3dc/wallbox/index | (0..7) |
 | Wallbox Locked | e3dc/wallbox/locked | (true/false) |
 | Wallbox Mode | e3dc/wallbox/sun_mode | (true/false) |
@@ -230,8 +235,12 @@ All topics are listed with the default prefix "e3dc".
 | Wallbox Phases | e3dc/wallbox/number_phases | |
 | Wallbox Phases | e3dc/wallbox/number_used_phases | |
 | Wallbox Plugged | e3dc/wallbox/plugged | (true/false) |
-| Wallbox Power | e3dc/wallbox/solar/power | [W] |
-| Wallbox Power | e3dc/wallbox/total/power | [W] |
+| Wallbox Power All | e3dc/wallbox/solar/power | [W] |
+| Wallbox Power Solar | e3dc/wallbox/total/power | [W] |
+| Wallbox Power L1 | e3dc/wallbox/power/L1 | [W] |
+| Wallbox Power L2 | e3dc/wallbox/power/L2 | [W] |
+| Wallbox Power L3 | e3dc/wallbox/power/L3 | [W] |
+| Wallbox SOC | e3dc/wallbox/soc | [%] |
 | Wallbox Status | e3dc/wallbox/status | |
 | Week Autarky | e3dc/week/autarky | [%] |
 | Week Battery Energy Charge | e3dc/week/battery/energy/charge | [kWh] |
@@ -323,3 +332,5 @@ Please find detailled information and examples in the [README](README.md).
 | Enable PVI requests | e3dc/set/requests/pvi | (true/false) |
 | Enable DCB requests | e3dc/set/requests/dcb | (true/false) |
 | Enable SOC limiter | e3dc/set/soc_limiter | (true/false) |
+| Enable daily historical values | e3dc/set/daily_values | (true/false) |
+| Enable statistic values | e3dc/set/statistic_values | (true/false) |

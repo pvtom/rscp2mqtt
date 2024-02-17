@@ -29,27 +29,23 @@ For continuous provision of values, you can configure several topics that are pu
 
 ## Features
 
-- Topic prefix is configurable
 - E3/DC [wallbox](WALLBOX.md) topics
 - [InfluxDB](INFLUXDB.md) support
 - Topics for temperatures (battery, PVI)
 - Idle periods
 - System error messages
 - Details of the battery modules (DCB)
-- Additional topics for PVI
 - Units as InfluxDB tags
-- Historical data for past years
-- "set/force" for specific topics
 - Battery SOC limiter
 - Docker images at https://hub.docker.com/r/pvtom/rscp2mqtt
 - [Dashboard](https://github.com/pvtom/rscp2mqtt-dashboard) is available
 - Configuration of the topics that will be published to InfluxDB (INFLUXDB_TOPIC)
-- MQTT Client ID can be configured
 - Multiple battery strings are supported (BATTERY_STRINGS parameter)
 - Automatic detection of the number of PVI trackers
+- Historical data for past years
 - Query of historical daily values
 - Multiple power meters
-- Switch wallbox
+- Switch between wallboxes
 
 Please also take a look at the [release notes](RELEASE.md).
 
@@ -144,19 +140,20 @@ or in verbose mode
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [v3.14]
+rscp2mqtt [v3.15]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
 MQTT broker >localhost:1883< qos = >0< retain = >false< client id >✗< prefix >e3dc<
 Fetching data every second.
-Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox (0) ✓ | Autorefresh ✓
+Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox (0) ✗ | Autorefresh ✓
 Log level = 0
 Stdout to terminal
 
-[2024-02-10 12:00:00] pid=30140 ppid=1 RscpMqttMain.cpp(2430) Connecting to server 192.168.178.111:5033
-[2024-02-10 12:00:00] pid=30140 ppid=1 RscpMqttMain.cpp(2437) Success: E3DC connected.
-[2024-02-10 12:00:00] pid=30140 ppid=1 RscpMqttMain.cpp(1466) RSCP authentication level 10
-[2024-02-10 12:00:00] pid=30140 ppid=1 RscpMqttMain.cpp(1993) Connecting to broker localhost:1883
-[2024-02-10 12:00:00] pid=30140 ppid=1 RscpMqttMain.cpp(2002) Success: MQTT broker connected.
+[2024-02-17 09:00:00] pid=30150 ppid=1 RscpMqttMain.cpp(2463) Connecting to server 192.168.178.111:5033
+[2024-02-17 09:00:00] pid=30150 ppid=1 RscpMqttMain.cpp(2470) Success: E3DC connected.
+[2024-02-17 09:00:00] pid=30150 ppid=1 RscpMqttMain.cpp(1488) RSCP authentication level 10
+[2024-02-17 09:00:00] pid=30150 ppid=1 RscpMqttMain.cpp(2018) Connecting to broker localhost:1883
+[2024-02-17 09:00:00] pid=30150 ppid=1 RscpMqttMain.cpp(2027) Success: MQTT broker connected.
+
 ```
 
 Check the configuration if the connections are not established.
@@ -436,6 +433,14 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/requests/dcb" -m true
 Turn SOC limiter on or off (true/1/false/0)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/soc_limiter" -m true
+```
+Turn daily historical values on or off (true/1/false/0)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/daily_values" -m true
+```
+Turn statistic values on or off (true/1/false/0)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/statistic_values" -m true
 ```
 
 ## Used Libraries and Licenses

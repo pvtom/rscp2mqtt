@@ -51,6 +51,8 @@ typedef struct _config_t {
     bool pm_requests;
     bool dcb_requests;
     bool soc_limiter;
+    bool daily_values;
+    bool statistic_values;
     bool wallbox;
     int wb_index;
     bool daemon;

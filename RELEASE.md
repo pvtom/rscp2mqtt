@@ -1,5 +1,12 @@
 ## Release Notes
 
+### Release v3.15 (17.02.2024)
+
+- Issue #47: Rename the topic e3dc/grid_in_duration to e3dc/grid_in_limit_duration
+- Issue #48: Historical Day Data for the Start Year not working
+- Issue #49: Add wallbox data
+- Option to configure daily historical (#40) and statistic values
+
 ### Release v3.14 (10.02.2024)
 
 - Issue #46: Multiple power meters support

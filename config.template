@@ -34,6 +34,10 @@ DISABLE_MQTT_PUBLISH=false
 AUTO_REFRESH=false
 #--Start of Operation
 HISTORY_START_YEAR=2022
+#--Request daily historical values
+DAILY_VALUES=true
+#--Publish statistic values
+STATISTIC_VALUES=true
 
 #-MQTT Topics
 #--Topic prefix (max 24 characters), default is e3dc
