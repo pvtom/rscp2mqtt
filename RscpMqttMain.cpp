@@ -19,7 +19,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "v3.15"
+#define RSCP2MQTT_VERSION       "v3.16.dev"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -792,11 +792,24 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                     break;
                 }
                 case RSCP::eTypeDouble64: {
-                    snprintf(buf, PAYLOAD_SIZE, "%.0lf", protocol->getValueAsDouble64(response) / it->divisor);
+                    switch (it->format) {
+                        case F_FLOAT_0 : {
+                            snprintf(buf, PAYLOAD_SIZE, "%.0f", protocol->getValueAsDouble64(response) / it->divisor);
+                            break;
+                        }
+                        case F_FLOAT_1 : {
+                            snprintf(buf, PAYLOAD_SIZE, "%0.1f", protocol->getValueAsDouble64(response) / it->divisor);
+                            break;
+                        }
+                        case F_FLOAT_2 : {
+                            snprintf(buf, PAYLOAD_SIZE, "%0.2f", protocol->getValueAsDouble64(response) / it->divisor);
+                            break;
+                        }
+                    }
                     if (strcmp(it->payload, buf)) {
                         strcpy(it->payload, buf);
                         it->changed = true;
-                    }
+                    } 
                     break;
                 }
                 case RSCP::eTypeString: {
