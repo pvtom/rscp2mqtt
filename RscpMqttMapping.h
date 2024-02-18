@@ -431,8 +431,8 @@ cache_t templates[] = {
     { TAG_PM_DATA, TAG_PM_VOLTAGE_L2, 0, "%s/voltage/L2", "", F_FLOAT_2, UNIT_V, 1, 0, false, false, false },
     { TAG_PM_DATA, TAG_PM_VOLTAGE_L3, 0, "%s/voltage/L3", "", F_FLOAT_2, UNIT_V, 1, 0, false, false, false },
     { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "%s/active_phases/L1", "", F_AUTO, UNIT_NONE, 1, 1, false, false, false },
-    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "%s/active_phases/L2", "", F_AUTO, UNIT_NONE, 2, 1, false, false, false },
-    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "%s/active_phases/L3", "", F_AUTO, UNIT_NONE, 4, 1, false, false, false }
+    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "%s/active_phases/L2", "", F_AUTO, UNIT_NONE, 1, 2, false, false, false },
+    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "%s/active_phases/L3", "", F_AUTO, UNIT_NONE, 1, 4, false, false, false }
 };
 
 std::vector<cache_t> RscpMqttCacheTempl(templates, templates + sizeof(templates) / sizeof(cache_t));
