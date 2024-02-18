@@ -697,17 +697,6 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
 
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
         if ((!it->container || (it->container == container)) && (it->tag == response->tag) && (it->index == index)) {
-
-//BEGIN Issue #49 
-if (it->container == TAG_WB_DATA) {
-    printf("######\nTAG_WB_DATA: topic >%s< tag >0x%08X< datatype = %u format = %d divisor = %d bit_to_bool = %d unit >%s<\n", it->topic, response->tag, response->dataType, it->format, it->divisor, it->bit_to_bool, it->unit);
-    printf("TAG_WB_DATA: topic >%s< payload_float >%0.2f<\n", it->topic, protocol->getValueAsFloat32(response));
-    printf("TAG_WB_DATA: topic >%s< payload_double >%0.2f<\n", it->topic, protocol->getValueAsDouble64(response));
-    printf("TAG_WB_DATA: topic >%s< payload_int32 >%i<\n", it->topic, protocol->getValueAsInt32(response));
-    printf("TAG_WB_DATA: topic >%s< payload_uint32 >%u<\n", it->topic, protocol->getValueAsUInt32(response));
-}
-//END Issue #49
-
             switch (response->dataType) {
                 case RSCP::eTypeBool: {
                     if (protocol->getValueAsBool(response)) strcpy(buf, "true");
