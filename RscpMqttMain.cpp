@@ -19,7 +19,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "v3.16.dev"
+#define RSCP2MQTT_VERSION       "v3.16"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -963,6 +963,36 @@ void statisticValues(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
     return;
 }
 
+void wallboxLastCharging(std::vector<RSCP_MQTT::cache_t> & c) {
+    static int wallbox_energy_total_start = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_ALL, 0);
+    static int wallbox_energy_solar_start = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, 0);
+    static int wallbox_plugged_last = 0;
+    static int diff_total = 0;
+    static int diff_solar = 0;
+    int wallbox_energy_total = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_ALL, 0);
+    int wallbox_energy_solar = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, 0);
+    int wallbox_plugged = getIntegerValue(c, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2) & 8;
+
+    if (!wallbox_plugged_last && wallbox_plugged) {
+        storeIntegerValue(c, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL);
+        storeIntegerValue(c, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR);
+        wallbox_energy_total_start = wallbox_energy_total;
+        wallbox_energy_solar_start = wallbox_energy_solar;
+        diff_total = 0;
+        diff_solar = 0;
+    }
+    if (wallbox_plugged_last != wallbox_plugged) {
+        wallbox_plugged_last = wallbox_plugged;
+    }
+    if (wallbox_energy_total > (wallbox_energy_total_start + diff_total)) {
+        diff_total = storeIntegerValue(c, 0, 0, wallbox_energy_total - wallbox_energy_total_start, IDX_WALLBOX_LAST_ENERGY_ALL);
+    }
+    if (wallbox_energy_solar > (wallbox_energy_solar_start + diff_solar)) {
+        diff_solar = storeIntegerValue(c, 0, 0, wallbox_energy_solar - wallbox_energy_solar_start, IDX_WALLBOX_LAST_ENERGY_SOLAR);
+    }
+    return;
+}
+
 int createRequest(SRscpFrameBuffer * frameBuffer) {
     RscpProtocol protocol;
     SRscpValue rootValue;
@@ -1200,7 +1230,6 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
             SRscpValue WBContainer;
             protocol.createContainerValue(&WBContainer, TAG_WB_REQ_DATA) ;
             protocol.appendValue(&WBContainer, TAG_WB_INDEX, (uint8_t)cfg.wb_index);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_DEVICE_STATE);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_SOC);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ACTIVE_PHASES);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_EXTERN_DATA_ALG);
@@ -2023,6 +2052,7 @@ static void mainLoop(void){
         if (countdown <= 0) {
             classifyValues(RSCP_MQTT::RscpMqttCache);
             if (cfg.statistic_values) statisticValues(RSCP_MQTT::RscpMqttCache, new_day);
+            if (cfg.wallbox) wallboxLastCharging(RSCP_MQTT::RscpMqttCache);
         }
 
         // MQTT connection
@@ -2440,7 +2470,11 @@ int main(int argc, char *argv[]){
         storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_IN_DURATION);
         storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_SUN_DURATION);
     }
-    if (cfg.wallbox) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, cfg.wb_index, IDX_WALLBOX_INDEX);
+    if (cfg.wallbox) {
+        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, cfg.wb_index, IDX_WALLBOX_INDEX);
+        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL);
+        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR);
+    }
 
     // MQTT init
     mosquitto_lib_init();

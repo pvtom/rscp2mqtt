@@ -57,6 +57,8 @@
 #define IDX_GRID_IN_DURATION               14
 #define IDX_GRID_SUN_DURATION              15
 #define IDX_WALLBOX_INDEX                  16
+#define IDX_WALLBOX_LAST_ENERGY_ALL        17
+#define IDX_WALLBOX_LAST_ENERGY_SOLAR      18
 
 namespace RSCP_MQTT {
 
@@ -142,6 +144,8 @@ cache_t cache[] = {
     { 0, 0, IDX_GRID_IN_DURATION, "grid_in_limit_duration", "", F_AUTO, UNIT_MIN, 1, 0, false, false, false },
     { 0, 0, IDX_GRID_SUN_DURATION, "sunshine_duration", "", F_AUTO, UNIT_MIN, 1, 0, false, false, false },
     { 0, 0, IDX_WALLBOX_INDEX, "wallbox/index", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL, "wallbox/energy/last_charging/total", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
+    { 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR, "wallbox/energy/last_charging/solar", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
     { 0, TAG_INFO_SW_RELEASE, 0, "system/software", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_INFO_PRODUCTION_DATE, 0, "system/production_date", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_INFO_SERIAL_NUMBER, 0, "system/serial_number", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
@@ -310,23 +314,23 @@ cache_t cache[] = {
     { 0, TAG_EMS_BATTERY_BEFORE_CAR_MODE, 0, "wallbox/battery_before_car", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_EMS_GET_WB_DISCHARGE_BAT_UNTIL, 0, "wallbox/battery_discharge_until", "", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
     { 0, TAG_EMS_GET_WALLBOX_ENFORCE_POWER_ASSIGNMENT, 0, "wallbox/disable_battery_at_mix_mode", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_DEVICE_STATE, 0, "wallbox/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "wallbox/active_phases/L1", "", F_AUTO, UNIT_NONE, 1, 1, false, false, false },
     { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "wallbox/active_phases/L2", "", F_AUTO, UNIT_NONE, 1, 2, false, false, false },
     { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "wallbox/active_phases/L3", "", F_AUTO, UNIT_NONE, 1, 4, false, false, false },
     { TAG_WB_DATA, TAG_WB_NUMBER_PHASES, 0, "wallbox/number_phases", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { TAG_WB_DATA, TAG_WB_SOC, 0, "wallbox/soc", "", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
     { TAG_WB_DATA, TAG_WB_KEY_STATE, 0, "wallbox/key_state", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_ENERGY_ALL, 0, "wallbox/energy/total", "", F_FLOAT_2, UNIT_WH, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, 0, "wallbox/energy/solar", "", F_FLOAT_2, UNIT_WH, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L1, 0, "wallbox/energy/L1", "", F_FLOAT_2, UNIT_WH, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L2, 0, "wallbox/energy/L2", "", F_FLOAT_2, UNIT_WH, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L3, 0, "wallbox/energy/L3", "", F_FLOAT_2, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_ENERGY_ALL, 0, "wallbox/energy/total", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, 0, "wallbox/energy/solar", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L1, 0, "wallbox/energy/L1", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L2, 0, "wallbox/energy/L2", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L3, 0, "wallbox/energy/L3", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
     { TAG_WB_DATA, TAG_WB_PM_POWER_L1, 0, "wallbox/power/L1", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
     { TAG_WB_DATA, TAG_WB_PM_POWER_L2, 0, "wallbox/power/L2", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
     { TAG_WB_DATA, TAG_WB_PM_POWER_L3, 0, "wallbox/power/L3", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 1, "wallbox/number_used_phases", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 3, "wallbox/max_current", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/plugged", "", F_AUTO, UNIT_NONE, 1, 8, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/locked", "", F_AUTO, UNIT_NONE, 1, 16, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/charging", "", F_AUTO, UNIT_NONE, 1, 32, false, false, false },
