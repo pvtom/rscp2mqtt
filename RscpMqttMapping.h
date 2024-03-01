@@ -35,7 +35,6 @@
 #define F_FLOAT_0         1 // "%.0f"
 #define F_FLOAT_1         2 // "%0.1f"
 #define F_FLOAT_2         3 // "%0.2f"
-#define F_FLOAT_D         4 // "%.0lf"
 
 #define FORCED_TOPIC      0
 #define LOG_TOPIC         1
@@ -58,6 +57,8 @@
 #define IDX_GRID_IN_DURATION               14
 #define IDX_GRID_SUN_DURATION              15
 #define IDX_WALLBOX_INDEX                  16
+#define IDX_WALLBOX_LAST_ENERGY_ALL        17
+#define IDX_WALLBOX_LAST_ENERGY_SOLAR      18
 
 namespace RSCP_MQTT {
 
@@ -143,6 +144,8 @@ cache_t cache[] = {
     { 0, 0, IDX_GRID_IN_DURATION, "grid_in_limit_duration", "", F_AUTO, UNIT_MIN, 1, 0, false, false, false },
     { 0, 0, IDX_GRID_SUN_DURATION, "sunshine_duration", "", F_AUTO, UNIT_MIN, 1, 0, false, false, false },
     { 0, 0, IDX_WALLBOX_INDEX, "wallbox/index", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL, "wallbox/energy/last_charging/total", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
+    { 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR, "wallbox/energy/last_charging/solar", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
     { 0, TAG_INFO_SW_RELEASE, 0, "system/software", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_INFO_PRODUCTION_DATE, 0, "system/production_date", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_INFO_SERIAL_NUMBER, 0, "system/serial_number", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
@@ -213,18 +216,18 @@ cache_t cache[] = {
     { TAG_PVI_AC_REACTIVEPOWER, TAG_PVI_VALUE, 0, "pvi/reactive_power/L1", "", F_FLOAT_0, UNIT_VAR, 1, 0, false, false, false },
     { TAG_PVI_AC_REACTIVEPOWER, TAG_PVI_VALUE, 1, "pvi/reactive_power/L2", "", F_FLOAT_0, UNIT_VAR, 1, 0, false, false, false },
     { TAG_PVI_AC_REACTIVEPOWER, TAG_PVI_VALUE, 2, "pvi/reactive_power/L3", "", F_FLOAT_0, UNIT_VAR, 1, 0, false, false, false },
-    { TAG_PVI_AC_ENERGY_ALL, TAG_PVI_VALUE, 0, "pvi/energy_all/L1", "", F_FLOAT_D, UNIT_WH, 1, 0, false, false, false },
-    { TAG_PVI_AC_ENERGY_ALL, TAG_PVI_VALUE, 1, "pvi/energy_all/L2", "", F_FLOAT_D, UNIT_WH, 1, 0, false, false, false },
-    { TAG_PVI_AC_ENERGY_ALL, TAG_PVI_VALUE, 2, "pvi/energy_all/L3", "", F_FLOAT_D, UNIT_WH, 1, 0, false, false, false },
+    { TAG_PVI_AC_ENERGY_ALL, TAG_PVI_VALUE, 0, "pvi/energy_all/L1", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_PVI_AC_ENERGY_ALL, TAG_PVI_VALUE, 1, "pvi/energy_all/L2", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_PVI_AC_ENERGY_ALL, TAG_PVI_VALUE, 2, "pvi/energy_all/L3", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
     { TAG_PVI_AC_MAX_APPARENTPOWER, TAG_PVI_VALUE, 0, "pvi/max_apparent_power/L1", "", F_FLOAT_0, UNIT_VA, 1, 0, false, false, false },
     { TAG_PVI_AC_MAX_APPARENTPOWER, TAG_PVI_VALUE, 1, "pvi/max_apparent_power/L2", "", F_FLOAT_0, UNIT_VA, 1, 0, false, false, false },
     { TAG_PVI_AC_MAX_APPARENTPOWER, TAG_PVI_VALUE, 2, "pvi/max_apparent_power/L3", "", F_FLOAT_0, UNIT_VA, 1, 0, false, false, false },
     { TAG_PVI_AC_ENERGY_DAY, TAG_PVI_VALUE, 0, "pvi/energy_day/L1", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
     { TAG_PVI_AC_ENERGY_DAY, TAG_PVI_VALUE, 1, "pvi/energy_day/L2", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
     { TAG_PVI_AC_ENERGY_DAY, TAG_PVI_VALUE, 2, "pvi/energy_day/L3", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
-    { TAG_PVI_AC_ENERGY_GRID_CONSUMPTION, TAG_PVI_VALUE, 0, "pvi/energy_grid_consumption/L1", "", F_FLOAT_D, UNIT_WH, 1, 0, false, false, false },
-    { TAG_PVI_AC_ENERGY_GRID_CONSUMPTION, TAG_PVI_VALUE, 1, "pvi/energy_grid_consumption/L2", "", F_FLOAT_D, UNIT_WH, 1, 0, false, false, false },
-    { TAG_PVI_AC_ENERGY_GRID_CONSUMPTION, TAG_PVI_VALUE, 2, "pvi/energy_grid_consumption/L3", "", F_FLOAT_D, UNIT_WH, 1, 0, false, false, false },
+    { TAG_PVI_AC_ENERGY_GRID_CONSUMPTION, TAG_PVI_VALUE, 0, "pvi/energy_grid_consumption/L1", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_PVI_AC_ENERGY_GRID_CONSUMPTION, TAG_PVI_VALUE, 1, "pvi/energy_grid_consumption/L2", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_PVI_AC_ENERGY_GRID_CONSUMPTION, TAG_PVI_VALUE, 2, "pvi/energy_grid_consumption/L3", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
     { TAG_PVI_AC_FREQUENCY, TAG_PVI_VALUE, 0, "pvi/frequency", "", F_FLOAT_2, UNIT_HZ, 1, 0, false, false, false },
     { TAG_PVI_DATA, TAG_PVI_TEMPERATURE_COUNT, 0, "pvi/temperature/count", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { TAG_PVI_DATA, TAG_PVI_ON_GRID, 0, "pvi/on_grid", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
@@ -305,27 +308,29 @@ cache_t cache[] = {
     { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_CONSUMED_PRODUCTION, 0, "year/consumed", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_AUTARKY, 0, "year/autarky", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
     // WALLBOX
-    { 0, TAG_EMS_POWER_WB_ALL, 0, "wallbox/total/power", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
-    { 0, TAG_EMS_POWER_WB_SOLAR, 0, "wallbox/solar/power", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
+    { 0, TAG_EMS_POWER_WB_ALL, 0, "wallbox/power/total", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
+    { 0, TAG_EMS_POWER_WB_SOLAR, 0, "wallbox/power/solar", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
     { 0, TAG_EMS_BATTERY_TO_CAR_MODE, 0, "wallbox/battery_to_car", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_EMS_BATTERY_BEFORE_CAR_MODE, 0, "wallbox/battery_before_car", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_EMS_GET_WB_DISCHARGE_BAT_UNTIL, 0, "wallbox/battery_discharge_until", "", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
     { 0, TAG_EMS_GET_WALLBOX_ENFORCE_POWER_ASSIGNMENT, 0, "wallbox/disable_battery_at_mix_mode", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_DEVICE_STATE, 0, "wallbox/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "wallbox/active_phases", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "wallbox/active_phases/L1", "", F_AUTO, UNIT_NONE, 1, 1, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "wallbox/active_phases/L2", "", F_AUTO, UNIT_NONE, 1, 2, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "wallbox/active_phases/L3", "", F_AUTO, UNIT_NONE, 1, 4, false, false, false },
     { TAG_WB_DATA, TAG_WB_NUMBER_PHASES, 0, "wallbox/number_phases", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { TAG_WB_DATA, TAG_WB_SOC, 0, "wallbox/soc", "", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
     { TAG_WB_DATA, TAG_WB_KEY_STATE, 0, "wallbox/key_state", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_ENERGY_ALL, 0, "wallbox/total/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, 0, "wallbox/solar/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L1, 0, "wallbox/energy/L1", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L2, 0, "wallbox/energy/L2", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L3, 0, "wallbox/energy/L3", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_POWER_L1, 0, "wallbox/power/L1", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_POWER_L2, 0, "wallbox/power/L2", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_POWER_L3, 0, "wallbox/power/L3", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_ENERGY_ALL, 0, "wallbox/energy/total", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, 0, "wallbox/energy/solar", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L1, 0, "wallbox/energy/L1", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L2, 0, "wallbox/energy/L2", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L3, 0, "wallbox/energy/L3", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_POWER_L1, 0, "wallbox/power/L1", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_POWER_L2, 0, "wallbox/power/L2", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_POWER_L3, 0, "wallbox/power/L3", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 1, "wallbox/number_used_phases", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 3, "wallbox/max_current", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/plugged", "", F_AUTO, UNIT_NONE, 1, 8, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/locked", "", F_AUTO, UNIT_NONE, 1, 16, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/charging", "", F_AUTO, UNIT_NONE, 1, 32, false, false, false },
@@ -420,20 +425,20 @@ cache_t templates[] = {
     { TAG_PVI_DC_POWER, TAG_PVI_VALUE, 1, "pvi/power/string_%d", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
     { TAG_PVI_DC_VOLTAGE, TAG_PVI_VALUE, 1, "pvi/voltage/string_%d", "", F_FLOAT_0, UNIT_V, 1, 0, false, false, false },
     { TAG_PVI_DC_CURRENT, TAG_PVI_VALUE, 1, "pvi/current/string_%d", "", F_FLOAT_2, UNIT_A, 1, 0, false, false, false },
-    { TAG_PVI_DC_STRING_ENERGY_ALL, TAG_PVI_VALUE, 1, "pvi/energy_all/string_%d", "", F_FLOAT_D, UNIT_WH, 1, 0, false, false, false },
+    { TAG_PVI_DC_STRING_ENERGY_ALL, TAG_PVI_VALUE, 1, "pvi/energy_all/string_%d", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
     // PM
-    { TAG_PM_DATA, TAG_PM_POWER_L1, 0, "%s/power/L1", "", F_FLOAT_D, UNIT_W, 1, 0, false, false, false },
-    { TAG_PM_DATA, TAG_PM_POWER_L2, 0, "%s/power/L2", "", F_FLOAT_D, UNIT_W, 1, 0, false, false, false },
-    { TAG_PM_DATA, TAG_PM_POWER_L3, 0, "%s/power/L3", "", F_FLOAT_D, UNIT_W, 1, 0, false, false, false },
-    { TAG_PM_DATA, TAG_PM_ENERGY_L1, 0, "%s/energy/L1", "", F_FLOAT_D, UNIT_WH, 1000, 0, false, false, false },
-    { TAG_PM_DATA, TAG_PM_ENERGY_L2, 0, "%s/energy/L2", "", F_FLOAT_D, UNIT_WH, 1000, 0, false, false, false },
-    { TAG_PM_DATA, TAG_PM_ENERGY_L3, 0, "%s/energy/L3", "", F_FLOAT_D, UNIT_WH, 1000, 0, false, false, false },
+    { TAG_PM_DATA, TAG_PM_POWER_L1, 0, "%s/power/L1", "", F_FLOAT_2, UNIT_W, 1, 0, false, false, false },
+    { TAG_PM_DATA, TAG_PM_POWER_L2, 0, "%s/power/L2", "", F_FLOAT_2, UNIT_W, 1, 0, false, false, false },
+    { TAG_PM_DATA, TAG_PM_POWER_L3, 0, "%s/power/L3", "", F_FLOAT_2, UNIT_W, 1, 0, false, false, false },
+    { TAG_PM_DATA, TAG_PM_ENERGY_L1, 0, "%s/energy/L1", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_PM_DATA, TAG_PM_ENERGY_L2, 0, "%s/energy/L2", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_PM_DATA, TAG_PM_ENERGY_L3, 0, "%s/energy/L3", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
     { TAG_PM_DATA, TAG_PM_VOLTAGE_L1, 0, "%s/voltage/L1", "", F_FLOAT_2, UNIT_V, 1, 0, false, false, false },
     { TAG_PM_DATA, TAG_PM_VOLTAGE_L2, 0, "%s/voltage/L2", "", F_FLOAT_2, UNIT_V, 1, 0, false, false, false },
     { TAG_PM_DATA, TAG_PM_VOLTAGE_L3, 0, "%s/voltage/L3", "", F_FLOAT_2, UNIT_V, 1, 0, false, false, false },
     { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "%s/active_phases/L1", "", F_AUTO, UNIT_NONE, 1, 1, false, false, false },
-    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "%s/active_phases/L2", "", F_AUTO, UNIT_NONE, 2, 1, false, false, false },
-    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "%s/active_phases/L3", "", F_AUTO, UNIT_NONE, 4, 1, false, false, false }
+    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "%s/active_phases/L2", "", F_AUTO, UNIT_NONE, 1, 2, false, false, false },
+    { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "%s/active_phases/L3", "", F_AUTO, UNIT_NONE, 1, 4, false, false, false }
 };
 
 std::vector<cache_t> RscpMqttCacheTempl(templates, templates + sizeof(templates) / sizeof(cache_t));

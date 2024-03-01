@@ -19,7 +19,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "v3.15"
+#define RSCP2MQTT_VERSION       "v3.16"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -616,6 +616,7 @@ int handleImmediately(RscpProtocol *protocol, SRscpValue *response, uint32_t con
                     snprintf(payload, PAYLOAD_SIZE, "%0.1f", protocol->getValueAsFloat32(response) / it->divisor);
                     break;
                 }
+                case F_AUTO :
                 case F_FLOAT_2 : {
                     snprintf(payload, PAYLOAD_SIZE, "%0.2f", protocol->getValueAsFloat32(response) / it->divisor);
                     break;
@@ -780,6 +781,7 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                             snprintf(buf, PAYLOAD_SIZE, "%0.1f", protocol->getValueAsFloat32(response) / it->divisor);
                             break;
                         }
+                        case F_AUTO :
                         case F_FLOAT_2 : {
                             snprintf(buf, PAYLOAD_SIZE, "%0.2f", protocol->getValueAsFloat32(response) / it->divisor);
                             break;
@@ -792,11 +794,25 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                     break;
                 }
                 case RSCP::eTypeDouble64: {
-                    snprintf(buf, PAYLOAD_SIZE, "%.0lf", protocol->getValueAsDouble64(response) / it->divisor);
+                    switch (it->format) {
+                        case F_FLOAT_0 : {
+                            snprintf(buf, PAYLOAD_SIZE, "%.0f", protocol->getValueAsDouble64(response) / it->divisor);
+                            break;
+                        }
+                        case F_FLOAT_1 : {
+                            snprintf(buf, PAYLOAD_SIZE, "%0.1f", protocol->getValueAsDouble64(response) / it->divisor);
+                            break;
+                        }
+                        case F_AUTO :
+                        case F_FLOAT_2 : {
+                            snprintf(buf, PAYLOAD_SIZE, "%0.2f", protocol->getValueAsDouble64(response) / it->divisor);
+                            break;
+                        }
+                    }
                     if (strcmp(it->payload, buf)) {
                         strcpy(it->payload, buf);
                         it->changed = true;
-                    }
+                    } 
                     break;
                 }
                 case RSCP::eTypeString: {
@@ -944,6 +960,36 @@ void statisticValues(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
         storeIntegerValue(c, 0, 0, sun_duration / 60, IDX_GRID_SUN_DURATION);
     }
     last = now;
+    return;
+}
+
+void wallboxLastCharging(std::vector<RSCP_MQTT::cache_t> & c) {
+    static int wallbox_energy_total_start = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_ALL, 0);
+    static int wallbox_energy_solar_start = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, 0);
+    static int wallbox_plugged_last = 0;
+    static int diff_total = 0;
+    static int diff_solar = 0;
+    int wallbox_energy_total = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_ALL, 0);
+    int wallbox_energy_solar = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, 0);
+    int wallbox_plugged = getIntegerValue(c, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2) & 8;
+
+    if (!wallbox_plugged_last && wallbox_plugged) {
+        storeIntegerValue(c, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL);
+        storeIntegerValue(c, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR);
+        wallbox_energy_total_start = wallbox_energy_total;
+        wallbox_energy_solar_start = wallbox_energy_solar;
+        diff_total = 0;
+        diff_solar = 0;
+    }
+    if (wallbox_plugged_last != wallbox_plugged) {
+        wallbox_plugged_last = wallbox_plugged;
+    }
+    if (wallbox_energy_total > (wallbox_energy_total_start + diff_total)) {
+        diff_total = storeIntegerValue(c, 0, 0, wallbox_energy_total - wallbox_energy_total_start, IDX_WALLBOX_LAST_ENERGY_ALL);
+    }
+    if (wallbox_energy_solar > (wallbox_energy_solar_start + diff_solar)) {
+        diff_solar = storeIntegerValue(c, 0, 0, wallbox_energy_solar - wallbox_energy_solar_start, IDX_WALLBOX_LAST_ENERGY_SOLAR);
+    }
     return;
 }
 
@@ -1184,7 +1230,6 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
             SRscpValue WBContainer;
             protocol.createContainerValue(&WBContainer, TAG_WB_REQ_DATA) ;
             protocol.appendValue(&WBContainer, TAG_WB_INDEX, (uint8_t)cfg.wb_index);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_DEVICE_STATE);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_SOC);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ACTIVE_PHASES);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_EXTERN_DATA_ALG);
@@ -2007,6 +2052,7 @@ static void mainLoop(void){
         if (countdown <= 0) {
             classifyValues(RSCP_MQTT::RscpMqttCache);
             if (cfg.statistic_values) statisticValues(RSCP_MQTT::RscpMqttCache, new_day);
+            if (cfg.wallbox) wallboxLastCharging(RSCP_MQTT::RscpMqttCache);
         }
 
         // MQTT connection
@@ -2017,10 +2063,13 @@ static void mainLoop(void){
                 mosq = mosquitto_new(NULL, true, NULL);
             logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Connecting to broker %s:%u\n", cfg.mqtt_host, cfg.mqtt_port);
             if (mosq) {
+                char topic[TOPIC_SIZE];
+                snprintf(topic, TOPIC_SIZE, "%s/rscp2mqtt/status", cfg.prefix);
                 mosquitto_threaded_set(mosq, true);
                 mosquitto_connect_callback_set(mosq, (void (*)(mosquitto*, void*, int))mqttCallbackOnConnect);
                 mosquitto_message_callback_set(mosq, (void (*)(mosquitto*, void*, const mosquitto_message*))mqttCallbackOnMessage);
                 if (cfg.mqtt_auth && strcmp(cfg.mqtt_user, "") && strcmp(cfg.mqtt_password, "")) mosquitto_username_pw_set(mosq, cfg.mqtt_user, cfg.mqtt_password);
+                mosquitto_will_set(mosq, topic, strlen("disconnected"), "disconnected", cfg.mqtt_qos, cfg.mqtt_retain);
                 if (!mosquitto_connect(mosq, cfg.mqtt_host, cfg.mqtt_port, 10)) {
                     std::thread th(mqttListener, mosq);
                     th.detach();
@@ -2030,6 +2079,7 @@ static void mainLoop(void){
                     mosquitto_destroy(mosq);
                     mosq = NULL;
                 }
+                if (mosq) mosquitto_publish(mosq, NULL, topic, strlen("connected"), "connected", cfg.mqtt_qos, cfg.mqtt_retain);
             }
         }
 
@@ -2424,7 +2474,11 @@ int main(int argc, char *argv[]){
         storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_IN_DURATION);
         storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_SUN_DURATION);
     }
-    if (cfg.wallbox) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, cfg.wb_index, IDX_WALLBOX_INDEX);
+    if (cfg.wallbox) {
+        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, cfg.wb_index, IDX_WALLBOX_INDEX);
+        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL);
+        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR);
+    }
 
     // MQTT init
     mosquitto_lib_init();
