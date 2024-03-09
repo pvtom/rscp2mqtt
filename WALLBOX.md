@@ -14,9 +14,9 @@ The following topics are sent to the MQTT broker:
 
 | Device / Tag | MQTT Topic | Values / [Unit] |
 | --- | --- | --- |
-| Wallbox Battery | e3dc/wallbox/battery_to_car | (true/false) |
-| Wallbox Battery | e3dc/wallbox/battery_before_car | (true/false) |
-| Wallbox Battery | e3dc/wallbox/battery_discharge_until | [%] |
+| Wallbox Battery | e3dc/wallbox/charge_battery_before_car | (true/false) |
+| Wallbox Battery | e3dc/wallbox/discharge_battery_to_car | (true/false) |
+| Wallbox Battery | e3dc/wallbox/discharge_battery_until | [%] |
 | Wallbox Battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
 | Wallbox Canceled | e3dc/wallbox/canceled | (true/false) |
 | Wallbox Charging | e3dc/wallbox/charging | (true/false) |
@@ -45,7 +45,7 @@ The following topics are sent to the MQTT broker:
 | Wallbox Power L3 | e3dc/wallbox/power/L3 | [W] |
 | Wallbox SOC | e3dc/wallbox/soc | [%] |
 
-There is a dependency of e3dc/wallbox/battery_before_car to e3dc/wallbox/battery_to_car: e3dc/wallbox/battery_before_car can only be set if e3dc/wallbox/battery_to_car is false (issue #21).
+There is a dependency of e3dc/wallbox/charge_battery_before_car to e3dc/wallbox/discharge_battery_to_car: e3dc/wallbox/charge_battery_before_car can only be set if e3dc/wallbox/discharge_battery_to_car is false (issue #21).
 
 In addition, these topics can be published to control the wallbox:
 
@@ -69,17 +69,17 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/control" -m "stop"
 
 Set battery to car mode (true/1/false/0)
 ```
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_to_car" -m true
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/discharge_battery_to_car" -m true
 ```
 
 Set battery before car mode (true/1/false/0)
 ```
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_before_car" -m true
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/charge_battery_before_car" -m true
 ```
 
-Set battery discharge until [%]
+Set discharge battery until [%]
 ```
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_discharge_until" -m 80
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/discharge_battery_until" -m 80
 ```
 
 Set disable charging battery at mix mode (true/1/false/0)
