@@ -19,7 +19,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "v3.16"
+#define RSCP2MQTT_VERSION       "v3.17.dev"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -2063,10 +2063,13 @@ static void mainLoop(void){
                 mosq = mosquitto_new(NULL, true, NULL);
             logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Connecting to broker %s:%u\n", cfg.mqtt_host, cfg.mqtt_port);
             if (mosq) {
+                char topic[TOPIC_SIZE];
+                snprintf(topic, TOPIC_SIZE, "%s/rscp2mqtt/status", cfg.prefix);
                 mosquitto_threaded_set(mosq, true);
                 mosquitto_connect_callback_set(mosq, (void (*)(mosquitto*, void*, int))mqttCallbackOnConnect);
                 mosquitto_message_callback_set(mosq, (void (*)(mosquitto*, void*, const mosquitto_message*))mqttCallbackOnMessage);
                 if (cfg.mqtt_auth && strcmp(cfg.mqtt_user, "") && strcmp(cfg.mqtt_password, "")) mosquitto_username_pw_set(mosq, cfg.mqtt_user, cfg.mqtt_password);
+                mosquitto_will_set(mosq, topic, strlen("disconnected"), "disconnected", cfg.mqtt_qos, cfg.mqtt_retain);
                 if (!mosquitto_connect(mosq, cfg.mqtt_host, cfg.mqtt_port, 10)) {
                     std::thread th(mqttListener, mosq);
                     th.detach();
@@ -2076,6 +2079,7 @@ static void mainLoop(void){
                     mosquitto_destroy(mosq);
                     mosq = NULL;
                 }
+                if (mosq) mosquitto_publish(mosq, NULL, topic, strlen("connected"), "connected", cfg.mqtt_qos, cfg.mqtt_retain);
             }
         }
 

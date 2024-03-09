@@ -29,6 +29,7 @@ The following topics are sent to the MQTT broker:
 | Wallbox Energy L2 | e3dc/wallbox/energy/L2 | [Wh] |
 | Wallbox Energy L3 | e3dc/wallbox/energy/L3 | [Wh] |
 | Wallbox Index | e3dc/wallbox/index | (0..7) |
+| Wallbox Key State | e3dc/wallbox/key_state | (true/false) |
 | Wallbox Locked | e3dc/wallbox/locked | (true/false) |
 | Wallbox Mode | e3dc/wallbox/sun_mode | (true/false) |
 | Wallbox Phases | e3dc/wallbox/active_phases/L1 | (true/false) |

@@ -1,5 +1,10 @@
 ## Release Notes
 
+### Release v3.16 (01.03.2024)
+
+- Issue #49: Add wallbox data (fixes and add-ons)
+- Issue #50: Power meter energy values with float precision
+
 ### Release v3.15 (17.02.2024)
 
 - Issue #47: Rename the topic e3dc/grid_in_duration to e3dc/grid_in_limit_duration

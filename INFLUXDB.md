@@ -36,6 +36,7 @@ Access data using the influx client
 precision rfc3339
 use e3dc
 select * from e3dc where topic = 'e3dc/solar/power' tz('Europe/Berlin')
+select * from e3dc where topic =~ /e3dc\/day/ tz('Europe/Berlin');
 ```
 
 Set a retention policy to limit data collection
