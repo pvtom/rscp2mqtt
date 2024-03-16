@@ -19,7 +19,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "v3.16"
+#define RSCP2MQTT_VERSION       "v3.17"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -2009,7 +2009,6 @@ static void mainLoop(void){
     RscpProtocol protocol;
     bool bStopExecution = false;
     int countdown = 3;
-    int interval = 1;
 
     while (!bStopExecution) {
         //--------------------------------------------------------------------------------------------------------------
@@ -2109,12 +2108,11 @@ static void mainLoop(void){
             countdown--;
             if (countdown == 0) {
                 cleanupCache(RSCP_MQTT::RscpMqttCacheTempl);
-                interval = cfg.interval;
             }
+            sleep(1);
+        } else {
+            wsleep(cfg.interval);
         }
-
-        // main loop sleep / cycle time before next request
-        wsleep(interval);
     }
 }
 

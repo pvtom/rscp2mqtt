@@ -1,5 +1,12 @@
 ## Release Notes
 
+### Release v3.17 (16.03.2024)
+
+- Issue #51: Some wallbox topics have been renamed!
+  Renamed to: discharge_battery_to_car, charge_battery_before_car, discharge_battery_until, disable_battery_at_mix_mode
+  New: phases/L1, phases/L2, phases/L3 replace active_phases
+- Issue #52: "e3dc/set/interval" not considered
+
 ### Release v3.16 (01.03.2024)
 
 - Issue #49: Add wallbox data (fixes and add-ons)

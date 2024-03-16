@@ -14,13 +14,13 @@ The following topics are sent to the MQTT broker:
 
 | Device / Tag | MQTT Topic | Values / [Unit] |
 | --- | --- | --- |
-| Wallbox Battery | e3dc/wallbox/battery_to_car | (true/false) |
-| Wallbox Battery | e3dc/wallbox/battery_before_car | (true/false) |
-| Wallbox Battery | e3dc/wallbox/battery_discharge_until | [%] |
+| Wallbox Battery | e3dc/wallbox/charge_battery_before_car | (true/false) |
+| Wallbox Battery | e3dc/wallbox/discharge_battery_to_car | (true/false) |
+| Wallbox Battery | e3dc/wallbox/discharge_battery_until | [%] |
 | Wallbox Battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
 | Wallbox Canceled | e3dc/wallbox/canceled | (true/false) |
 | Wallbox Charging | e3dc/wallbox/charging | (true/false) |
-| Wallbox Current | e3dc/wallbox/max_current | (true/false) |
+| Wallbox Current | e3dc/wallbox/max_current | [A] |
 | Wallbox Energy Total | e3dc/wallbox/energy/total | [Wh] |
 | Wallbox Energy Total Last Charging | e3dc/wallbox/energy/last_charging/total | [Wh] |
 | Wallbox Energy Solar | e3dc/wallbox/energy/solar | [Wh] |
@@ -29,13 +29,13 @@ The following topics are sent to the MQTT broker:
 | Wallbox Energy L2 | e3dc/wallbox/energy/L2 | [Wh] |
 | Wallbox Energy L3 | e3dc/wallbox/energy/L3 | [Wh] |
 | Wallbox Index | e3dc/wallbox/index | (0..7) |
+| Wallbox Key State | e3dc/wallbox/key_state | (true/false) |
 | Wallbox Locked | e3dc/wallbox/locked | (true/false) |
 | Wallbox Mode | e3dc/wallbox/sun_mode | (true/false) |
-| Wallbox Phases | e3dc/wallbox/active_phases/L1 | (true/false) |
-| Wallbox Phases | e3dc/wallbox/active_phases/L2 | (true/false) |
-| Wallbox Phases | e3dc/wallbox/active_phases/L3 | (true/false) |
+| Wallbox Phases | e3dc/wallbox/phases/L1 | (true/false) |
+| Wallbox Phases | e3dc/wallbox/phases/L2 | (true/false) |
+| Wallbox Phases | e3dc/wallbox/phases/L3 | (true/false) |
 | Wallbox Phases | e3dc/wallbox/number_phases | |
-| Wallbox Phases | e3dc/wallbox/number_used_phases | |
 | Wallbox Plugged | e3dc/wallbox/plugged | (true/false) |
 | Wallbox Power All | e3dc/wallbox/total/power | [W] |
 | Wallbox Power Solar | e3dc/wallbox/solar/power | [W] |
@@ -44,7 +44,7 @@ The following topics are sent to the MQTT broker:
 | Wallbox Power L3 | e3dc/wallbox/power/L3 | [W] |
 | Wallbox SOC | e3dc/wallbox/soc | [%] |
 
-There is a dependency of e3dc/wallbox/battery_before_car to e3dc/wallbox/battery_to_car: e3dc/wallbox/battery_before_car can only be set if e3dc/wallbox/battery_to_car is false (issue #21).
+There is a dependency of e3dc/wallbox/charge_battery_before_car to e3dc/wallbox/discharge_battery_to_car: e3dc/wallbox/charge_battery_before_car can only be set if e3dc/wallbox/discharge_battery_to_car is false (issue #21).
 
 In addition, these topics can be published to control the wallbox:
 
@@ -68,17 +68,17 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/control" -m "stop"
 
 Set battery to car mode (true/1/false/0)
 ```
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_to_car" -m true
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/discharge_battery_to_car" -m true
 ```
 
 Set battery before car mode (true/1/false/0)
 ```
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_before_car" -m true
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/charge_battery_before_car" -m true
 ```
 
-Set battery discharge until [%]
+Set discharge battery until [%]
 ```
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/battery_discharge_until" -m 80
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/discharge_battery_until" -m 80
 ```
 
 Set disable charging battery at mix mode (true/1/false/0)
