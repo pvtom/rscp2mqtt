@@ -216,13 +216,13 @@ All topics are listed with the default prefix "e3dc".
 | Software Release | e3dc/system/software | "S10_XXXX_XXX" |
 | Solar Energy | e3dc/solar/energy | [kWh] |
 | Time Zone | e3dc/time/zone | "Europe/City" |
-| Wallbox Battery | e3dc/wallbox/battery_before_car | (0,1) |
-| Wallbox Battery | e3dc/wallbox/battery_discharge_until | [%] |
-| Wallbox Battery | e3dc/wallbox/battery_to_car | (0,1) |
+| Wallbox Battery | e3dc/wallbox/charge_battery_before_car | (true/false) |
+| Wallbox Battery | e3dc/wallbox/discharge_battery_to_car | (true/false) |
+| Wallbox Battery | e3dc/wallbox/discharge_battery_until | [%] |
 | Wallbox Battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
 | Wallbox Canceled | e3dc/wallbox/canceled | (true/false) |
 | Wallbox Charging | e3dc/wallbox/charging | (true/false) |
-| Wallbox Current | e3dc/wallbox/max_current | (true/false) |
+| Wallbox Current | e3dc/wallbox/max_current | [A] |
 | Wallbox Energy Total | e3dc/wallbox/energy/total | [Wh] |
 | Wallbox Energy Total Last Charging | e3dc/wallbox/energy/last_charging/total | [Wh] |
 | Wallbox Energy Solar | e3dc/wallbox/energy/solar | [Wh] |
@@ -231,13 +231,13 @@ All topics are listed with the default prefix "e3dc".
 | Wallbox Energy L2 | e3dc/wallbox/energy/L2 | [Wh] |
 | Wallbox Energy L3 | e3dc/wallbox/energy/L3 | [Wh] |
 | Wallbox Index | e3dc/wallbox/index | (0..7) |
+| Wallbox Key State | e3dc/wallbox/key_state | (true/false) |
 | Wallbox Locked | e3dc/wallbox/locked | (true/false) |
 | Wallbox Mode | e3dc/wallbox/sun_mode | (true/false) |
-| Wallbox Phases | e3dc/wallbox/active_phases/L1 | (true/false) |
-| Wallbox Phases | e3dc/wallbox/active_phases/L2 | (true/false) |
-| Wallbox Phases | e3dc/wallbox/active_phases/L3 | (true/false) |
+| Wallbox Phases | e3dc/wallbox/phases/L1 | (true/false) |
+| Wallbox Phases | e3dc/wallbox/phases/L2 | (true/false) |
+| Wallbox Phases | e3dc/wallbox/phases/L3 | (true/false) |
 | Wallbox Phases | e3dc/wallbox/number_phases | |
-| Wallbox Phases | e3dc/wallbox/number_used_phases | |
 | Wallbox Plugged | e3dc/wallbox/plugged | (true/false) |
 | Wallbox Power All | e3dc/wallbox/solar/power | [W] |
 | Wallbox Power Solar | e3dc/wallbox/total/power | [W] |
@@ -318,9 +318,9 @@ Please find detailled information and examples in the [README](README.md).
 | Set solar mode with the current in [A] | e3dc/set/wallbox/control | "solar:16" |
 | Set mix mode with the current in [A] | e3dc/set/wallbox/control | "mix:8" |
 | Stop charging | e3dc/set/wallbox/control | "stop" |
-| Set battery to car mode | e3dc/set/wallbox/battery_to_car | (true/false) |
-| Set battery before car mode | e3dc/set/wallbox/battery_before_car | (true/false) |
-| Set battery discharge until [%] | e3dc/set/wallbox/battery_discharge_until | [%] |
+| Set battery to car mode | e3dc/set/wallbox/discharge_battery_to_car | (true/false) |
+| Set battery before car mode | e3dc/set/wallbox/charge_battery_before_car | (true/false) |
+| Set battery discharge until [%] | e3dc/set/wallbox/discharge_battery_until | [%] |
 | Set disable charging battery at mix mode | e3dc/set/wallbox/disable_battery_at_mix_mode | (true/false) |
 | Set number of phases (1,3) | e3dc/set/wallbox/number_phases | (1,3) |
 | Historical daily data | | |

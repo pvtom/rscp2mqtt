@@ -20,7 +20,7 @@ The following topics are sent to the MQTT broker:
 | Wallbox Battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
 | Wallbox Canceled | e3dc/wallbox/canceled | (true/false) |
 | Wallbox Charging | e3dc/wallbox/charging | (true/false) |
-| Wallbox Current | e3dc/wallbox/max_current | (true/false) |
+| Wallbox Current | e3dc/wallbox/max_current | [A] |
 | Wallbox Energy Total | e3dc/wallbox/energy/total | [Wh] |
 | Wallbox Energy Total Last Charging | e3dc/wallbox/energy/last_charging/total | [Wh] |
 | Wallbox Energy Solar | e3dc/wallbox/energy/solar | [Wh] |
@@ -32,11 +32,10 @@ The following topics are sent to the MQTT broker:
 | Wallbox Key State | e3dc/wallbox/key_state | (true/false) |
 | Wallbox Locked | e3dc/wallbox/locked | (true/false) |
 | Wallbox Mode | e3dc/wallbox/sun_mode | (true/false) |
-| Wallbox Phases | e3dc/wallbox/active_phases/L1 | (true/false) |
-| Wallbox Phases | e3dc/wallbox/active_phases/L2 | (true/false) |
-| Wallbox Phases | e3dc/wallbox/active_phases/L3 | (true/false) |
+| Wallbox Phases | e3dc/wallbox/phases/L1 | (true/false) |
+| Wallbox Phases | e3dc/wallbox/phases/L2 | (true/false) |
+| Wallbox Phases | e3dc/wallbox/phases/L3 | (true/false) |
 | Wallbox Phases | e3dc/wallbox/number_phases | |
-| Wallbox Phases | e3dc/wallbox/number_used_phases | |
 | Wallbox Plugged | e3dc/wallbox/plugged | (true/false) |
 | Wallbox Power All | e3dc/wallbox/total/power | [W] |
 | Wallbox Power Solar | e3dc/wallbox/solar/power | [W] |
