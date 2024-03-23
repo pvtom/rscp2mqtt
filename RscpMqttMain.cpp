@@ -2216,7 +2216,7 @@ int main(int argc, char *argv[]){
         if ((!strcmp(argv[i], "--config") || !strcmp(argv[i], "-c")) && (i+1 < argc)) cfile = argv[++i];
         if (!strcmp(argv[i], "--help")) {
             printf("rscp2mqtt [%s] - Bridge between an E3/DC home power station and an MQTT broker\n\n", RSCP2MQTT);
-            printf("Usage: %s [options]\n\n", basename(argv[0]));
+            printf("Usage: rscp2mqtt [options]\n\n");
             printf("Options:\n  -c, --config <file>\n  -d, --daemon\t\tdaemon mode\n  -v, --verbose\t\tverbose mode\n\n");
             printf("For more details please visit https://github.com/pvtom/rscp2mqtt\n");
             exit(EXIT_SUCCESS);
