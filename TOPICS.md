@@ -6,13 +6,13 @@ All topics are listed with the default prefix "e3dc".
 
 | Device / Tag | MQTT Topic | Values / [Unit] |
 | --- | --- | --- |
-| Battery Charge Cycles ** | e3dc/battery/cycles | |
-| Battery Current ** | e3dc/battery/current | [A] |
-| Battery Design Capacity ** | e3dc/battery/design_capacity | [Ah] |
-| Battery Device Name ** | e3dc/battery/name | "BAT_XXX" |
+| Battery Charge Cycles * | e3dc/battery/cycles | |
+| Battery Current * | e3dc/battery/current | [A] |
+| Battery Design Capacity * | e3dc/battery/design_capacity | [Ah] |
+| Battery Device Name * | e3dc/battery/name | "BAT_XXX" |
 | Battery Energy Charge (today) | e3dc/battery/energy/charge | [kWh] |
 | Battery Energy Discharge (today) | e3dc/battery/energy/discharge | [kWh] |
-| Battery Error Code ** | e3dc/battery/error | |
+| Battery Error Code * | e3dc/battery/error | |
 | Battery Module Charge Cycles | e3dc/battery/dcb/<#>/cycles | |
 | Battery Module Count | e3dc/battery/dcb/count | <count#> |
 | Battery Module Current 30s Average | e3dc/battery/dcb/<#>/current_avg_30s | [A] |
@@ -42,25 +42,25 @@ All topics are listed with the default prefix "e3dc".
 | Battery Module Table Version | e3dc/battery/dcb/<#>/table_version | |
 | Battery Module Voltage 30s Average | e3dc/battery/dcb/<#>/voltage_avg_30s | [V] |
 | Battery Module Voltage | e3dc/battery/dcb/<#>/voltage | [V] |
-| Battery Remaining Capacity ** | e3dc/battery/usable_remaining_capacity | [Ah] |
-| Battery Role (?) ** | e3dc/battery/role | |
-| Battery RSOC ** | e3dc/battery/rsoc_real | [%] |
+| Battery Remaining Capacity * | e3dc/battery/usable_remaining_capacity | [Ah] |
+| Battery Role (?) * | e3dc/battery/role | |
+| Battery RSOC * | e3dc/battery/rsoc_real | [%] |
 | Battery SOC | e3dc/battery/soc | [%] |
 | Battery SOC Min (today) | e3dc/battery/soc_min | [%] |
 | Battery SOC Max (today) | e3dc/battery/soc_max | [%] |
-| Battery SOC ** | e3dc/battery/soc_float | [%] |
-| Battery SOH ** | e3dc/battery/soh | [%] |
-| Battery Specified Capacity ** | e3dc/battery/specified_capacity | [Wh] |
-| Battery Specified Charge Power ** | e3dc/battery/specified_charge_power | [W] |
-| Battery Specified Discharge Power ** | e3dc/battery/specified_discharge_power | [W] |
-| Battery Specified Max DCB Count ** | e3dc/battery/specified_max_dcb_count | |
-| Battery Status Code ** | e3dc/battery/status | |
+| Battery SOC * | e3dc/battery/soc_float | [%] |
+| Battery SOH * | e3dc/battery/soh | [%] |
+| Battery Specified Capacity * | e3dc/battery/specified_capacity | [Wh] |
+| Battery Specified Charge Power * | e3dc/battery/specified_charge_power | [W] |
+| Battery Specified Discharge Power * | e3dc/battery/specified_discharge_power | [W] |
+| Battery Specified Max DCB Count * | e3dc/battery/specified_max_dcb_count | |
+| Battery Status Code * | e3dc/battery/status | |
 | Battery Status | e3dc/battery/state | "EMPTY", "CHARGING", "DISCHARGING", "FULL", "PENDING" |
-| Battery Temperature Max ** | e3dc/battery/temperature/max | [°C] |
-| Battery Temperature Min ** | e3dc/battery/temperature/min | [°C] |
-| Battery Training Mode ** | e3dc/battery/training | (0-2) |
-| Battery Usable Capacity ** | e3dc/battery/usable_capacity | [Ah] |
-| Battery Voltage ** | e3dc/battery/voltage | [V] |
+| Battery Temperature Max * | e3dc/battery/temperature/max | [°C] |
+| Battery Temperature Min * | e3dc/battery/temperature/min | [°C] |
+| Battery Training Mode * | e3dc/battery/training | (0-2) |
+| Battery Usable Capacity * | e3dc/battery/usable_capacity | [Ah] |
+| Battery Voltage * | e3dc/battery/voltage | [V] |
 | Current Autarky | e3dc/autarky | [%] |
 | Current Consumed Production | e3dc/consumed | [%] |
 | EMS Addon Power | e3dc/addon/power | [W] |
@@ -123,17 +123,15 @@ All topics are listed with the default prefix "e3dc".
 | Grid In Energy "Einspeisung" (today) | e3dc/grid/energy/in | [kWh] |
 | Grid Out Energy "Netzbezug" (today) | e3dc/grid/energy/out | [kWh] |
 | Grid Status | e3dc/grid/state | "IN", "OUT" |
-| Historical Data Autarky * | e3dc/day/<year#>/<month#>/<day#>/autarky | [%] |
-| Historical Data Battery Energy Charge * | e3dc/day/<year#>/<month#>/<day#>/battery/energy/charge | [kWh] |
-| Historical Data Consumed Production * | e3dc/day/<year#>/<month#>/<day#>/consumed | [%] |
-| Historical Data Energy Discharge * | e3dc/day/<year#>/<month#>/<day#>/battery/energy/discharge | [kWh] |
-| Historical Data Grid In Energy "Einspeisung" * | e3dc/day/<year#>/<month#>/<day#>/grid/energy/in | [kWh] |
-| Historical Data Grid Out Energy "Netzbezug" * | e3dc/day/<year#>/<month#>/<day#>/grid/energy/out | [kWh] |
-| Historical Data Home Energy * | e3dc/day/<year#>/<month#>/<day#>/home/energy | [kWh] | 
-| Historical Data PM 0 Energy * | e3dc/day/<year#>/<month#>/<day#>/pm_0/energy | [kWh] |
-| Historical Data PM 1 Energy * | e3dc/day/<year#>/<month#>/<day#>/pm_1/energy | [kWh] |
-| Historical Data SOC * | e3dc/day/<year#>/<month#>/<day#>/battery/rsoc | [%] |
-| Historical Data Solar Energy * | e3dc/day/<year#>/<month#>/<day#>/solar/energy | [kWh] |
+| Historical Data Autarky ** | e3dc/day/<year#>/<month#>/<day#>/autarky | [%] |
+| Historical Data Battery Energy Charge ** | e3dc/day/<year#>/<month#>/<day#>/battery/energy/charge | [kWh] |
+| Historical Data Consumed Production ** | e3dc/day/<year#>/<month#>/<day#>/consumed | [%] |
+| Historical Data Energy Discharge ** | e3dc/day/<year#>/<month#>/<day#>/battery/energy/discharge | [kWh] |
+| Historical Data Grid In Energy "Einspeisung" ** | e3dc/day/<year#>/<month#>/<day#>/grid/energy/in | [kWh] |
+| Historical Data Grid Out Energy "Netzbezug" ** | e3dc/day/<year#>/<month#>/<day#>/grid/energy/out | [kWh] |
+| Historical Data Home Energy ** | e3dc/day/<year#>/<month#>/<day#>/home/energy | [kWh] | 
+| Historical Data SOC ** | e3dc/day/<year#>/<month#>/<day#>/battery/rsoc | [%] |
+| Historical Data Solar Energy ** | e3dc/day/<year#>/<month#>/<day#>/solar/energy | [kWh] |
 | Home Energy | e3dc/home/energy (today) | [kWh] |
 | Month Autarky | e3dc/month/autarky | [%] |
 | Month Battery Energy Charge | e3dc/month/battery/energy/charge | [kWh] |
@@ -143,18 +141,20 @@ All topics are listed with the default prefix "e3dc".
 | Month Grid Out Energy "Netzbezug" | e3dc/month/grid/energy/out | [kWh] |
 | Month Home Energy | e3dc/month/home/energy | [kWh] |
 | Month Solar Energy | e3dc/month/solar/energy | [kWh] |
-| PM Active Phase L1 | e3dc/pm/active_phases/L1 | (true/false) |
-| PM Active Phase L2 | e3dc/pm/active_phases/L2 | (true/false) |
-| PM Active Phase L3 | e3dc/pm/active_phases/L3 | (true/false) |
-| PM Energy L1 | e3dc/pm/energy/L1 | [Wh] |
-| PM Energy L2 | e3dc/pm/energy/L2 | [Wh] |
-| PM Energy L3 | e3dc/pm/energy/L3 | [Wh] |
-| PM Power L1 | e3dc/pm/power/L1 | [W] |
-| PM Power L2 | e3dc/pm/power/L2 | [W] |
-| PM Power L2 | e3dc/pm/power/L2 | [W] |
-| PM Voltage L1 | e3dc/pm/voltage/L1 | [V] |
-| PM Voltage L2 | e3dc/pm/voltage/L2 | [V] |
-| PM Voltage L3 | e3dc/pm/voltage/L3 | [V] |
+| PM Active Phase L1 *** | e3dc/pm/active_phases/L1 | (true/false) |
+| PM Active Phase L2 *** | e3dc/pm/active_phases/L2 | (true/false) |
+| PM Active Phase L3 *** | e3dc/pm/active_phases/L3 | (true/false) |
+| PM Energy *** | e3dc/pm/energy | [kWh] |
+| PM Energy L1 *** | e3dc/pm/energy/L1 | [kWh] |
+| PM Energy L2 *** | e3dc/pm/energy/L2 | [kWh] |
+| PM Energy L3 *** | e3dc/pm/energy/L3 | [kWh] |
+| PM Power *** | e3dc/pm/power | [W] |
+| PM Power L1 *** | e3dc/pm/power/L1 | [W] |
+| PM Power L2 *** | e3dc/pm/power/L2 | [W] |
+| PM Power L2 *** | e3dc/pm/power/L2 | [W] |
+| PM Voltage L1 *** | e3dc/pm/voltage/L1 | [V] |
+| PM Voltage L2 *** | e3dc/pm/voltage/L2 | [V] |
+| PM Voltage L3 *** | e3dc/pm/voltage/L3 | [V] |
 | Production Date | e3dc/system/production_date | "KWXX_XXXX" |
 | PVI Apparent Power L1 | e3dc/pvi/apparent_power/L1 | [VA] |
 | PVI Apparent Power L2 | e3dc/pvi/apparent_power/L2 | [VA] |
@@ -279,12 +279,12 @@ All topics are listed with the default prefix "e3dc".
 | Yesterday Home Energy | e3dc/yesterday/home/energy | [kWh] |
 | Yesterday Solar Energy | e3dc/yesterday/solar/energy | [kWh] |
 
+*) If your system has more than one battery string (e.g. S10 Pro), you have to configure the parameter BATTERY_STRINGS accordingly. Battery topics that belong to a battery string are extended by the number of the battery string. Battery modules (DCB topics) are numbered consecutively.
+
 Energy topics are collected for today, yesterday and the current week, month, year and historical years if configured.
-*) Historical data for a specific day can be queried by publishing "e3dc/set/request/day".
+**) Historical data for a specific day can be queried by publishing "e3dc/set/request/day".
 
-**) If your system has more than one battery string (e.g. S10 Pro), you have to configure the parameter BATTERY_STRINGS accordingly. Battery topics that belong to a battery string are extended by the number of the battery string.
-
-Battery modules (DCB topics) are numbered consecutively.
+***) If more than one power meter exists (PM_INDEX configured multiple times), topics are extended by the number of the power meter
 
 ### Writeable Topics
 

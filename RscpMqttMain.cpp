@@ -19,7 +19,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "v3.17"
+#define RSCP2MQTT_VERSION       "v3.18"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -241,12 +241,33 @@ int handleSetIdlePeriod(RscpProtocol *protocol, SRscpValue *rootContainer, char 
     return(0);
 }
 
+void addTemplTopicsIdx(int index, char *seg, int start, int n, int inc) {
+    for (int c = start; c < n; c++) {
+        for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCacheTempl.begin(); it != RSCP_MQTT::RscpMqttCacheTempl.end(); ++it) {
+            if (it->index == index) {
+                RSCP_MQTT::cache_t cache = { it->container, it->tag, index + c, "", "", it->format, "", it->divisor, it->bit_to_bool, it->history_log, it->changed, it->influx, it->forced };
+                if (n == 1) {
+                    snprintf(cache.topic, TOPIC_SIZE, it->topic, seg);
+                } else {
+                    char buffer[TOPIC_SIZE];
+                    snprintf(buffer, TOPIC_SIZE, "%s/%d", seg, c + inc);
+                    snprintf(cache.topic, TOPIC_SIZE, it->topic, buffer);
+                }
+                strcpy(cache.unit, it->unit);
+                RSCP_MQTT::RscpMqttCache.push_back(cache);
+            }
+        }
+    }
+    return;
+}
+
 void addTemplTopics(uint32_t container, int index, char *seg, int start, int n, int inc) {
     for (int c = start; c < n; c++) {
         for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCacheTempl.begin(); it != RSCP_MQTT::RscpMqttCacheTempl.end(); ++it) {
             if (it->container == container) {
                 RSCP_MQTT::cache_t cache = { it->container, it->tag, c, "", "", it->format, "", it->divisor, it->bit_to_bool, it->history_log, it->changed, it->influx, it->forced };
                 if ((seg == NULL) && (index == 0)) { // no args
+                    cache.index = it->index;
                     strcpy(cache.topic, it->topic);
                 } else if ((seg == NULL) && (index == 1)) { // "%d"
                     snprintf(cache.topic, TOPIC_SIZE, it->topic, c + inc);
@@ -289,6 +310,7 @@ void addTemplTopics(uint32_t container, int index, char *seg, int start, int n, 
             }
         }
     }
+    sort(RSCP_MQTT::RscpMqttCache.begin(), RSCP_MQTT::RscpMqttCache.end(), RSCP_MQTT::compareCache);
     return;
 }
 
@@ -428,34 +450,39 @@ void logCache(std::vector<RSCP_MQTT::cache_t> & v, char *file, char *prefix) {
         fp = fopen(file, "a");
         if (!fp) return;
         for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
-            fprintf(fp, "%s: topic >%s< payload >%s< unit >%s<%s\n", prefix, it->topic, it->payload, it->unit, (it->forced?" forced":""));
+            fprintf(fp, "container >0x%08X< tag >0x%08X< index >%d< topic >%s< payload >%s< unit >%s<%s\n", it->container, it->tag, it->index, it->topic, it->payload, it->unit, (it->forced?" forced":""));
         }
         fflush(fp);
         fclose(fp);
     } else {
         for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
-            printf("%s: topic >%s< payload >%s< unit >%s<%s\n", prefix, it->topic, it->payload, it->unit, (it->forced?" forced":""));
+            printf("container >0x%08X< tag >0x%08X< index >%d< topic >%s< payload >%s< unit >%s<%s\n", it->container, it->tag, it->index, it->topic, it->payload, it->unit, (it->forced?" forced":""));
         }
         fflush(NULL);
     }
     return;
 }
 
-void logTopics(std::vector<RSCP_MQTT::cache_t> & v, char *file) {
+int logTopics(std::vector<RSCP_MQTT::cache_t> & v, char *file) {
+    int i = 0;
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
         if (it->forced) logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< forced\n", it->topic);
         if (it->influx) logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< marked influx relevant\n", it->topic);
         if (it->history_log) logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< marked for logging\n", it->topic);
+        if (!strcmp(it->payload, "")) logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< unused? Payload is empty\n", it->topic);
+        i++;
     }   
-    return;
+    return(i);
 }
 
 void logHealth(char *file) {
+    int i;
     logMessage(file, (char *)__FILE__, __LINE__, (char *)"[%s] PVI %s | PM %s | DCB %s (%d) | Wallbox (%d) %s | Autorefresh %s Interval %d\n", RSCP2MQTT, cfg.pvi_requests?"✓":"✗", cfg.pm_requests?"✓":"✗", cfg.dcb_requests?"✓":"✗", cfg.battery_strings, cfg.wb_index, cfg.wallbox?"✓":"✗", cfg.auto_refresh?"✓":"✗", cfg.interval);
     for (uint8_t i = 0; i < cfg.pm_number; i++) {
         logMessage(file, (char *)__FILE__, __LINE__, (char *)"PM_INDEX >%d<\n", cfg.pm_index[i]);
     }
-    logTopics(RSCP_MQTT::RscpMqttCache, file);
+    i = logTopics(RSCP_MQTT::RscpMqttCache, file);
+    logMessage(file, (char *)__FILE__, __LINE__, (char *)"Number of topics >%d<\n", i);
     for (std::vector<RSCP_MQTT::not_supported_tags_t>::iterator it = RSCP_MQTT::NotSupportedTags.begin(); it != RSCP_MQTT::NotSupportedTags.end(); ++it) {
         logMessage(file, (char *)__FILE__, __LINE__, (char *)"Container 0x%08X Tag 0x%08X not supported.\n", it->container, it->tag);
     }
@@ -644,7 +671,7 @@ int handleImmediately(RscpProtocol *protocol, SRscpValue *response, uint32_t con
     return(rc);
 }
 
-int storeIntegerValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uint32_t tag, int value, int index) {
+int storeIntegerValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uint32_t tag, int value, int index, bool dobreak) {
     char buf[PAYLOAD_SIZE];
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
         if ((it->container == container) && (it->tag == tag) && (it->index == index)) {
@@ -658,6 +685,36 @@ int storeIntegerValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, u
                 strcpy(it->payload, buf);
                 it->changed = true;
             }
+            if (dobreak) break;
+        }
+    }
+    return(value);
+}
+
+int storeFloatValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uint32_t tag, float value, int index, bool dobreak) {
+    char buf[PAYLOAD_SIZE];     
+    for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
+        if ((it->container == container) && (it->tag == tag) && (it->index == index)) {
+            switch (it->format) {
+                case F_FLOAT_0 : {
+                    snprintf(buf, PAYLOAD_SIZE, "%.0f", value / it->divisor);
+                    break;
+                }
+                case F_FLOAT_1 : {
+                    snprintf(buf, PAYLOAD_SIZE, "%0.1f", value / it->divisor);
+                    break;
+                }
+                case F_AUTO :
+                case F_FLOAT_2 : {
+                    snprintf(buf, PAYLOAD_SIZE, "%0.2f", value / it->divisor);
+                    break;
+                } 
+            }
+            if (strcmp(it->payload, buf)) {
+                strcpy(it->payload, buf);
+                it->changed = true; 
+            }
+            if (dobreak) break;
         }
     }
     return(value);
@@ -690,12 +747,24 @@ int getIntegerValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uin
     return(value);
 }
 
+float getFloatValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uint32_t tag, int index) {
+    float value = 0.0;
+    for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
+        if ((it->container == container) && (it->tag == tag) && (it->index == index)) {
+            value = atof(it->payload);
+            break;
+        }
+    }
+    return(value);
+}
+
 int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protocol, SRscpValue *response, uint32_t container, int index) {
     char buf[PAYLOAD_SIZE];
     static int battery_soc = -1;
     int rc = -1;
 
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
+        if ((it->container > container) && (it->tag > response->tag)) break;
         if ((!it->container || (it->container == container)) && (it->tag == response->tag) && (it->index == index)) {
             switch (response->dataType) {
                 case RSCP::eTypeBool: {
@@ -857,10 +926,10 @@ void socLimiter(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protocol, SRs
 
     // reset for the next day if durable is false
     if (day_switch) {
-        if (!getIntegerValue(c, 0, 0, IDX_LIMIT_CHARGE_DURABLE)) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_LIMIT_CHARGE_SOC);
+        if (!getIntegerValue(c, 0, 0, IDX_LIMIT_CHARGE_DURABLE)) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_LIMIT_CHARGE_SOC, true);
         if (!getIntegerValue(c, 0, 0, IDX_LIMIT_DISCHARGE_DURABLE)) {
-            storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_LIMIT_DISCHARGE_SOC);
-            storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_LIMIT_DISCHARGE_BY_HOME_POWER);
+            storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_LIMIT_DISCHARGE_SOC, true);
+            storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_LIMIT_DISCHARGE_BY_HOME_POWER, true);
         }
     }
     // control charge limit
@@ -900,6 +969,22 @@ void classifyValues(std::vector<RSCP_MQTT::cache_t> & c) {
     return;
 }
 
+void pmSummation(std::vector<RSCP_MQTT::cache_t> & c, int pm_number) {
+    float pm_power, pm_energy;
+
+    for (uint8_t i = 0; i < pm_number; i++) {
+        pm_power = getFloatValue(c, TAG_PM_DATA, TAG_PM_POWER_L1, i);
+        pm_power += getFloatValue(c, TAG_PM_DATA, TAG_PM_POWER_L2, i);
+        pm_power += getFloatValue(c, TAG_PM_DATA, TAG_PM_POWER_L3, i);
+        pm_energy = getFloatValue(c, TAG_PM_DATA, TAG_PM_ENERGY_L1, i);
+        pm_energy += getFloatValue(c, TAG_PM_DATA, TAG_PM_ENERGY_L2, i);
+        pm_energy += getFloatValue(c, TAG_PM_DATA, TAG_PM_ENERGY_L3, i);
+        storeFloatValue(c, 0, 0, pm_power, i + IDX_PM_POWER, true);
+        storeFloatValue(c, 0, 0, pm_energy, i + IDX_PM_ENERGY, true);
+    }
+    return;
+}
+
 void statisticValues(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
     static time_t last = 0;
     static int solar_power_max = 0;
@@ -920,44 +1005,44 @@ void statisticValues(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
     time(&now); 
 
     if (reset) {
-        solar_power_max = storeIntegerValue(c, 0, 0, solar_power - 1, IDX_SOLAR_POWER_MAX);
-        home_power_min = storeIntegerValue(c, 0, 0, home_power + 1, IDX_HOME_POWER_MIN);
-        home_power_max = storeIntegerValue(c, 0, 0, home_power - 1, IDX_HOME_POWER_MAX);
-        grid_power_min = storeIntegerValue(c, 0, 0, grid_power + 1, IDX_GRID_POWER_MIN);
-        grid_power_max = storeIntegerValue(c, 0, 0, grid_power - 1, IDX_GRID_POWER_MAX);
-        battery_soc_min = storeIntegerValue(c, 0, 0, battery_soc + 1, IDX_BATTERY_SOC_MIN);
-        battery_soc_max = storeIntegerValue(c, 0, 0, battery_soc - 1, IDX_BATTERY_SOC_MAX);
-        grid_in_limit_duration = storeIntegerValue(c, 0, 0, 0, IDX_GRID_IN_DURATION);
-        sun_duration = storeIntegerValue(c, 0, 0, 0, IDX_GRID_SUN_DURATION);
+        solar_power_max = storeIntegerValue(c, 0, 0, solar_power - 1, IDX_SOLAR_POWER_MAX, true);
+        home_power_min = storeIntegerValue(c, 0, 0, home_power + 1, IDX_HOME_POWER_MIN, true);
+        home_power_max = storeIntegerValue(c, 0, 0, home_power - 1, IDX_HOME_POWER_MAX, true);
+        grid_power_min = storeIntegerValue(c, 0, 0, grid_power + 1, IDX_GRID_POWER_MIN, true);
+        grid_power_max = storeIntegerValue(c, 0, 0, grid_power - 1, IDX_GRID_POWER_MAX, true);
+        battery_soc_min = storeIntegerValue(c, 0, 0, battery_soc + 1, IDX_BATTERY_SOC_MIN, true);
+        battery_soc_max = storeIntegerValue(c, 0, 0, battery_soc - 1, IDX_BATTERY_SOC_MAX, true);
+        grid_in_limit_duration = storeIntegerValue(c, 0, 0, 0, IDX_GRID_IN_DURATION, true);
+        sun_duration = storeIntegerValue(c, 0, 0, 0, IDX_GRID_SUN_DURATION, true);
     }
     if (solar_power > solar_power_max) {
-        solar_power_max = storeIntegerValue(c, 0, 0, solar_power, IDX_SOLAR_POWER_MAX);
+        solar_power_max = storeIntegerValue(c, 0, 0, solar_power, IDX_SOLAR_POWER_MAX, true);
     }
     if (home_power && (home_power < home_power_min)) {
-        home_power_min = storeIntegerValue(c, 0, 0, home_power, IDX_HOME_POWER_MIN);
+        home_power_min = storeIntegerValue(c, 0, 0, home_power, IDX_HOME_POWER_MIN, true);
     }
     if (home_power > home_power_max) {
-        home_power_max = storeIntegerValue(c, 0, 0, home_power, IDX_HOME_POWER_MAX);
+        home_power_max = storeIntegerValue(c, 0, 0, home_power, IDX_HOME_POWER_MAX, true);
     }
     if (grid_power < grid_power_min) {
-        grid_power_min = storeIntegerValue(c, 0, 0, grid_power, IDX_GRID_POWER_MIN);
+        grid_power_min = storeIntegerValue(c, 0, 0, grid_power, IDX_GRID_POWER_MIN, true);
     }
     if (grid_power > grid_power_max) {
-        grid_power_max = storeIntegerValue(c, 0, 0, grid_power, IDX_GRID_POWER_MAX);
+        grid_power_max = storeIntegerValue(c, 0, 0, grid_power, IDX_GRID_POWER_MAX, true);
     }
     if (battery_soc < battery_soc_min) {
-        battery_soc_min = storeIntegerValue(c, 0, 0, battery_soc, IDX_BATTERY_SOC_MIN);
+        battery_soc_min = storeIntegerValue(c, 0, 0, battery_soc, IDX_BATTERY_SOC_MIN, true);
     }
     if (battery_soc > battery_soc_max) {
-        battery_soc_max = storeIntegerValue(c, 0, 0, battery_soc, IDX_BATTERY_SOC_MAX);
+        battery_soc_max = storeIntegerValue(c, 0, 0, battery_soc, IDX_BATTERY_SOC_MAX, true);
     }
     if (grid_in_limit) {
         grid_in_limit_duration += (int)(last?now - last:0);
-        storeIntegerValue(c, 0, 0, grid_in_limit_duration / 60, IDX_GRID_IN_DURATION);
+        storeIntegerValue(c, 0, 0, grid_in_limit_duration / 60, IDX_GRID_IN_DURATION, true);
     }
     if (solar_power) {
         sun_duration += (int)(last?now - last:0);
-        storeIntegerValue(c, 0, 0, sun_duration / 60, IDX_GRID_SUN_DURATION);
+        storeIntegerValue(c, 0, 0, sun_duration / 60, IDX_GRID_SUN_DURATION, true);
     }
     last = now;
     return;
@@ -974,8 +1059,8 @@ void wallboxLastCharging(std::vector<RSCP_MQTT::cache_t> & c) {
     int wallbox_plugged = getIntegerValue(c, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2) & 8;
 
     if (!wallbox_plugged_last && wallbox_plugged) {
-        storeIntegerValue(c, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL);
-        storeIntegerValue(c, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR);
+        storeIntegerValue(c, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL, true);
+        storeIntegerValue(c, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR, true);
         wallbox_energy_total_start = wallbox_energy_total;
         wallbox_energy_solar_start = wallbox_energy_solar;
         diff_total = 0;
@@ -985,10 +1070,10 @@ void wallboxLastCharging(std::vector<RSCP_MQTT::cache_t> & c) {
         wallbox_plugged_last = wallbox_plugged;
     }
     if (wallbox_energy_total > (wallbox_energy_total_start + diff_total)) {
-        diff_total = storeIntegerValue(c, 0, 0, wallbox_energy_total - wallbox_energy_total_start, IDX_WALLBOX_LAST_ENERGY_ALL);
+        diff_total = storeIntegerValue(c, 0, 0, wallbox_energy_total - wallbox_energy_total_start, IDX_WALLBOX_LAST_ENERGY_ALL, true);
     }
     if (wallbox_energy_solar > (wallbox_energy_solar_start + diff_solar)) {
-        diff_solar = storeIntegerValue(c, 0, 0, wallbox_energy_solar - wallbox_energy_solar_start, IDX_WALLBOX_LAST_ENERGY_SOLAR);
+        diff_solar = storeIntegerValue(c, 0, 0, wallbox_energy_solar - wallbox_energy_solar_start, IDX_WALLBOX_LAST_ENERGY_SOLAR, true);
     }
     return;
 }
@@ -1357,14 +1442,14 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                         if ((!strcmp(it->topic, "set/interval")) && (atoi(it->payload) >= DEFAULT_INTERVAL_MIN) && (atoi(it->payload) <= DEFAULT_INTERVAL_MAX)) cfg.interval = atoi(it->payload);
                         if ((!strcmp(it->topic, "set/wallbox/index")) && (atoi(it->payload) >= 0) && (atoi(it->payload) < MAX_WB_COUNT)) {
                             cfg.wb_index = atoi(it->payload);
-                            storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, cfg.wb_index, IDX_WALLBOX_INDEX);
+                            storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, cfg.wb_index, IDX_WALLBOX_INDEX, true);
                         }
                         if ((!strcmp(it->topic, "set/power_mode")) && cfg.auto_refresh) handleSetPower(RSCP_MQTT::RscpMqttReceiveCache, TAG_EMS_REQ_SET_POWER, it->payload);
-                        if (!strcmp(it->topic, "set/limit/charge/soc")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_CHARGE_SOC);
-                        if (!strcmp(it->topic, "set/limit/discharge/soc")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_DISCHARGE_SOC);
-                        if (!strcmp(it->topic, "set/limit/charge/durable")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_CHARGE_DURABLE);
-                        if (!strcmp(it->topic, "set/limit/discharge/durable")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_DISCHARGE_DURABLE);
-                        if (!strcmp(it->topic, "set/limit/discharge/by_home_power")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_DISCHARGE_BY_HOME_POWER);
+                        if (!strcmp(it->topic, "set/limit/charge/soc")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_CHARGE_SOC, true);
+                        if (!strcmp(it->topic, "set/limit/discharge/soc")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_DISCHARGE_SOC, true);
+                        if (!strcmp(it->topic, "set/limit/charge/durable")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_CHARGE_DURABLE, true);
+                        if (!strcmp(it->topic, "set/limit/discharge/durable")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_DISCHARGE_DURABLE, true);
+                        if (!strcmp(it->topic, "set/limit/discharge/by_home_power")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_DISCHARGE_BY_HOME_POWER, true);
                         if (!strcmp(it->topic, "set/idle_period")) handleSetIdlePeriod(&protocol, &rootValue, it->payload);
                         if (!strcmp(it->topic, "set/requests/pm")) {
                             if (!strcmp(it->payload, "true")) cfg.pm_requests = true; else cfg.pm_requests = false;
@@ -1629,7 +1714,7 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                                 uint8_t wallboxExt[8];
                                 memcpy(&wallboxExt, &wallboxContent[j].data[0], sizeof(wallboxExt));
                                 for (size_t b = 0; b < sizeof(wallboxExt); ++b) {
-                                    storeIntegerValue(RSCP_MQTT::RscpMqttCache, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, wallboxExt[b], b);
+                                    storeIntegerValue(RSCP_MQTT::RscpMqttCache, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, wallboxExt[b], b, false);
                                 }
                             }
                          }
@@ -2050,6 +2135,7 @@ static void mainLoop(void){
 
         if (countdown <= 0) {
             classifyValues(RSCP_MQTT::RscpMqttCache);
+            if (cfg.pm_requests) pmSummation(RSCP_MQTT::RscpMqttCache, cfg.pm_number);
             if (cfg.statistic_values) statisticValues(RSCP_MQTT::RscpMqttCache, new_day);
             if (cfg.wallbox) wallboxLastCharging(RSCP_MQTT::RscpMqttCache);
         }
@@ -2118,21 +2204,31 @@ static void mainLoop(void){
 
 int main(int argc, char *argv[]){
     char key[128], value[128], line[256];
+    char *cfile = NULL;
     int i = 0;
 
     cfg.daemon = false;
     cfg.verbose = false;
 
     while (i < argc) {
-        if (!strcmp(argv[i], "-d")) cfg.daemon = true;
-        if (!strcmp(argv[i], "-v")) cfg.verbose = true;
+        if (!strcmp(argv[i], "--daemon") || !strcmp(argv[i], "-d")) cfg.daemon = true;
+        if (!strcmp(argv[i], "--verbose") || !strcmp(argv[i], "-v")) cfg.verbose = true;
+        if ((!strcmp(argv[i], "--config") || !strcmp(argv[i], "-c")) && (i+1 < argc)) cfile = argv[++i];
+        if (!strcmp(argv[i], "--help")) {
+            printf("rscp2mqtt [%s] - Bridge between an E3/DC home power station and an MQTT broker\n\n", RSCP2MQTT);
+            printf("Usage: %s [options]\n\n", basename(argv[0]));
+            printf("Options:\n  -c, --config <file>\n  -d, --daemon\t\tdaemon mode\n  -v, --verbose\t\tverbose mode\n\n");
+            printf("For more details please visit https://github.com/pvtom/rscp2mqtt\n");
+            exit(EXIT_SUCCESS);
+        }
         i++;
     }
 
     FILE *fp;
-    fp = fopen(CONFIG_FILE, "r");
+    if (cfile) fp = fopen(cfile, "r");
+    else fp = fopen(CONFIG_FILE, "r");
     if (!fp) {
-        printf("Config file %s not found. Program terminated.\n", CONFIG_FILE);
+        printf("Config file %s not found. Program terminated.\n", cfile?cfile:CONFIG_FILE);
         exit(EXIT_FAILURE);
     }
 
@@ -2285,15 +2381,15 @@ int main(int argc, char *argv[]){
             else if (strcasecmp(key, "WB_INDEX") == 0)
                 cfg.wb_index = atoi(value);
             else if ((strcasecmp(key, "LIMIT_CHARGE_SOC") == 0) && (atoi(value) >= 0) && (atoi(value) <= 100))
-                storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(value), IDX_LIMIT_CHARGE_SOC);
+                storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(value), IDX_LIMIT_CHARGE_SOC, true);
             else if ((strcasecmp(key, "LIMIT_DISCHARGE_SOC") == 0) && (atoi(value) >= 0) && (atoi(value) <= 100))
-                storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(value), IDX_LIMIT_DISCHARGE_SOC);
+                storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(value), IDX_LIMIT_DISCHARGE_SOC, true);
             else if ((strcasecmp(key, "LIMIT_CHARGE_DURABLE") == 0) && (strcasecmp(value, "true") == 0))
-                storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 1, IDX_LIMIT_CHARGE_DURABLE);
+                storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 1, IDX_LIMIT_CHARGE_DURABLE, true);
             else if ((strcasecmp(key, "LIMIT_DISCHARGE_DURABLE") == 0) && (strcasecmp(value, "true") == 0))
-                storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 1, IDX_LIMIT_DISCHARGE_DURABLE);
+                storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 1, IDX_LIMIT_DISCHARGE_DURABLE, true);
             else if ((strcasecmp(key, "LIMIT_DISCHARGE_BY_HOME_POWER") == 0) && (atoi(value) >= 0) && (atoi(value) <= 99999))
-                storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(value), IDX_LIMIT_DISCHARGE_BY_HOME_POWER);
+                storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(value), IDX_LIMIT_DISCHARGE_BY_HOME_POWER, true);
             else if (((strcasecmp(key, "DISABLE_MQTT_PUBLISH") == 0) || (strcasecmp(key, "DRYRUN") == 0)) && (strcasecmp(value, "true") == 0))
                 cfg.mqtt_pub = false;
             else if ((strcasecmp(key, "AUTO_REFRESH") == 0) && (strcasecmp(value, "true") == 0))
@@ -2403,6 +2499,8 @@ int main(int argc, char *argv[]){
 
     // Power Meters
     addTemplTopics(TAG_PM_DATA, (cfg.pm_number == 1)?0:1, (char *)"pm", 0, cfg.pm_number, 1);
+    addTemplTopicsIdx(IDX_PM_POWER, (char *)"pm", 0, cfg.pm_number, 1);
+    addTemplTopicsIdx(IDX_PM_ENERGY, (char *)"pm", 0, cfg.pm_number, 1);
 
     // PVI strings (no auto detection)
     if (cfg.pvi_tracker) {
@@ -2411,6 +2509,14 @@ int main(int argc, char *argv[]){
         addTemplTopics(TAG_PVI_DC_CURRENT, 1, NULL, 0, cfg.pvi_tracker, 1);
         addTemplTopics(TAG_PVI_DC_STRING_ENERGY_ALL, 1, NULL, 0, cfg.pvi_tracker, 1);
     }
+
+    // Wallbox
+    if (cfg.wallbox) {
+        addTemplTopics(TAG_WB_DATA, 0, NULL, 0, 1, 1);
+        addTemplTopics(TAG_WB_EXTERN_DATA_ALG, 0, NULL, 0, 1, 1);
+    }
+
+    sort(RSCP_MQTT::RscpMqttCache.begin(), RSCP_MQTT::RscpMqttCache.end(), RSCP_MQTT::compareCache);
 
 #ifdef INFLUXDB
     if (cfg.influxdb_on && (cfg.influxdb_version == 1)) {
@@ -2469,13 +2575,13 @@ int main(int argc, char *argv[]){
     if (cfg.verbose) logTopics(RSCP_MQTT::RscpMqttCache, cfg.logfile);
 
     if (cfg.statistic_values) {
-        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_IN_DURATION);
-        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_SUN_DURATION);
+        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_IN_DURATION, true);
+        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_SUN_DURATION, true);
     }
     if (cfg.wallbox) {
-        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, cfg.wb_index, IDX_WALLBOX_INDEX);
-        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL);
-        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR);
+        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, cfg.wb_index, IDX_WALLBOX_INDEX, true);
+        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL, true);
+        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR, true);
     }
 
     // MQTT init

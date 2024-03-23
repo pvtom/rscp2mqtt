@@ -1,5 +1,12 @@
 ## Release Notes
 
+### Release v3.18 (23.03.2024)
+
+- Issue #53: Power meter summaries
+- Program option --config to set the configuration file instead of .config
+- Program option --help
+- Minor optimisations for accessing the data cache
+
 ### Release v3.17 (16.03.2024)
 
 - Issue #51: Some wallbox topics have been renamed!
