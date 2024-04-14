@@ -25,6 +25,7 @@ typedef struct _config_t {
     uint32_t influxdb_port;
     char influxdb_db[128];
     char influxdb_measurement[128];
+    char influxdb_measurement_meta[128];
     bool influxdb_auth;
     char influxdb_user[128];
     char influxdb_password[128];
@@ -61,6 +62,7 @@ typedef struct _config_t {
     bool influxdb_on;
 #endif
     bool auto_refresh;
+    bool store_setup;
 } config_t;
 
 #endif

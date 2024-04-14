@@ -19,7 +19,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "v3.18"
+#define RSCP2MQTT_VERSION       "v3.19"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -48,7 +48,7 @@
 #define DISCHARGE_LOCK_FALSE    "today:discharge:false:00:00-23:59"
 #define PV_SOLAR_MIN            200
 #define MAX_DAYS_PER_ITERATION  12
-#define RETRY_AFTER_DELAY       20
+#define DELAY_BEFORE_RECONNECT  10
 
 static int iSocket = -1;
 static int iAuthenticated = 0;
@@ -97,30 +97,38 @@ int storeMQTTReceivedValue(std::vector<RSCP_MQTT::rec_cache_t> & c, char *topic_
     char topic[TOPIC_SIZE];
     mtx.lock();
     mqttRcvd = true;
-    for (std::vector<RSCP_MQTT::rec_cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
-        snprintf(topic, TOPIC_SIZE, "%s/%s", cfg.prefix, it->topic);
-        if (!strcmp(topic, topic_in) && it->done) {
-            //logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"MQTT: received topic >%s< payload >%s<\n", it->topic, payload);
-            if (std::regex_match(payload, std::regex(it->regex_true))) {
-                if (strcmp(it->value_true, "")) strncpy(it->payload, it->value_true, PAYLOAD_SIZE);
-                else strncpy(it->payload, payload, PAYLOAD_SIZE);
-                if (it->queue) {
-                    if (!strcmp(it->topic, "set/request/day")) {
-                        int year, month, day;
+
+    snprintf(topic, TOPIC_SIZE, "%s/set/up", cfg.prefix);
+    if (cfg.store_setup && !strncmp(topic_in, topic, strlen(topic))) {
+        char *t = strdup(topic_in);
+        char *p = strdup(payload);
+        RSCP_MQTT::mqttQ.push({t, p});
+    } else {
+        for (std::vector<RSCP_MQTT::rec_cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
+            snprintf(topic, TOPIC_SIZE, "%s/%s", cfg.prefix, it->topic);
+            if (!strcmp(topic, topic_in) && it->done) {
+                //logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"MQTT: received topic >%s< payload >%s<\n", it->topic, payload);
+                if (std::regex_match(payload, std::regex(it->regex_true))) {
+                    if (strcmp(it->value_true, "")) strncpy(it->payload, it->value_true, PAYLOAD_SIZE);
+                    else strncpy(it->payload, payload, PAYLOAD_SIZE);
+                    if (it->queue) {
+                        if (!strcmp(it->topic, "set/request/day")) {
+                            int year, month, day;
                         if (sscanf(it->payload, "%d-%d-%d", &year, &month, &day)) {
-                            RSCP_MQTT::requestQ.push({day, month, year});
+                                RSCP_MQTT::requestQ.push({day, month, year});
+                            }
                         }
-                    }
-                } else it->done = false;
-                break;
-            } else if (std::regex_match(payload, std::regex(it->regex_false))) {
-                if (strcmp(it->value_false, "")) strncpy(it->payload, it->value_false, PAYLOAD_SIZE);
-                else strncpy(it->payload, payload, PAYLOAD_SIZE);
-                it->done = false;
-                break;
-            } else {
-                it->done = true;
-                break;
+                    } else it->done = false;
+                    break;
+                } else if (std::regex_match(payload, std::regex(it->regex_false))) {
+                    if (strcmp(it->value_false, "")) strncpy(it->payload, it->value_false, PAYLOAD_SIZE);
+                    else strncpy(it->payload, payload, PAYLOAD_SIZE);
+                    it->done = false;
+                    break;
+                } else {
+                    it->done = true;
+                    break;
+                }
             }
         }
     }
@@ -248,6 +256,8 @@ void addTemplTopicsIdx(int index, char *seg, int start, int n, int inc) {
                 RSCP_MQTT::cache_t cache = { it->container, it->tag, index + c, "", "", it->format, "", it->divisor, it->bit_to_bool, it->history_log, it->changed, it->influx, it->forced };
                 if (n == 1) {
                     snprintf(cache.topic, TOPIC_SIZE, it->topic, seg);
+                } else if (seg == NULL) {
+                    snprintf(cache.topic, TOPIC_SIZE, it->topic, c + inc);
                 } else {
                     char buffer[TOPIC_SIZE];
                     snprintf(buffer, TOPIC_SIZE, "%s/%d", seg, c + inc);
@@ -359,9 +369,14 @@ void handleInfluxDb(char *buffer, char *topic, char *payload, char *unit, char *
 
     if (!strcmp(payload, "true")) sprintf(line, "%s,topic=%s value=1", cfg.influxdb_measurement, topic);
     else if (!strcmp(payload, "false")) sprintf(line, "%s,topic=%s value=0", cfg.influxdb_measurement, topic);
-    else if (strcmp(unit, "") && timestamp) sprintf(line, "%s,topic=%s,unit=%s value=%s %s", cfg.influxdb_measurement, topic, unit, payload, timestamp);
-    else if (strcmp(unit, "")) sprintf(line, "%s,topic=%s,unit=%s value=%s", cfg.influxdb_measurement, topic, unit, payload);
-    else return;
+    else if (std::regex_match(payload, std::regex("[+-]?([0-9]*[.]?[0-9]+)"))) {
+        if (strcmp(unit, "") && timestamp) sprintf(line, "%s,topic=%s,unit=%s value=%s %s", cfg.influxdb_measurement, topic, unit, payload, timestamp);
+        else if (!strcmp(unit, "") && timestamp) sprintf(line, "%s,topic=%s value=%s %s", cfg.influxdb_measurement, topic, payload, timestamp);
+        else if (strcmp(unit, "")) sprintf(line, "%s,topic=%s,unit=%s value=%s", cfg.influxdb_measurement, topic, unit, payload);
+        else sprintf(line, "%s,topic=%s value=%s", cfg.influxdb_measurement, topic, payload);
+    } else {
+        sprintf(line, "%s,topic=%s value=\"%s\"", cfg.influxdb_measurement_meta, topic, payload);
+    }
 
     if (strlen(buffer) + strlen(line) + 1 < CURL_BUFFER_SIZE) {
         strcat(buffer, "\n");
@@ -442,6 +457,32 @@ int handleMQTTErrorMessages(std::vector<RSCP_MQTT::error_t> & v, int qos, bool r
         v.pop_back();
     }
     return(rc);
+}
+
+void storeSetupItem(uint32_t container, uint32_t tag, int index, int value) {
+    char topic[TOPIC_SIZE];
+    char payload[PAYLOAD_SIZE];
+
+    snprintf(topic, TOPIC_SIZE, "%s/set/up/0x%02X_0x%02X_0x%02X", cfg.prefix, container, tag, index);
+    snprintf(payload, PAYLOAD_SIZE, "%d", value);
+    if (cfg.mqtt_pub && mosq) mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, cfg.mqtt_qos, true);
+    return;
+}
+
+bool setupItem(std::vector<RSCP_MQTT::cache_t> & v, char *topic_in, char* payload) {
+    char topic[TOPIC_SIZE];
+    bool match = false;
+
+    for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
+        snprintf(topic, TOPIC_SIZE, "%s/set/up/0x%02X_0x%02X_0x%02X", cfg.prefix, it->container, it->tag, it->index);
+        if (!strcmp(topic, topic_in)) {
+            match = true;
+            strcpy(it->payload, payload);
+            logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Setup topic >%s< payload >%s<\n", topic, payload);
+            break;
+        }
+    }
+    return(match);
 }
 
 void logCache(std::vector<RSCP_MQTT::cache_t> & v, char *file, char *prefix) {
@@ -728,7 +769,6 @@ int storeStringValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, ui
             if (strcmp(it->payload, buf)) {
                 strcpy(it->payload, buf);
                 it->changed = true;
-                it->influx = false;
             }
             break;
         }
@@ -739,7 +779,7 @@ int storeStringValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, ui
 int getIntegerValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uint32_t tag, int index) {
     int value = 0;
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
-        if ((it->container == container) && (it->tag == tag) && (it->index == index)) {
+        if ((it->container == container) && (it->tag == tag) && (it->index == index) && (it->bit_to_bool == 0)) {
             value = atoi(it->payload);
             break;
         }
@@ -889,7 +929,6 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                     if (strcmp(it->payload, buf)) {
                         strcpy(it->payload, buf);
                         it->changed = true;
-                        it->influx = false;
                     }
                     break;
                 }
@@ -983,6 +1022,35 @@ void pmSummation(std::vector<RSCP_MQTT::cache_t> & c, int pm_number) {
         storeFloatValue(c, 0, 0, pm_energy, i + IDX_PM_ENERGY, true);
     }
     return;
+}
+
+void pviString(std::vector<RSCP_MQTT::cache_t> & c, int pvi_number, bool reset) {
+    int pvi_energy_start;
+    int pvi_energy;
+
+    for (uint8_t i = 0; i < pvi_number; i++) {
+        pvi_energy = getIntegerValue(c, TAG_PVI_DC_STRING_ENERGY_ALL, TAG_PVI_VALUE, i);
+        if (reset) {
+            if (cfg.store_setup) storeSetupItem(0, 0, i + IDX_PVI_ENERGY_START, pvi_energy);
+            storeIntegerValue(c, 0, 0, pvi_energy, i + IDX_PVI_ENERGY_START, true);
+            storeIntegerValue(c, 0, 0, 0, i + IDX_PVI_ENERGY, true);
+        } else {
+            pvi_energy_start = getIntegerValue(c, 0, 0, i + IDX_PVI_ENERGY_START);
+            storeIntegerValue(c, 0, 0, pvi_energy - pvi_energy_start, i + IDX_PVI_ENERGY, true);
+        }
+    }
+    return;
+}
+
+void pviStringNull(std::vector<RSCP_MQTT::cache_t> & c, int pvi_number) {
+    int pvi_energy;
+
+    for (uint8_t i = 0; i < pvi_number; i++) {
+        pvi_energy = getIntegerValue(c, TAG_PVI_DC_STRING_ENERGY_ALL, TAG_PVI_VALUE, i);
+        storeIntegerValue(c, 0, 0, pvi_energy, i + IDX_PVI_ENERGY_START, true);
+        storeIntegerValue(c, 0, 0, 0, i + IDX_PVI_ENERGY, true);
+    }
+    return; 
 }
 
 void statisticValues(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
@@ -1267,6 +1335,8 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                 protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_VOLTAGE, i);
                 protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_CURRENT, i);
                 protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_STRING_ENERGY_ALL, i);
+                addTemplTopicsIdx(IDX_PVI_ENERGY, NULL, 0, cfg.pvi_tracker, 1);
+                addTemplTopicsIdx(IDX_PVI_ENERGY_START, NULL, 0, cfg.pvi_tracker, 1);
             }
             protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_STRING_ENERGY_ALL, (uint8_t)0);
             protocol.appendValue(&PVIContainer, TAG_PVI_REQ_AC_POWER, (uint8_t)0);
@@ -2013,6 +2083,8 @@ static void receiveLoop(bool & bStopExecution){
             if (vecDynamicBuffer.size() > RSCP_MAX_FRAME_LENGTH) {
                 // something went wrong and the size is more than possible by the RSCP protocol
                 logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Maximum buffer size exceeded %zu\n", vecDynamicBuffer.size());
+                vecDynamicBuffer.resize(0); // Issue #55
+                iReceivedBytes = 0; // Issue #55
                 bStopExecution = true;
                 break;
             }
@@ -2087,7 +2159,6 @@ static void receiveLoop(bool & bStopExecution){
             }
         }
     }
-    if (bStopExecution) sleep(RETRY_AFTER_DELAY);
 }
 
 static void mainLoop(void){
@@ -2136,6 +2207,7 @@ static void mainLoop(void){
         if (countdown <= 0) {
             classifyValues(RSCP_MQTT::RscpMqttCache);
             if (cfg.pm_requests) pmSummation(RSCP_MQTT::RscpMqttCache, cfg.pm_number);
+            if (cfg.pvi_requests) pviString(RSCP_MQTT::RscpMqttCache, cfg.pvi_tracker, new_day);
             if (cfg.statistic_values) statisticValues(RSCP_MQTT::RscpMqttCache, new_day);
             if (cfg.wallbox) wallboxLastCharging(RSCP_MQTT::RscpMqttCache);
         }
@@ -2194,6 +2266,15 @@ static void mainLoop(void){
             countdown--;
             if (countdown == 0) {
                 cleanupCache(RSCP_MQTT::RscpMqttCacheTempl);
+                if (cfg.pvi_requests) pviStringNull(RSCP_MQTT::RscpMqttCache, cfg.pvi_tracker);
+                while (!RSCP_MQTT::mqttQ.empty()) {
+                    RSCP_MQTT::mqtt_data_t x;
+                    x = RSCP_MQTT::mqttQ.front();
+                    setupItem(RSCP_MQTT::RscpMqttCache, x.topic, x.payload);
+                    if (x.topic) free(x.topic);
+                    if (x.payload) free(x.payload);
+                    RSCP_MQTT::mqttQ.pop();
+                }
             }
             sleep(1);
         } else {
@@ -2267,6 +2348,7 @@ int main(int argc, char *argv[]){
     cfg.wallbox = false;
     cfg.wb_index = 0;
     cfg.auto_refresh = false;
+    cfg.store_setup = false;
     strcpy(cfg.prefix, DEFAULT_PREFIX);
     cfg.history_start_year = curr_year - 1;
 #ifdef INFLUXDB
@@ -2277,6 +2359,8 @@ int main(int argc, char *argv[]){
     cfg.influxdb_auth = false;
     strcpy(cfg.influxdb_user, "");
     strcpy(cfg.influxdb_password, "");
+    strcpy(cfg.influxdb_measurement, "e3dc");
+    strcpy(cfg.influxdb_measurement_meta, "e3dc_meta");
 #endif
     cfg.mqtt_pub = true;
     cfg.logfile = NULL;
@@ -2343,6 +2427,8 @@ int main(int argc, char *argv[]){
                 strcpy(cfg.influxdb_token, value);
             else if (strcasecmp(key, "INFLUXDB_MEASUREMENT") == 0)
                 strcpy(cfg.influxdb_measurement, value);
+            else if (strcasecmp(key, "INFLUXDB_MEASUREMENT_META") == 0)
+                strcpy(cfg.influxdb_measurement_meta, value);
             else if ((strcasecmp(key, "ENABLE_INFLUXDB") == 0) && (strcasecmp(value, "true") == 0))
                 cfg.influxdb_on = true;
 #endif
@@ -2394,6 +2480,8 @@ int main(int argc, char *argv[]){
                 cfg.mqtt_pub = false;
             else if ((strcasecmp(key, "AUTO_REFRESH") == 0) && (strcasecmp(value, "true") == 0))
                 cfg.auto_refresh = true;
+            else if ((strcasecmp(key, "RETAIN_FOR_SETUP") == 0) && (strcasecmp(value, "true") == 0))
+                cfg.store_setup = true;
             else if (strcasecmp(key, "FORCE_PUB") == 0) {
                 store.type = FORCED_TOPIC;
                 strcpy(store.topic, value);
@@ -2508,6 +2596,8 @@ int main(int argc, char *argv[]){
         addTemplTopics(TAG_PVI_DC_VOLTAGE, 1, NULL, 0, cfg.pvi_tracker, 1);
         addTemplTopics(TAG_PVI_DC_CURRENT, 1, NULL, 0, cfg.pvi_tracker, 1);
         addTemplTopics(TAG_PVI_DC_STRING_ENERGY_ALL, 1, NULL, 0, cfg.pvi_tracker, 1);
+        addTemplTopicsIdx(IDX_PVI_ENERGY, NULL, 0, cfg.pvi_tracker, 1);
+        addTemplTopicsIdx(IDX_PVI_ENERGY_START, NULL, 0, cfg.pvi_tracker, 1);
     }
 
     // Wallbox
@@ -2520,11 +2610,17 @@ int main(int argc, char *argv[]){
 
 #ifdef INFLUXDB
     if (cfg.influxdb_on && (cfg.influxdb_version == 1)) {
-        printf("INFLUXDB v1 >%s:%u< db = >%s< measurement = >%s<\n", cfg.influxdb_host, cfg.influxdb_port, cfg.influxdb_db, cfg.influxdb_measurement);
-        if (!strcmp(cfg.influxdb_host, "") || !strcmp(cfg.influxdb_db, "") || !strcmp(cfg.influxdb_measurement, "")) printf("Error: INFLUXDB not configured correctly\n");
+        printf("INFLUXDB v1 >%s:%u< db = >%s< measurements = >%s< and >%s<\n", cfg.influxdb_host, cfg.influxdb_port, cfg.influxdb_db, cfg.influxdb_measurement, cfg.influxdb_measurement_meta);
+        if (!strcmp(cfg.influxdb_host, "") || !strcmp(cfg.influxdb_db, "") || !strcmp(cfg.influxdb_measurement, "") || !strcmp(cfg.influxdb_measurement_meta, "") || !strcmp(cfg.influxdb_measurement, cfg.influxdb_measurement_meta)) {
+            printf("Error: INFLUXDB not configured correctly. Program starts without INFLUXDB support!\n");
+            cfg.influxdb_on = false;
+        }
     } else if (cfg.influxdb_on && (cfg.influxdb_version == 2)) {
-        printf("INFLUXDB v2 >%s:%u< orga = >%s< bucket = >%s< measurement = >%s<\n", cfg.influxdb_host, cfg.influxdb_port, cfg.influxdb_orga, cfg.influxdb_bucket, cfg.influxdb_measurement);
-        if (!strcmp(cfg.influxdb_host, "") || !strcmp(cfg.influxdb_orga, "") || !strcmp(cfg.influxdb_bucket, "") || !strcmp(cfg.influxdb_measurement, "")) printf("Error: INFLUXDB not configured correctly\n");
+        printf("INFLUXDB v2 >%s:%u< orga = >%s< bucket = >%s< measurements = >%s< and >%s<\n", cfg.influxdb_host, cfg.influxdb_port, cfg.influxdb_orga, cfg.influxdb_bucket, cfg.influxdb_measurement, cfg.influxdb_measurement_meta);
+        if (!strcmp(cfg.influxdb_host, "") || !strcmp(cfg.influxdb_orga, "") || !strcmp(cfg.influxdb_bucket, "") || !strcmp(cfg.influxdb_measurement, "") || !strcmp(cfg.influxdb_measurement_meta, "") || !strcmp(cfg.influxdb_measurement, cfg.influxdb_measurement_meta)) {
+            printf("Error: INFLUXDB not configured correctly. Program starts without INFLUXDB support!\n");
+            cfg.influxdb_on = false;
+        }
     }
 #endif
     printf("Fetching data every ");
@@ -2659,6 +2755,8 @@ int main(int argc, char *argv[]){
         // close socket connection
         SocketClose(iSocket);
         iSocket = -1;
+
+        sleep(DELAY_BEFORE_RECONNECT);
     }
 
     // MQTT cleanup

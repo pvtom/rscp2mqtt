@@ -1,5 +1,15 @@
 ## Release Notes
 
+### Release v3.19 (14.04.2024)
+
+Bug fixes:
+- Issue #55: Improvements to the timeout behavior
+- Issue #58: INFLUX_TOPIC wird nicht geschrieben (new measurement for string data)
+- Issue #59: Error with e3dc/grid_in_limit_duration
+
+Features:
+- Issue #57: Energy per string (today's values)
+
 ### Release v3.18 (23.03.2024)
 
 - Issue #53: Power meter summaries

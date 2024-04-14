@@ -61,6 +61,8 @@
 #define IDX_WALLBOX_LAST_ENERGY_SOLAR      18
 #define IDX_PM_POWER                       100
 #define IDX_PM_ENERGY                      200
+#define IDX_PVI_ENERGY                     300
+#define IDX_PVI_ENERGY_START               400
 
 namespace RSCP_MQTT {
 
@@ -111,6 +113,13 @@ typedef struct _date_t {
 
 std::queue<date_t> requestQ;
 std::queue<date_t> paramQ;
+
+typedef struct _mqtt_data_t {
+    char *topic;
+    char *payload;
+} mqtt_data_t;
+
+std::queue<mqtt_data_t> mqttQ;
 
 typedef struct _cache_t {
     uint32_t container;
@@ -399,6 +408,8 @@ cache_t templates[] = {
     { TAG_PVI_DC_VOLTAGE, TAG_PVI_VALUE, 1, "pvi/voltage/string_%d", "", F_FLOAT_0, UNIT_V, 1, 0, false, false, false },
     { TAG_PVI_DC_CURRENT, TAG_PVI_VALUE, 1, "pvi/current/string_%d", "", F_FLOAT_2, UNIT_A, 1, 0, false, false, false },
     { TAG_PVI_DC_STRING_ENERGY_ALL, TAG_PVI_VALUE, 1, "pvi/energy_all/string_%d", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { 0, 0, IDX_PVI_ENERGY, "pvi/energy/string_%d", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
+    { 0, 0, IDX_PVI_ENERGY_START, "pvi/energy_start/string_%d", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
     // PM
     { 0, 0, IDX_PM_POWER, "%s/power", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
     { 0, 0, IDX_PM_ENERGY, "%s/energy", "", F_FLOAT_2, UNIT_KWH, 1, 0, false, false, false },
