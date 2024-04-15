@@ -13,6 +13,7 @@ INFLUXDB_HOST=localhost
 INFLUXDB_PORT=8086
 INFLUXDB_VERSION=1
 INFLUXDB_MEASUREMENT=e3dc
+INFLUXDB_MEASUREMENT_META=e3dc_meta
 INFLUXDB_1_DB=e3dc
 INFLUXDB_1_AUTH=false
 INFLUXDB_1_USER=
@@ -23,6 +24,9 @@ INFLUXDB_TOPIC=e3dc/day/.*
 You can configure the topics to be transferred to the InfluxDB by setting the parameter INFLUXDB_TOPIC.
 INFLUXDB_TOPIC can occur several times.
 If no INFLUXDB_TOPIC configuration exists, all topics will be transferred.
+
+Topics with payload of data types integer or float will be stored to the measurement set by INFLUXDB_MEASUREMENT.
+Other topics (strings) will be stored to the measurement set by INFLUXDB_MEASUREMENT_META.
 
 Start the influx client to prepare the database.
 

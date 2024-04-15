@@ -38,6 +38,8 @@ HISTORY_START_YEAR=2022
 DAILY_VALUES=true
 #--Publish statistic values
 STATISTIC_VALUES=true
+#--Save values as retained topics for setup during restart
+RETAIN_FOR_SETUP=true
 
 #-MQTT Topics
 #--Topic prefix (max 24 characters), default is e3dc
@@ -93,6 +95,7 @@ INFLUXDB_HOST=localhost
 INFLUXDB_PORT=8086
 INFLUXDB_VERSION=2
 INFLUXDB_MEASUREMENT=e3dc
+INFLUXDB_MEASUREMENT_META=e3dc_meta
 INFLUXDB_TOPIC=e3dc/[a-z]+/power
 INFLUXDB_TOPIC=e3dc/day/.*
 
