@@ -14,12 +14,13 @@
 #include "AES.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <signal.h>
 #include <mosquitto.h>
 #include <thread>
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "v3.19"
+#define RSCP2MQTT_VERSION       "v3.20"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -72,6 +73,7 @@ static bool new_day = false;
 std::mutex mtx;
 
 static bool mqttRcvd = false;
+static bool go = true;
 
 #ifdef INFLUXDB
     CURL *curl = NULL;
@@ -80,10 +82,15 @@ static bool mqttRcvd = false;
 
 void logMessage(char *file, char *srcfile, int line, char *format, ...);
 
+void signal_handler(int sig) {
+    logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Program exits by signal >%d<\n", sig);
+    go = false;
+}
+
 void wsleep(int sec) {
     for (uint8_t i = 0; i < sec; i++) {
         mtx.lock();
-        if (mqttRcvd) {
+        if (mqttRcvd || !go) {
             mtx.unlock();
             return;
         }
@@ -249,7 +256,36 @@ int handleSetIdlePeriod(RscpProtocol *protocol, SRscpValue *rootContainer, char 
     return(0);
 }
 
-void addTemplTopicsIdx(int index, char *seg, int start, int n, int inc) {
+void setTopicAttr() {
+    for (std::vector<RSCP_MQTT::topic_store_t>::iterator i = RSCP_MQTT::TopicStore.begin(); i != RSCP_MQTT::TopicStore.end(); ++i) {
+        if (i->topic == NULL) continue;
+        switch (i->type) {
+            case FORCED_TOPIC: {
+                for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCache.begin(); it != RSCP_MQTT::RscpMqttCache.end(); ++it) {
+                    if (std::regex_match(it->topic, std::regex(i->topic))) it->forced = true;
+                }
+                break;
+            }
+            case LOG_TOPIC: {
+                for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCache.begin(); it != RSCP_MQTT::RscpMqttCache.end(); ++it) {
+                    if (std::regex_match(it->topic, std::regex(i->topic))) it->history_log = true;
+                }
+                break;
+            }
+#ifdef INFLUXDB
+            case INFLUXDB_TOPIC: {
+                for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCache.begin(); it != RSCP_MQTT::RscpMqttCache.end(); ++it) {
+                    if (std::regex_match(it->topic, std::regex(i->topic))) it->influx = true;
+                }
+                break;
+            }
+#endif
+        }
+    }
+    return;
+}
+
+void addTemplTopicsIdx(int index, char *seg, int start, int n, int inc, bool finalize) {
     for (int c = start; c < n; c++) {
         for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCacheTempl.begin(); it != RSCP_MQTT::RscpMqttCacheTempl.end(); ++it) {
             if (it->index == index) {
@@ -268,10 +304,14 @@ void addTemplTopicsIdx(int index, char *seg, int start, int n, int inc) {
             }
         }
     }
+    if (finalize) {
+        sort(RSCP_MQTT::RscpMqttCache.begin(), RSCP_MQTT::RscpMqttCache.end(), RSCP_MQTT::compareCache);
+        setTopicAttr();
+    }
     return;
 }
 
-void addTemplTopics(uint32_t container, int index, char *seg, int start, int n, int inc) {
+void addTemplTopics(uint32_t container, int index, char *seg, int start, int n, int inc, bool finalize) {
     for (int c = start; c < n; c++) {
         for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCacheTempl.begin(); it != RSCP_MQTT::RscpMqttCacheTempl.end(); ++it) {
             if (it->container == container) {
@@ -289,38 +329,14 @@ void addTemplTopics(uint32_t container, int index, char *seg, int start, int n, 
                     snprintf(cache.topic, TOPIC_SIZE, it->topic, buffer);
                 }
                 strcpy(cache.unit, it->unit);
-                for (std::vector<RSCP_MQTT::topic_store_t>::iterator it2 = RSCP_MQTT::TopicStore.begin(); it2 != RSCP_MQTT::TopicStore.end(); ++it2) {
-                    switch (it2->type) {
-                        case FORCED_TOPIC: {
-                            if (std::regex_match(cache.topic, std::regex(it2->topic))) {
-                               cache.forced = true;
-                               if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Topic >%s< forced\n", cache.topic);
-                            }
-                            break;
-                        }
-                        case LOG_TOPIC: {
-                            if (std::regex_match(cache.topic, std::regex(it2->topic))) {
-                               cache.history_log = true;
-                               if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Topic >%s< marked for logging\n", cache.topic);
-                            }
-                            break;
-                        }
-#ifdef INFLUXDB
-                        case INFLUXDB_TOPIC: {
-                            if (std::regex_match(cache.topic, std::regex(it2->topic))) {
-                               cache.influx = true;
-                               if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Topic >%s< marked influx relevant\n", cache.topic);
-                            }
-                            break;
-                        }
-#endif
-                    }
-                }
                 RSCP_MQTT::RscpMqttCache.push_back(cache);
             }
         }
     }
-    sort(RSCP_MQTT::RscpMqttCache.begin(), RSCP_MQTT::RscpMqttCache.end(), RSCP_MQTT::compareCache);
+    if (finalize) {
+        sort(RSCP_MQTT::RscpMqttCache.begin(), RSCP_MQTT::RscpMqttCache.end(), RSCP_MQTT::compareCache);
+        setTopicAttr();
+    }
     return;
 }
 
@@ -462,27 +478,39 @@ int handleMQTTErrorMessages(std::vector<RSCP_MQTT::error_t> & v, int qos, bool r
 void storeSetupItem(uint32_t container, uint32_t tag, int index, int value) {
     char topic[TOPIC_SIZE];
     char payload[PAYLOAD_SIZE];
+    time_t rawtime;
+    time(&rawtime);
+    struct tm *l = localtime(&rawtime);
 
     snprintf(topic, TOPIC_SIZE, "%s/set/up/0x%02X_0x%02X_0x%02X", cfg.prefix, container, tag, index);
-    snprintf(payload, PAYLOAD_SIZE, "%d", value);
+    snprintf(payload, PAYLOAD_SIZE, "%.4d%.2d%.2d:%d", l->tm_year + 1900, l->tm_mon + 1, l->tm_mday, value);
     if (cfg.mqtt_pub && mosq) mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, cfg.mqtt_qos, true);
     return;
 }
 
-bool setupItem(std::vector<RSCP_MQTT::cache_t> & v, char *topic_in, char* payload) {
+void setupItem(std::vector<RSCP_MQTT::cache_t> & v, char *topic_in, char* payload) {
     char topic[TOPIC_SIZE];
-    bool match = false;
+    char value[15];
+    char date[9];
+    char date_in[9];
+    time_t rawtime;
+    time(&rawtime);
+    struct tm *l = localtime(&rawtime);
 
-    for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
-        snprintf(topic, TOPIC_SIZE, "%s/set/up/0x%02X_0x%02X_0x%02X", cfg.prefix, it->container, it->tag, it->index);
-        if (!strcmp(topic, topic_in)) {
-            match = true;
-            strcpy(it->payload, payload);
-            logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Setup topic >%s< payload >%s<\n", topic, payload);
-            break;
+    sprintf(date, "%.4d%.2d%.2d", l->tm_year + 1900, l->tm_mon + 1, l->tm_mday);
+
+    if (sscanf(payload, "%9[^:]:%14[^:]", date_in, value) == 2) {
+        if (strcmp(date, date_in)) return;
+        for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
+            snprintf(topic, TOPIC_SIZE, "%s/set/up/0x%02X_0x%02X_0x%02X", cfg.prefix, it->container, it->tag, it->index);
+            if (!strcmp(topic, topic_in) && std::regex_match(value, std::regex("[+-]?([0-9]*[.]?[0-9]+)"))) {
+                strcpy(it->payload, value);
+                logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Setup topic >%s< payload >%s< date >%s<\n", topic, value, date_in);
+                break;
+            }
         }
     }
-    return(match);
+    return;
 }
 
 void logCache(std::vector<RSCP_MQTT::cache_t> & v, char *file, char *prefix) {
@@ -504,26 +532,63 @@ void logCache(std::vector<RSCP_MQTT::cache_t> & v, char *file, char *prefix) {
     return;
 }
 
-int logTopics(std::vector<RSCP_MQTT::cache_t> & v, char *file) {
-    int i = 0;
+void logTopics(std::vector<RSCP_MQTT::cache_t> & v, char *file, bool check_payload) {
+    int total = 0;
+    int forced = 0;
+    int influx = 0;
+    int history_log = 0;
+
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
-        if (it->forced) logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< forced\n", it->topic);
-        if (it->influx) logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< marked influx relevant\n", it->topic);
-        if (it->history_log) logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< marked for logging\n", it->topic);
-        if (!strcmp(it->payload, "")) logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< unused? Payload is empty\n", it->topic);
-        i++;
-    }   
-    return(i);
+        if (it->forced) { logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< forced\n", it->topic); forced++; }
+        if (it->influx) { logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< marked influx relevant\n", it->topic); influx++; }
+        if (it->history_log) { logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< marked for logging\n", it->topic); history_log++; }
+        if (check_payload && (!strcmp(it->payload, ""))) logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topic >%s< unused? Payload is empty\n", it->topic);
+        total++;
+    }
+    logMessage(file, (char *)__FILE__, __LINE__, (char *)"Number of topics >%d<\n", total);
+    logMessage(file, (char *)__FILE__, __LINE__, (char *)"Number of topics with flag \"forced\" >%d<\n", forced);
+    logMessage(file, (char *)__FILE__, __LINE__, (char *)"Number of topics with flag \"influx\" >%d<\n", influx);
+    logMessage(file, (char *)__FILE__, __LINE__, (char *)"Number of topics with flag \"history_log\" >%d<\n", history_log);
+    return;
+}
+
+bool checkTopicOrder(std::vector<RSCP_MQTT::cache_t> & v) {
+    uint32_t container = 0;
+    uint32_t tag = 0;
+    int index = 0;
+    bool sorted = true;
+    for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
+        if ((it->container < container) && (it->tag < tag) && (it->index < index)) {
+            sorted = false;
+            break;
+        }
+        container = it->container;
+        tag = it->tag;
+        index = it->index;
+    }
+    return(sorted);
+}
+
+bool checkTopicUniqueness(std::vector<RSCP_MQTT::cache_t> & v) { 
+    int j;
+    for (std::vector<RSCP_MQTT::cache_t>::iterator i = v.begin(); i != v.end(); ++i) {
+        j = 0;
+        for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
+            if ((i->container == it->container) && (i->tag == it->tag) && (i->index == it->index) && (i->bit_to_bool == it->bit_to_bool)) j++;
+        }
+        if (j > 1) return(false);
+    }
+    return(true);
 }
 
 void logHealth(char *file) {
-    int i;
     logMessage(file, (char *)__FILE__, __LINE__, (char *)"[%s] PVI %s | PM %s | DCB %s (%d) | Wallbox (%d) %s | Autorefresh %s Interval %d\n", RSCP2MQTT, cfg.pvi_requests?"✓":"✗", cfg.pm_requests?"✓":"✗", cfg.dcb_requests?"✓":"✗", cfg.battery_strings, cfg.wb_index, cfg.wallbox?"✓":"✗", cfg.auto_refresh?"✓":"✗", cfg.interval);
     for (uint8_t i = 0; i < cfg.pm_number; i++) {
         logMessage(file, (char *)__FILE__, __LINE__, (char *)"PM_INDEX >%d<\n", cfg.pm_index[i]);
     }
-    i = logTopics(RSCP_MQTT::RscpMqttCache, file);
-    logMessage(file, (char *)__FILE__, __LINE__, (char *)"Number of topics >%d<\n", i);
+    logTopics(RSCP_MQTT::RscpMqttCache, file, true);
+    logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topics sorted >%s<\n", checkTopicOrder(RSCP_MQTT::RscpMqttCache)?"true":"false");
+    logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topics unique >%s<\n", checkTopicUniqueness(RSCP_MQTT::RscpMqttCache)?"true":"false");
     for (std::vector<RSCP_MQTT::not_supported_tags_t>::iterator it = RSCP_MQTT::NotSupportedTags.begin(); it != RSCP_MQTT::NotSupportedTags.end(); ++it) {
         logMessage(file, (char *)__FILE__, __LINE__, (char *)"Container 0x%08X Tag 0x%08X not supported.\n", it->container, it->tag);
     }
@@ -624,35 +689,6 @@ void addPrefix(std::vector<RSCP_MQTT::cache_t> & v, char *prefix) {
     }
     return;
 }
-
-void setTopicsForce(std::vector<RSCP_MQTT::cache_t> & v, char *regex) {
-    if (regex) {
-        for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
-            if (std::regex_match(it->topic, std::regex(regex))) it->forced = true;
-        }
-    }
-    return;
-}
-
-void setTopicHistory(std::vector<RSCP_MQTT::cache_t> & v, char *regex) {
-    if (regex) {
-        for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
-            if (std::regex_match(it->topic, std::regex(regex))) it->history_log = true;
-        }
-    }
-    return;
-}
-
-#ifdef INFLUXDB
-void setTopicsInflux(std::vector<RSCP_MQTT::cache_t> & v, char *regex) {
-    if (regex) {
-        for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
-            if (std::regex_match(it->topic, std::regex(regex))) it->influx = true;
-        }
-    }
-    return;
-}
-#endif
 
 int handleImmediately(RscpProtocol *protocol, SRscpValue *response, uint32_t container, int year, int month, int day) {
 #ifdef INFLUXDB
@@ -1062,8 +1098,8 @@ void statisticValues(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
     static int grid_power_max = 0;
     static int battery_soc_min = 101;
     static int battery_soc_max = 0;
-    static int grid_in_limit_duration = 0;
-    static int sun_duration = 0;
+    static int grid_in_limit_duration = 60 * getIntegerValue(c, 0, 0, IDX_GRID_IN_DURATION);
+    static int sun_duration = 60 * getIntegerValue(c, 0, 0, IDX_SUN_DURATION);
     int battery_soc = getIntegerValue(c, 0, TAG_EMS_BAT_SOC, 0);
     int grid_power = getIntegerValue(c, 0, TAG_EMS_POWER_GRID, 0);
     int solar_power = getIntegerValue(c, 0, TAG_EMS_POWER_PV, 0);
@@ -1081,7 +1117,7 @@ void statisticValues(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
         battery_soc_min = storeIntegerValue(c, 0, 0, battery_soc + 1, IDX_BATTERY_SOC_MIN, true);
         battery_soc_max = storeIntegerValue(c, 0, 0, battery_soc - 1, IDX_BATTERY_SOC_MAX, true);
         grid_in_limit_duration = storeIntegerValue(c, 0, 0, 0, IDX_GRID_IN_DURATION, true);
-        sun_duration = storeIntegerValue(c, 0, 0, 0, IDX_GRID_SUN_DURATION, true);
+        sun_duration = storeIntegerValue(c, 0, 0, 0, IDX_SUN_DURATION, true);
     }
     if (solar_power > solar_power_max) {
         solar_power_max = storeIntegerValue(c, 0, 0, solar_power, IDX_SOLAR_POWER_MAX, true);
@@ -1110,7 +1146,7 @@ void statisticValues(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
     }
     if (solar_power) {
         sun_duration += (int)(last?now - last:0);
-        storeIntegerValue(c, 0, 0, sun_duration / 60, IDX_GRID_SUN_DURATION, true);
+        storeIntegerValue(c, 0, 0, sun_duration / 60, IDX_SUN_DURATION, true);
     }
     last = now;
     return;
@@ -1173,7 +1209,7 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
     }
 
     if (curr_year < l->tm_year + 1900) {
-        addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, NULL, curr_year, l->tm_year + 1900, 0);
+        addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, NULL, curr_year, l->tm_year + 1900, 0, true);
         curr_year = l->tm_year + 1900;
     } 
 
@@ -1335,8 +1371,6 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                 protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_VOLTAGE, i);
                 protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_CURRENT, i);
                 protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_STRING_ENERGY_ALL, i);
-                addTemplTopicsIdx(IDX_PVI_ENERGY, NULL, 0, cfg.pvi_tracker, 1);
-                addTemplTopicsIdx(IDX_PVI_ENERGY_START, NULL, 0, cfg.pvi_tracker, 1);
             }
             protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_STRING_ENERGY_ALL, (uint8_t)0);
             protocol.appendValue(&PVIContainer, TAG_PVI_REQ_AC_POWER, (uint8_t)0);
@@ -1736,7 +1770,7 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                         cfg.bat_dcb_count[battery_nr] = protocol->getValueAsUChar8(&containerData[i]);
                         cfg.bat_dcb_start[battery_nr] = battery_nr?cfg.bat_dcb_count[battery_nr - 1]:0;
                         storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
-                        addTemplTopics(TAG_BAT_DCB_INFO, 1, NULL, cfg.bat_dcb_start[battery_nr], cfg.bat_dcb_start[battery_nr] + cfg.bat_dcb_count[battery_nr], 1);
+                        addTemplTopics(TAG_BAT_DCB_INFO, 1, NULL, cfg.bat_dcb_start[battery_nr], cfg.bat_dcb_start[battery_nr] + cfg.bat_dcb_count[battery_nr], 1, true);
                         if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"TAG_BAT_DCB_COUNT battery_nr = %d bat_dcb_count = %d bat_dcb_start = %d\n", battery_nr, cfg.bat_dcb_count[battery_nr], cfg.bat_dcb_start[battery_nr]);
                         break;
                     }
@@ -1841,15 +1875,17 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                 case TAG_PVI_TEMPERATURE_COUNT: {
                     cfg.pvi_temp_count = protocol->getValueAsUChar8(&containerData[i]);
                     storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
-                    addTemplTopics(TAG_PVI_TEMPERATURE, 1, NULL, 0, cfg.pvi_temp_count, 1);
+                    addTemplTopics(TAG_PVI_TEMPERATURE, 1, NULL, 0, cfg.pvi_temp_count, 1, true);
                     break;
                 }
                 case TAG_PVI_USED_STRING_COUNT: {
                     cfg.pvi_tracker = protocol->getValueAsUChar8(&containerData[i]);
-                    addTemplTopics(TAG_PVI_DC_POWER, 1, NULL, 0, cfg.pvi_tracker, 1);
-                    addTemplTopics(TAG_PVI_DC_VOLTAGE, 1, NULL, 0, cfg.pvi_tracker, 1);
-                    addTemplTopics(TAG_PVI_DC_CURRENT, 1, NULL, 0, cfg.pvi_tracker, 1);
-                    addTemplTopics(TAG_PVI_DC_STRING_ENERGY_ALL, 1, NULL, 0, cfg.pvi_tracker, 1);
+                    addTemplTopics(TAG_PVI_DC_POWER, 1, NULL, 0, cfg.pvi_tracker, 1, false);
+                    addTemplTopics(TAG_PVI_DC_VOLTAGE, 1, NULL, 0, cfg.pvi_tracker, 1, false);
+                    addTemplTopics(TAG_PVI_DC_CURRENT, 1, NULL, 0, cfg.pvi_tracker, 1, false);
+                    addTemplTopics(TAG_PVI_DC_STRING_ENERGY_ALL, 1, NULL, 0, cfg.pvi_tracker, 1, false);
+                    addTemplTopicsIdx(IDX_PVI_ENERGY, NULL, 0, cfg.pvi_tracker, 1, false);
+                    addTemplTopicsIdx(IDX_PVI_ENERGY_START, NULL, 0, cfg.pvi_tracker, 1, true);
                     storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
                     logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Number of PVI strings: %d (auto detection)\n", cfg.pvi_tracker);
                     break;
@@ -2030,7 +2066,7 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
     return(0);
 }
 
-static int processReceiveBuffer(const unsigned char * ucBuffer, int iLength){
+static int processReceiveBuffer(const unsigned char * ucBuffer, int iLength) {
     RscpProtocol protocol;
     SRscpFrame frame;
 
@@ -2062,7 +2098,7 @@ static int processReceiveBuffer(const unsigned char * ucBuffer, int iLength){
     return(iResult);
 }
 
-static void receiveLoop(bool & bStopExecution){
+static void receiveLoop(bool & bStopExecution) {
     //--------------------------------------------------------------------------------------------------------------
     // RSCP Receive Frame Block Data
     //--------------------------------------------------------------------------------------------------------------
@@ -2075,6 +2111,8 @@ static void receiveLoop(bool & bStopExecution){
     // multiple frames can only occur in this example if one or more frames are received with a big time delay
     // this should usually not occur but handling this is shown in this example
     int iReceivedRscpFrames = 0;
+
+    int iResult;
 
     while (!bStopExecution && ((iReceivedBytes > 0) || iReceivedRscpFrames == 0)) {
         // check and expand buffer
@@ -2092,26 +2130,23 @@ static void receiveLoop(bool & bStopExecution){
             vecDynamicBuffer.resize(vecDynamicBuffer.size() + 4096);
         }
         // receive data
-        int iResult = SocketRecvData(iSocket, &vecDynamicBuffer[0] + iReceivedBytes, vecDynamicBuffer.size() - iReceivedBytes);
-        if (iResult < 0) {
-            // check errno for the error code to detect if this is a timeout or a socket error
-            if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
-                // receive timed out -> continue with re-sending the initial block
-                logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Response receive timeout (retry)\n");
-                break;
+        // Issues #55 and #61
+        while (1) {
+            iResult = SocketRecvData(iSocket, &vecDynamicBuffer[0] + iReceivedBytes, vecDynamicBuffer.size() - iReceivedBytes);
+            if (iResult < 0) {
+                if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) continue;
+                logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Socket receive error. errno %i\n", errno);
+                bStopExecution = true;
+            } else if (iResult == 0) {
+                // connection was closed regularly by peer
+                // if this happens on startup each time the possible reason is
+                // wrong AES password or wrong network subnet (adapt hosts.allow file required)
+                logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Connection closed by peer\n");
+                bStopExecution = true;
             }
-            // socket error -> check errno for failure code if needed
-            logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Socket receive error. errno %i\n", errno);
-            bStopExecution = true;
-            break;
-        } else if (iResult == 0) {
-            // connection was closed regularly by peer
-            // if this happens on startup each time the possible reason is
-            // wrong AES password or wrong network subnet (adapt hosts.allow file required)
-            logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Connection closed by peer\n");
-            bStopExecution = true;
             break;
         }
+
         // increment amount of received bytes
         iReceivedBytes += iResult;
 
@@ -2161,12 +2196,12 @@ static void receiveLoop(bool & bStopExecution){
     }
 }
 
-static void mainLoop(void){
+static void mainLoop(void) {
     RscpProtocol protocol;
     bool bStopExecution = false;
     int countdown = 3;
 
-    while (!bStopExecution) {
+    while (go && !bStopExecution) {
         //--------------------------------------------------------------------------------------------------------------
         // RSCP Transmit Frame Block Data
         //--------------------------------------------------------------------------------------------------------------
@@ -2283,7 +2318,7 @@ static void mainLoop(void){
     }
 }
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[]) {
     char key[128], value[128], line[256];
     char *cfile = NULL;
     int i = 0;
@@ -2367,6 +2402,10 @@ int main(int argc, char *argv[]){
     cfg.historyfile = NULL;
 
     uint32_t hotfix_tag = 0;
+
+    // signal handler
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
 
     RSCP_MQTT::topic_store_t store = { 0, "" };
 
@@ -2558,55 +2597,34 @@ int main(int argc, char *argv[]){
     addPrefix(RSCP_MQTT::RscpMqttCache, cfg.prefix);
     addPrefix(RSCP_MQTT::RscpMqttCacheTempl, cfg.prefix);
 
-    for (std::vector<RSCP_MQTT::topic_store_t>::iterator it = RSCP_MQTT::TopicStore.begin(); it != RSCP_MQTT::TopicStore.end(); ++it) {
-        switch (it->type) {
-            case FORCED_TOPIC: {
-                setTopicsForce(RSCP_MQTT::RscpMqttCache, it->topic);
-                break;
-            }
-            case LOG_TOPIC: {
-                setTopicHistory(RSCP_MQTT::RscpMqttCache, it->topic);
-                break;
-            }
-#ifdef INFLUXDB
-            case INFLUXDB_TOPIC: {
-                setTopicsInflux(RSCP_MQTT::RscpMqttCache, it->topic);
-                break;
-            }
-#endif
-        }
-    }
-
     // History year
     if (cfg.verbose) printf("History year range from %d to %d\n", cfg.history_start_year, curr_year);
-    if (cfg.history_start_year < curr_year) addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, NULL, cfg.history_start_year, curr_year, 0);
+    if (cfg.history_start_year < curr_year) addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, NULL, cfg.history_start_year, curr_year, 0, false);
 
     // Battery Strings
-    addTemplTopics(TAG_BAT_DATA, (cfg.battery_strings == 1)?0:1, (char *)"battery", 0, cfg.battery_strings, 1);
-    addTemplTopics(TAG_BAT_SPECIFICATION, (cfg.battery_strings == 1)?0:1, (char *)"battery", 0, cfg.battery_strings, 1);
-
-    // Power Meters
-    addTemplTopics(TAG_PM_DATA, (cfg.pm_number == 1)?0:1, (char *)"pm", 0, cfg.pm_number, 1);
-    addTemplTopicsIdx(IDX_PM_POWER, (char *)"pm", 0, cfg.pm_number, 1);
-    addTemplTopicsIdx(IDX_PM_ENERGY, (char *)"pm", 0, cfg.pm_number, 1);
+    addTemplTopics(TAG_BAT_DATA, (cfg.battery_strings == 1)?0:1, (char *)"battery", 0, cfg.battery_strings, 1, false);
+    addTemplTopics(TAG_BAT_SPECIFICATION, (cfg.battery_strings == 1)?0:1, (char *)"battery", 0, cfg.battery_strings, 1, false);
 
     // PVI strings (no auto detection)
     if (cfg.pvi_tracker) {
-        addTemplTopics(TAG_PVI_DC_POWER, 1, NULL, 0, cfg.pvi_tracker, 1);
-        addTemplTopics(TAG_PVI_DC_VOLTAGE, 1, NULL, 0, cfg.pvi_tracker, 1);
-        addTemplTopics(TAG_PVI_DC_CURRENT, 1, NULL, 0, cfg.pvi_tracker, 1);
-        addTemplTopics(TAG_PVI_DC_STRING_ENERGY_ALL, 1, NULL, 0, cfg.pvi_tracker, 1);
-        addTemplTopicsIdx(IDX_PVI_ENERGY, NULL, 0, cfg.pvi_tracker, 1);
-        addTemplTopicsIdx(IDX_PVI_ENERGY_START, NULL, 0, cfg.pvi_tracker, 1);
+        addTemplTopics(TAG_PVI_DC_POWER, 1, NULL, 0, cfg.pvi_tracker, 1, false);
+        addTemplTopics(TAG_PVI_DC_VOLTAGE, 1, NULL, 0, cfg.pvi_tracker, 1, false);
+        addTemplTopics(TAG_PVI_DC_CURRENT, 1, NULL, 0, cfg.pvi_tracker, 1, false);
+        addTemplTopics(TAG_PVI_DC_STRING_ENERGY_ALL, 1, NULL, 0, cfg.pvi_tracker, 1, false);
+        addTemplTopicsIdx(IDX_PVI_ENERGY, NULL, 0, cfg.pvi_tracker, 1, false);
+        addTemplTopicsIdx(IDX_PVI_ENERGY_START, NULL, 0, cfg.pvi_tracker, 1, false);
     }
 
     // Wallbox
     if (cfg.wallbox) {
-        addTemplTopics(TAG_WB_DATA, 0, NULL, 0, 1, 1);
-        addTemplTopics(TAG_WB_EXTERN_DATA_ALG, 0, NULL, 0, 1, 1);
+        addTemplTopics(TAG_WB_DATA, 0, NULL, 0, 1, 1, false);
+        addTemplTopics(TAG_WB_EXTERN_DATA_ALG, 0, NULL, 0, 1, 1, false);
     }
 
-    sort(RSCP_MQTT::RscpMqttCache.begin(), RSCP_MQTT::RscpMqttCache.end(), RSCP_MQTT::compareCache);
+    // Power Meters 
+    addTemplTopics(TAG_PM_DATA, (cfg.pm_number == 1)?0:1, (char *)"pm", 0, cfg.pm_number, 1, false);
+    addTemplTopicsIdx(IDX_PM_POWER, (char *)"pm", 0, cfg.pm_number, 1, false);
+    addTemplTopicsIdx(IDX_PM_ENERGY, (char *)"pm", 0, cfg.pm_number, 1, true);
 
 #ifdef INFLUXDB
     if (cfg.influxdb_on && (cfg.influxdb_version == 1)) {
@@ -2668,12 +2686,8 @@ int main(int argc, char *argv[]){
         cfg.logfile = NULL;
     }
 
-    if (cfg.verbose) logTopics(RSCP_MQTT::RscpMqttCache, cfg.logfile);
+    if (cfg.verbose) logTopics(RSCP_MQTT::RscpMqttCache, cfg.logfile, false);
 
-    if (cfg.statistic_values) {
-        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_IN_DURATION, true);
-        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_GRID_SUN_DURATION, true);
-    }
     if (cfg.wallbox) {
         storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, cfg.wb_index, IDX_WALLBOX_INDEX, true);
         storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL, true);
@@ -2711,8 +2725,8 @@ int main(int argc, char *argv[]){
     }
 #endif
 
-    // endless application which re-connections to server on connection lost
-    while (true) {
+    // application which re-connections to server on connection lost
+    while (go) {
         // connect to server
         logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Connecting to server %s:%u\n", cfg.e3dc_ip, cfg.e3dc_port);
         iSocket = SocketConnect(cfg.e3dc_ip, cfg.e3dc_port);
@@ -2756,7 +2770,13 @@ int main(int argc, char *argv[]){
         SocketClose(iSocket);
         iSocket = -1;
 
-        sleep(DELAY_BEFORE_RECONNECT);
+        wsleep(DELAY_BEFORE_RECONNECT);
+    }
+
+    // retain some values for a restart of the program
+    if (cfg.store_setup) {
+        storeSetupItem(0, 0, IDX_GRID_IN_DURATION, getIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, IDX_GRID_IN_DURATION));
+        storeSetupItem(0, 0, IDX_SUN_DURATION, getIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, IDX_SUN_DURATION));
     }
 
     // MQTT cleanup

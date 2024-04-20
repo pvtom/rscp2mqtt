@@ -55,7 +55,7 @@
 #define IDX_BATTERY_SOC_MIN                12
 #define IDX_BATTERY_SOC_MAX                13
 #define IDX_GRID_IN_DURATION               14
-#define IDX_GRID_SUN_DURATION              15
+#define IDX_SUN_DURATION                   15
 #define IDX_WALLBOX_INDEX                  16
 #define IDX_WALLBOX_LAST_ENERGY_ALL        17
 #define IDX_WALLBOX_LAST_ENERGY_SOLAR      18
@@ -153,7 +153,7 @@ cache_t cache[] = {
     { 0, 0, IDX_BATTERY_SOC_MIN, "battery/soc_min", "", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
     { 0, 0, IDX_BATTERY_SOC_MAX, "battery/soc_max", "", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
     { 0, 0, IDX_GRID_IN_DURATION, "grid_in_limit_duration", "", F_AUTO, UNIT_MIN, 1, 0, false, false, false },
-    { 0, 0, IDX_GRID_SUN_DURATION, "sunshine_duration", "", F_AUTO, UNIT_MIN, 1, 0, false, false, false },
+    { 0, 0, IDX_SUN_DURATION, "sunshine_duration", "", F_AUTO, UNIT_MIN, 1, 0, false, false, false },
     { 0, 0, IDX_WALLBOX_INDEX, "wallbox/index", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL, "wallbox/energy/last_charging/total", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
     { 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR, "wallbox/energy/last_charging/solar", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
@@ -178,8 +178,8 @@ cache_t cache[] = {
     { 0, TAG_EMS_STATUS, 0, "ems/charging_time_lock", "", F_AUTO, UNIT_NONE, 1, 32, false, false, false },
     { 0, TAG_EMS_STATUS, 0, "ems/discharging_time_lock", "", F_AUTO, UNIT_NONE, 1, 64, false, false, false },
     { 0, TAG_EMS_BALANCED_PHASES, 0, "ems/balanced_phases/L1", "", F_AUTO, UNIT_NONE, 1, 1, false, false, false },
-    { 0, TAG_EMS_BALANCED_PHASES, 0, "ems/balanced_phases/L2", "", F_AUTO, UNIT_NONE, 2, 1, false, false, false },
-    { 0, TAG_EMS_BALANCED_PHASES, 0, "ems/balanced_phases/L3", "", F_AUTO, UNIT_NONE, 4, 1, false, false, false },
+    { 0, TAG_EMS_BALANCED_PHASES, 0, "ems/balanced_phases/L2", "", F_AUTO, UNIT_NONE, 1, 2, false, false, false },
+    { 0, TAG_EMS_BALANCED_PHASES, 0, "ems/balanced_phases/L3", "", F_AUTO, UNIT_NONE, 1, 4, false, false, false },
     { 0, TAG_EMS_INSTALLED_PEAK_POWER, 0, "system/installed_peak_power", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
     { 0, TAG_EMS_DERATE_AT_PERCENT_VALUE, 0, "system/derate_at_percent_value", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
     { 0, TAG_EMS_DERATE_AT_POWER_VALUE, 0, "system/derate_at_power_value", "", F_FLOAT_1, UNIT_W, 1, 0, false, false, false },

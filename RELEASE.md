@@ -1,5 +1,11 @@
 ## Release Notes
 
+### Release v3.20 (20.04.2024)
+
+Bug fixes:
+- Issue #55, #61: Improvements to the timeout behavior
+- Issue #57: Energy per string (today's values)
+
 ### Release v3.19 (14.04.2024)
 
 Bug fixes:
