@@ -40,6 +40,7 @@ typedef struct _config_t {
     bool verbose;
     int interval;
     int log_level;
+    bool save_memory;
     int battery_strings;
     bool pvi_requests;
     int pvi_tracker;

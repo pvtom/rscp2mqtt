@@ -80,7 +80,6 @@ All topics are listed with the default prefix "e3dc".
 | EMS Derate at percent value | e3dc/system/derate_at_percent_value | 0.7 |
 | EMS Derate at power value | e3dc/system/derate_at_power_value | [W] |
 | EMS Discharge Start Power | e3dc/ems/discharge_start/power | [W] |
-| EMS Discharge Start Power Status | e3dc/ems/discharge_start/status | |
 | EMS Discharging Lock | e3dc/ems/discharging_lock | (true/false) |
 | EMS Discharging Time Lock | e3dc/ems/discharging_time_lock | (true/false) |
 | EMS Emergency Power Available | e3dc/ems/emergency_power_available | (true/false) |
@@ -100,9 +99,7 @@ All topics are listed with the default prefix "e3dc".
 | EMS Installed Peak Power | e3dc/system/installed_peak_power | [W] |
 | EMS Inverter Count | e3dc/system/inverter_count | |
 | EMS Max Charge Power | e3dc/ems/max_charge/power | [W] |
-| EMS Max Charge Power Status | e3dc/ems/max_charge/status | |
 | EMS Max Discharge Power | e3dc/ems/max_discharge/power | [W] |
-| EMS Max Discharge Power Status | e3dc/ems/max_discharge/status | |
 | EMS Mode | e3dc/mode | (0,1,...) |
 | EMS Power Limits Used | e3dc/ems/power_limits | (true/false) |
 | EMS Powersave Enabled | e3dc/ems/power_save | (true/false) |
@@ -220,6 +217,7 @@ All topics are listed with the default prefix "e3dc".
 | Software Release | e3dc/system/software | "S10_XXXX_XXX" |
 | Solar Energy | e3dc/solar/energy | [kWh] |
 | Time Zone | e3dc/time/zone | "Europe/City" |
+| Wallbox Available Solar Power | wallbox/available_solar_power | [W] |
 | Wallbox Battery | e3dc/wallbox/charge_battery_before_car | (true/false) |
 | Wallbox Battery | e3dc/wallbox/discharge_battery_to_car | (true/false) |
 | Wallbox Battery | e3dc/wallbox/discharge_battery_until | [%] |
@@ -227,13 +225,17 @@ All topics are listed with the default prefix "e3dc".
 | Wallbox Canceled | e3dc/wallbox/canceled | (true/false) |
 | Wallbox Charging | e3dc/wallbox/charging | (true/false) |
 | Wallbox Current | e3dc/wallbox/max_current | [A] |
-| Wallbox Energy Total | e3dc/wallbox/energy/total | [Wh] |
-| Wallbox Energy Total Last Charging | e3dc/wallbox/energy/last_charging/total | [Wh] |
-| Wallbox Energy Solar | e3dc/wallbox/energy/solar | [Wh] |
-| Wallbox Energy Solar Last Charging | e3dc/wallbox/energy/last_charging/solar | [Wh] |
 | Wallbox Energy L1 | e3dc/wallbox/energy/L1 | [Wh] |
 | Wallbox Energy L2 | e3dc/wallbox/energy/L2 | [Wh] |
 | Wallbox Energy L3 | e3dc/wallbox/energy/L3 | [Wh] |
+| Wallbox Energy Solar | e3dc/wallbox/energy/solar | [Wh] |
+| Wallbox Energy Solar (midnight) **** | e3dc/wallbox/energy_start/solar | [Wh] |
+| Wallbox Energy Solar (today) | e3dc/wallbox/day/solar | [Wh] |
+| Wallbox Energy Solar Last Charging | e3dc/wallbox/energy/last_charging/solar | [Wh] |
+| Wallbox Energy Total | e3dc/wallbox/energy/total | [Wh] |
+| Wallbox Energy Total (midnight) **** | e3dc/wallbox/energy_start/total | [Wh] |
+| Wallbox Energy Total (today) | e3dc/wallbox/energy/day/total | [Wh] |
+| Wallbox Energy Total Last Charging | e3dc/wallbox/energy/last_charging/total | [Wh] |
 | Wallbox Index | e3dc/wallbox/index | (0..7) |
 | Wallbox Key State | e3dc/wallbox/key_state | (true/false) |
 | Wallbox Locked | e3dc/wallbox/locked | (true/false) |

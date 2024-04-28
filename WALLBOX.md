@@ -1,6 +1,7 @@
 ## Wallbox
 
-This update implements functions to support E3/DC wallboxes.
+rscp2mqtt provides the following functions to support E3/DC wallboxes.
+
 Use "e3dc/set/wallbox/index" to switch to another wallbox, if you have more than one in your environment.
 
 Configuration
@@ -14,6 +15,7 @@ The following topics are sent to the MQTT broker:
 
 | Device / Tag | MQTT Topic | Values / [Unit] |
 | --- | --- | --- |
+| Wallbox Available Solar Power | wallbox/available_solar_power | [W] |
 | Wallbox Battery | e3dc/wallbox/charge_battery_before_car | (true/false) |
 | Wallbox Battery | e3dc/wallbox/discharge_battery_to_car | (true/false) |
 | Wallbox Battery | e3dc/wallbox/discharge_battery_until | [%] |
@@ -21,13 +23,17 @@ The following topics are sent to the MQTT broker:
 | Wallbox Canceled | e3dc/wallbox/canceled | (true/false) |
 | Wallbox Charging | e3dc/wallbox/charging | (true/false) |
 | Wallbox Current | e3dc/wallbox/max_current | [A] |
-| Wallbox Energy Total | e3dc/wallbox/energy/total | [Wh] |
-| Wallbox Energy Total Last Charging | e3dc/wallbox/energy/last_charging/total | [Wh] |
-| Wallbox Energy Solar | e3dc/wallbox/energy/solar | [Wh] |
-| Wallbox Energy Solar Last Charging | e3dc/wallbox/energy/last_charging/solar | [Wh] |
 | Wallbox Energy L1 | e3dc/wallbox/energy/L1 | [Wh] |
 | Wallbox Energy L2 | e3dc/wallbox/energy/L2 | [Wh] |
 | Wallbox Energy L3 | e3dc/wallbox/energy/L3 | [Wh] |
+| Wallbox Energy Solar | e3dc/wallbox/energy/solar | [Wh] |
+| Wallbox Energy Solar (midnight) | e3dc/wallbox/energy_start/solar | [Wh] |
+| Wallbox Energy Solar (today) | e3dc/wallbox/day/solar | [Wh] |
+| Wallbox Energy Solar Last Charging | e3dc/wallbox/energy/last_charging/solar | [Wh] |
+| Wallbox Energy Total | e3dc/wallbox/energy/total | [Wh] |
+| Wallbox Energy Total (midnight) | e3dc/wallbox/energy_start/total | [Wh] |
+| Wallbox Energy Total (today) | e3dc/wallbox/energy/day/total | [Wh] |
+| Wallbox Energy Total Last Charging | e3dc/wallbox/energy/last_charging/total | [Wh] |
 | Wallbox Index | e3dc/wallbox/index | (0..7) |
 | Wallbox Key State | e3dc/wallbox/key_state | (true/false) |
 | Wallbox Locked | e3dc/wallbox/locked | (true/false) |
@@ -55,15 +61,24 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/index" -m "0"
 
 The following calls will use the set wallbox.
 
-Set solar or mix mode with the current in [A] (6..32 Ampere)
+Sun Mode (true/1/false/0)
 ```
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/control" -m "solar:16"
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/control" -m "mix:8"
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/sun_mode" -m true
 ```
 
-Stop charging
+Switch charging on/off (true/1/false/0)
 ```
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/control" -m "stop"
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/charge" -m true
+```
+
+Switching between charging and not charging
+```
+mosquitto_pub -h localhost -p 1883 -t"e3dc/set/wallbox/toggle" -m 1
+```
+
+Set max current (0..32 A)
+```
+mosquitto_pub -h localhost -p 1883 -t"e3dc/set/wallbox/max_current" -m 16
 ```
 
 Set battery to car mode (true/1/false/0)

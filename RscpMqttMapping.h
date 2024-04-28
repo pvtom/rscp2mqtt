@@ -57,8 +57,12 @@
 #define IDX_GRID_IN_DURATION               14
 #define IDX_SUN_DURATION                   15
 #define IDX_WALLBOX_INDEX                  16
-#define IDX_WALLBOX_LAST_ENERGY_ALL        17
-#define IDX_WALLBOX_LAST_ENERGY_SOLAR      18
+#define IDX_WALLBOX_DAY_ENERGY_ALL         17
+#define IDX_WALLBOX_DAY_ENERGY_SOLAR       18
+#define IDX_WALLBOX_ENERGY_ALL_START       19
+#define IDX_WALLBOX_ENERGY_SOLAR_START     20
+#define IDX_WALLBOX_LAST_ENERGY_ALL        21
+#define IDX_WALLBOX_LAST_ENERGY_SOLAR      22
 #define IDX_PM_POWER                       100
 #define IDX_PM_ENERGY                      200
 #define IDX_PVI_ENERGY                     300
@@ -155,13 +159,15 @@ cache_t cache[] = {
     { 0, 0, IDX_GRID_IN_DURATION, "grid_in_limit_duration", "", F_AUTO, UNIT_MIN, 1, 0, false, false, false },
     { 0, 0, IDX_SUN_DURATION, "sunshine_duration", "", F_AUTO, UNIT_MIN, 1, 0, false, false, false },
     { 0, 0, IDX_WALLBOX_INDEX, "wallbox/index", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { 0, 0, IDX_WALLBOX_DAY_ENERGY_ALL, "wallbox/energy/day/total", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
+    { 0, 0, IDX_WALLBOX_DAY_ENERGY_SOLAR, "wallbox/energy/day/solar", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
+    { 0, 0, IDX_WALLBOX_ENERGY_ALL_START, "wallbox/energy_start/total", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
+    { 0, 0, IDX_WALLBOX_ENERGY_SOLAR_START, "wallbox/energy_start/solar", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
     { 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL, "wallbox/energy/last_charging/total", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
     { 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR, "wallbox/energy/last_charging/solar", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
     { 0, TAG_INFO_SW_RELEASE, 0, "system/software", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_INFO_PRODUCTION_DATE, 0, "system/production_date", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_INFO_SERIAL_NUMBER, 0, "system/serial_number", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { 0, TAG_INFO_TIME, 0, "time/local", "", F_AUTO, UNIT_SEC, 1, 0, false, false, false },
-    { 0, TAG_INFO_UTC_TIME, 0, "time/utc", "", F_AUTO, UNIT_SEC, 1, 0, false, false, false },
     { 0, TAG_INFO_TIME_ZONE, 0, "time/zone", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_EMS_POWER_PV, 0, "solar/power", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
     { 0, TAG_EMS_POWER_BAT, 0, "battery/power", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
@@ -207,10 +213,6 @@ cache_t cache[] = {
     { TAG_EMS_GET_POWER_SETTINGS, TAG_EMS_DISCHARGE_START_POWER, 0, "ems/discharge_start/power", "", F_AUTO, UNIT_W, 1, 0, false, false, false },
     { TAG_EMS_GET_POWER_SETTINGS, TAG_EMS_POWERSAVE_ENABLED, 0, "ems/power_save", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { TAG_EMS_GET_POWER_SETTINGS, TAG_EMS_WEATHER_REGULATED_CHARGE_ENABLED, 0, "ems/weather_regulation", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    // CONTAINER TAG_EMS_SET_POWER_SETTINGS
-    { TAG_EMS_SET_POWER_SETTINGS, TAG_EMS_RES_DISCHARGE_START_POWER, 0, "ems/discharge_start/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_EMS_SET_POWER_SETTINGS, TAG_EMS_RES_MAX_CHARGE_POWER, 0, "ems/max_charge/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_EMS_SET_POWER_SETTINGS, TAG_EMS_RES_MAX_DISCHARGE_POWER, 0, "ems/max_discharge/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     // CONTAINER TAG_PVI_DATA
     { TAG_PVI_AC_POWER, TAG_PVI_VALUE, 0, "pvi/power/L1", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
     { TAG_PVI_AC_POWER, TAG_PVI_VALUE, 1, "pvi/power/L2", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
@@ -440,12 +442,13 @@ cache_t templates[] = {
     { TAG_WB_DATA, TAG_WB_PM_POWER_L1, 0, "wallbox/power/L1", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
     { TAG_WB_DATA, TAG_WB_PM_POWER_L2, 0, "wallbox/power/L2", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
     { TAG_WB_DATA, TAG_WB_PM_POWER_L3, 0, "wallbox/power/L3", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_AVAILABLE_SOLAR_POWER, 0, "wallbox/available_solar_power", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 3, "wallbox/max_current", "", F_AUTO, UNIT_A, 1, 0, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/plugged", "", F_AUTO, UNIT_NONE, 1, 8, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/locked", "", F_AUTO, UNIT_NONE, 1, 16, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/charging", "", F_AUTO, UNIT_NONE, 1, 32, false, false, false },
-    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/canceled", "", F_AUTO, UNIT_NONE, 1, 64, false, false, false },
+    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/suspended", "", F_AUTO, UNIT_NONE, 1, 64, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/sun_mode", "", F_AUTO, UNIT_NONE, 1, 128, false, false, false }
 };
 
@@ -483,7 +486,11 @@ rec_cache_t rec_cache[] = {
     { 0, TAG_EMS_REQ_SET_BATTERY_BEFORE_CAR_MODE, "set/wallbox/charge_battery_before_car", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
     { 0, TAG_EMS_REQ_SET_WB_DISCHARGE_BAT_UNTIL, "set/wallbox/discharge_battery_until", PAYLOAD_REGEX_2_DIGIT, "", "", "", "", UNIT_PERCENT, RSCP::eTypeUChar8, -1, false, true },
     { 0, TAG_EMS_REQ_SET_WALLBOX_ENFORCE_POWER_ASSIGNMENT, "set/wallbox/disable_battery_at_mix_mode", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/control", "^solar:[0-9]{1,2}$|^mix:[0-9]{1,2}$|^stop$", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/control", "^solar:[0-9]{1,2}$|^mix:[0-9]{1,2}$|^stop$", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true }, // deprecated
+    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/sun_mode", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/toggle", "^true|on|1$", "1", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/charge", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/max_current", "^[0-9]{1,2}$", "", "", "", "", UNIT_A, RSCP::eTypeBool, -1, false, true },
     { TAG_WB_REQ_DATA, TAG_WB_REQ_SET_NUMBER_PHASES, "set/wallbox/number_phases", "^1|3$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
     { 0, 0, "set/requests/pm", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
     { 0, 0, "set/requests/pvi", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },

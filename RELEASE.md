@@ -1,5 +1,13 @@
 ## Release Notes
 
+### Release v3.21 (28.04.2024)
+
+Features:
+- Issue #62: Daily wallbox energy values
+- Issue #63: New wallbox control commands for charging, sun/mix mode and max_current
+- Updated RscpTags.h
+- Logging with tag names instead of hex numbers
+
 ### Release v3.20 (20.04.2024)
 
 Bug fixes:
