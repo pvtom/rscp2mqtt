@@ -21,7 +21,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "v3.21"
+#define RSCP2MQTT_VERSION       "v3.22"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -1485,7 +1485,6 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
             protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ENERGY_L1);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ENERGY_L2);
             protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ENERGY_L3);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_AVAILABLE_SOLAR_POWER);
             protocol.appendValue(&rootValue, WBContainer);
             protocol.destroyValueData(WBContainer);
         }
@@ -1651,8 +1650,8 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                             sun_mode = getIntegerValue(RSCP_MQTT::RscpMqttCache, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2) & 128;
                             max_current = getIntegerValue(RSCP_MQTT::RscpMqttCache, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 3);
                         }
+                        for (size_t i = 0; i < sizeof(wallboxExt); ++i) wallboxExt[i] = 0;
                         if (strstr(it->topic, "control")) { // deprecated
-                            for (size_t i = 0; i < sizeof(wallboxExt); ++i) wallboxExt[i] = 0;
                             if (sscanf(it->payload, "solar:%d", (int*)&wallboxExt[1]) == 1) {
                                 sun_mode = 1;
                             } else if (sscanf(it->payload, "mix:%d", (int*)&wallboxExt[1]) == 1) {
@@ -1664,9 +1663,9 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                             }
                         } else if (strstr(it->topic, "toggle")) {
                             wallboxExt[4] = 1;
-                        } else if (strstr(it->topic, "charge")) {
-                            int charging = getIntegerValue(RSCP_MQTT::RscpMqttCache, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2) & 32;
-                            if ((!charging && !strcmp(it->payload, "1")) || (charging && !strcmp(it->payload, "0"))) {
+                        } else if (strstr(it->topic, "suspended")) {
+                            int suspended = getIntegerValue(RSCP_MQTT::RscpMqttCache, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2) & 64;
+                            if ((!suspended && !strcmp(it->payload, "1")) || (suspended && !strcmp(it->payload, "0"))) {
                                 wallboxExt[4] = 1;
                             }
                         } else if (strstr(it->topic, "sun_mode")) {
@@ -1677,7 +1676,7 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                         wallboxExt[0] = sun_mode?1:2;
                         wallboxExt[1] = max_current;
 
-                        if (wallboxExt[1] < 0) wallboxExt[1] = 0; else if (wallboxExt[1] > 32) wallboxExt[1] = 32; // max 32A
+                        if (wallboxExt[1] < 1) wallboxExt[1] = 1; else if (wallboxExt[1] > 32) wallboxExt[1] = 32; // max 32A
                         SRscpValue WBExtContainer;
                         protocol.createContainerValue(&WBExtContainer, TAG_WB_REQ_SET_EXTERN);
                         protocol.appendValue(&WBExtContainer, TAG_WB_EXTERN_DATA_LEN, sizeof(wallboxExt));

@@ -442,7 +442,6 @@ cache_t templates[] = {
     { TAG_WB_DATA, TAG_WB_PM_POWER_L1, 0, "wallbox/power/L1", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
     { TAG_WB_DATA, TAG_WB_PM_POWER_L2, 0, "wallbox/power/L2", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
     { TAG_WB_DATA, TAG_WB_PM_POWER_L3, 0, "wallbox/power/L3", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_AVAILABLE_SOLAR_POWER, 0, "wallbox/available_solar_power", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 3, "wallbox/max_current", "", F_AUTO, UNIT_A, 1, 0, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/plugged", "", F_AUTO, UNIT_NONE, 1, 8, false, false, false },
@@ -489,7 +488,7 @@ rec_cache_t rec_cache[] = {
     { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/control", "^solar:[0-9]{1,2}$|^mix:[0-9]{1,2}$|^stop$", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true }, // deprecated
     { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/sun_mode", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
     { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/toggle", "^true|on|1$", "1", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/charge", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/suspended", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
     { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/max_current", "^[0-9]{1,2}$", "", "", "", "", UNIT_A, RSCP::eTypeBool, -1, false, true },
     { TAG_WB_REQ_DATA, TAG_WB_REQ_SET_NUMBER_PHASES, "set/wallbox/number_phases", "^1|3$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
     { 0, 0, "set/requests/pm", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },

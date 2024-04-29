@@ -1,5 +1,9 @@
 ## Release Notes
 
+### Release v3.22 (29.04.2024)
+
+- Issue #63: e3dc/set/wallbox/charge is renamed to e3dc/set/wallbox/suspended
+
 ### Release v3.21 (28.04.2024)
 
 Features:

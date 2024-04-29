@@ -15,12 +15,11 @@ The following topics are sent to the MQTT broker:
 
 | Device / Tag | MQTT Topic | Values / [Unit] |
 | --- | --- | --- |
-| Wallbox Available Solar Power | wallbox/available_solar_power | [W] |
 | Wallbox Battery | e3dc/wallbox/charge_battery_before_car | (true/false) |
 | Wallbox Battery | e3dc/wallbox/discharge_battery_to_car | (true/false) |
 | Wallbox Battery | e3dc/wallbox/discharge_battery_until | [%] |
 | Wallbox Battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
-| Wallbox Canceled | e3dc/wallbox/canceled | (true/false) |
+| Wallbox Suspended | e3dc/wallbox/suspended | (true/false) |
 | Wallbox Charging | e3dc/wallbox/charging | (true/false) |
 | Wallbox Current | e3dc/wallbox/max_current | [A] |
 | Wallbox Energy L1 | e3dc/wallbox/energy/L1 | [Wh] |
@@ -66,17 +65,17 @@ Sun Mode (true/1/false/0)
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/sun_mode" -m true
 ```
 
-Switch charging on/off (true/1/false/0)
+Suspend charging (true/1/false/0)
 ```
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/charge" -m true
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/suspended" -m true
 ```
 
-Switching between charging and not charging
+Toggle suspend charging
 ```
 mosquitto_pub -h localhost -p 1883 -t"e3dc/set/wallbox/toggle" -m 1
 ```
 
-Set max current (0..32 A)
+Set max current (1..32 A)
 ```
 mosquitto_pub -h localhost -p 1883 -t"e3dc/set/wallbox/max_current" -m 16
 ```

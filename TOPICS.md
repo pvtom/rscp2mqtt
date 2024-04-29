@@ -217,12 +217,11 @@ All topics are listed with the default prefix "e3dc".
 | Software Release | e3dc/system/software | "S10_XXXX_XXX" |
 | Solar Energy | e3dc/solar/energy | [kWh] |
 | Time Zone | e3dc/time/zone | "Europe/City" |
-| Wallbox Available Solar Power | wallbox/available_solar_power | [W] |
 | Wallbox Battery | e3dc/wallbox/charge_battery_before_car | (true/false) |
 | Wallbox Battery | e3dc/wallbox/discharge_battery_to_car | (true/false) |
 | Wallbox Battery | e3dc/wallbox/discharge_battery_until | [%] |
 | Wallbox Battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
-| Wallbox Canceled | e3dc/wallbox/canceled | (true/false) |
+| Wallbox Suspended | e3dc/wallbox/suspended | (true/false) |
 | Wallbox Charging | e3dc/wallbox/charging | (true/false) |
 | Wallbox Current | e3dc/wallbox/max_current | [A] |
 | Wallbox Energy L1 | e3dc/wallbox/energy/L1 | [Wh] |
@@ -323,9 +322,13 @@ Please find detailled information and examples in the [README](README.md).
 | Control the power management (charge from grid in [W], number of cycles)  | e3dc/set/power_mode | "grid_charge:2000:60" |
 | Wallbox | | |
 | Set the active wallbox by index (0..7) | e3dc/set/wallbox/index | (0..7) |
-| Set solar mode with the current in [A] | e3dc/set/wallbox/control | "solar:16" |
-| Set mix mode with the current in [A] | e3dc/set/wallbox/control | "mix:8" |
-| Stop charging | e3dc/set/wallbox/control | "stop" |
+| Set sun mode | e3dc/set/wallbox/sun_mode | (true/false) |
+| Set max current | e3dc/set/wallbox/max_current in [A] | (1..32) |
+| Suspend charging | e3dc/set/wallbox/suspended | (true/false) |
+| Toggle suspend charging | e3dc/set/wallbox/toggle | true |
+| (deprecated) Set solar mode with the current in [A] | e3dc/set/wallbox/control | "solar:16" |
+| (deprecated) Set mix mode with the current in [A] | e3dc/set/wallbox/control | "mix:8" |
+| (deprecated) Stop charging | e3dc/set/wallbox/control | "stop" |
 | Set battery to car mode | e3dc/set/wallbox/discharge_battery_to_car | (true/false) |
 | Set battery before car mode | e3dc/set/wallbox/charge_battery_before_car | (true/false) |
 | Set battery discharge until [%] | e3dc/set/wallbox/discharge_battery_until | [%] |
@@ -345,3 +348,5 @@ Please find detailled information and examples in the [README](README.md).
 | Enable SOC limiter | e3dc/set/soc_limiter | (true/false) |
 | Enable daily historical values | e3dc/set/daily_values | (true/false) |
 | Enable statistic values | e3dc/set/statistic_values | (true/false) |
+
+Instead of the values "true" or "false", you can also use "1" or "0".
