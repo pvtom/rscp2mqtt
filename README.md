@@ -126,6 +126,14 @@ Find InfluxDB configurations in [InfluxDB](INFLUXDB.md).
 
 The parameter FORCE_PUB can occur several times. You can use it to define topics that will be published in each cycle, even if the values do not change. To check the definition, look at the log output after the program start.
 
+Logging can be configured for messages that the home power station output in response to a request.
+Messages are collected including a counter for the number of occurrences.
+The errors will be logged in a bundle at midnight, at the end of the program or by querying with e3dc/set/log/errors.
+This reduces the number of error messages.
+To do this, set in the .config file: `LOG_MODE=BUFFERED`.
+You can also switch off the logging of such messages completely with `LOG_MODE=OFF`.
+If every event is to be logged: `LOG_MODE=ON`.
+
 ## Program start
 
 Start the program:
@@ -144,7 +152,7 @@ or to show the help page
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [v3.22]
+rscp2mqtt [3.23]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
 MQTT broker >localhost:1883< qos = >0< retain = >false< client id >✗< prefix >e3dc<
 Fetching data every second.
@@ -152,11 +160,11 @@ Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox (0) ✗ | Aut
 Log level = 0
 Stdout to terminal
 
-[2024-04-29 19:00:00] pid=30220 ppid=1 RscpMqttMain.cpp(2804) Connecting to server 192.168.178.111:5033
-[2024-04-29 19:00:00] pid=30220 ppid=1 RscpMqttMain.cpp(2811) Success: E3DC connected.
-[2024-04-29 19:00:00] pid=30220 ppid=1 RscpMqttMain.cpp(1790) RSCP authentication level 10
-[2024-04-29 19:00:00] pid=30220 ppid=1 RscpMqttMain.cpp(2324) Connecting to broker localhost:1883
-[2024-04-29 19:00:00] pid=30220 ppid=1 RscpMqttMain.cpp(2336) Success: MQTT broker connected.
+[2024-05-12 19:00:00] pid=30230 ppid=1 RscpMqttMain.cpp(2952) Connecting to server 192.168.178.111:5033
+[2024-05-12 19:00:00] pid=30230 ppid=1 RscpMqttMain.cpp(2959) Success: E3DC connected.
+[2024-05-12 19:00:00] pid=30230 ppid=1 RscpMqttMain.cpp(1896) RSCP authentication level 10
+[2024-05-12 19:00:00] pid=30230 ppid=1 RscpMqttMain.cpp(2428) Connecting to broker localhost:1883
+[2024-05-12 19:00:00] pid=30230 ppid=1 RscpMqttMain.cpp(2440) Success: MQTT broker connected.
 ```
 
 Check the configuration if the connections are not established.
@@ -374,7 +382,11 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/force" -m "e3dc/history/2021.*"
 ```
 Log all topics and payloads to the log file
 ```
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/log" -m 1
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/log/cache" -m 1
+```
+Log collected error messages to the log file
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/log/errors" -m 1
 ```
 Set a new refresh interval (1..300 seconds)
 ```

@@ -12,7 +12,7 @@ typedef struct _tag_overview_t {
 } tag_overview_t;
 
 tag_overview_t tag_overview[] = {
-    { 0, "TAG_ROOT_CONTAINER", 1 },
+    { 0, "0", 1 },
     { TAG_RSCP_REQ_AUTHENTICATION, "TAG_RSCP_REQ_AUTHENTICATION", 1 },
     { TAG_RSCP_AUTHENTICATION_USER, "TAG_RSCP_AUTHENTICATION_USER", 0 },
     { TAG_RSCP_AUTHENTICATION_PASSWORD, "TAG_RSCP_AUTHENTICATION_PASSWORD", 0 },
@@ -3585,6 +3585,7 @@ typedef struct _rscp_err_codes_t {
 } rscp_err_codes_t;
 
 rscp_err_codes_t rscp_err_codes[] = {
+    { 0x00, "UNKNOWN" },
     { RSCP_ERR_NOT_HANDLED, "NOT_HANDLED" },
     { RSCP_ERR_ACCESS_DENIED, "ACCESS_DENIED" },
     { RSCP_ERR_FORMAT, "FORMAT_ERROR" },

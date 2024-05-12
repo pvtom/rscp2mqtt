@@ -1,5 +1,16 @@
 ## Release Notes
 
+### Release v3.23 (12.05.2024)
+
+Bug fixes:
+- Issue #62: Wallbox daily energy values are negative in some cases
+- Issue #67: Program crash after several hours
+
+Features:
+- Issue #64: Provide program version as topic e3dc/rscp2mqtt/version
+- Issue #68: 1/0 instead of true/false
+- Buffered logging (LOG_MODE)
+
 ### Release v3.22 (29.04.2024)
 
 - Issue #63: e3dc/set/wallbox/charge is renamed to e3dc/set/wallbox/suspended

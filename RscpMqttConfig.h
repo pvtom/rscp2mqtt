@@ -64,6 +64,8 @@ typedef struct _config_t {
 #endif
     bool auto_refresh;
     bool store_setup;
+    char true_value[5];
+    char false_value[6];
 } config_t;
 
 #endif

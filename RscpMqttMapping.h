@@ -10,6 +10,7 @@
 #define UNIT_SIZE         8
 #define SOURCE_SIZE       15
 #define REGEX_SIZE        160
+#define MESSAGE_SIZE      255
 
 #define PAYLOAD_REGEX_0_100        "(^[0-9]{1,2}|100$)"
 #define PAYLOAD_REGEX_2_DIGIT      "(^[0-9]{1,2}$)"
@@ -108,6 +109,17 @@ typedef struct _not_supported_tags_t {
 } not_supported_tags_t;
 
 std::vector<not_supported_tags_t> NotSupportedTags;
+
+typedef struct _message_cache_t {
+    int type;
+    uint32_t container;
+    uint32_t tag;
+    char message[MESSAGE_SIZE];
+    int error;
+    uint32_t count;
+} message_cache_t;
+
+std::vector<message_cache_t> MessageCache;
 
 typedef struct _date_t {
     int day;
@@ -503,6 +515,8 @@ rec_cache_t rec_cache[] = {
     { 0, 0, "set/limit/discharge/durable", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
     { 0, 0, "set/limit/discharge/by_home_power", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
     { 0, 0, "set/log", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, "set/log/cache", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, "set/log/errors", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
     { 0, 0, "set/health", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
     { 0, 0, "set/force", "[a-zA-z0-9/_.*]*", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
     { 0, 0, "set/interval", "^[1-9]|[1-9][0-9]|[1-2][0-9][0-9]|300$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },

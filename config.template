@@ -23,8 +23,11 @@ MQTT_PASSWORD=
 #-System
 #--cycle interval in seconds (max 300 seconds)
 INTERVAL=1
-#--log level, set "1" to get detailled logging
-LOG_LEVEL=0
+#--log mode defines the handling of errors/messages that are returned in response to a tag request
+#--OFF: no logs, ON: error is logged immediately when it occurs, BUFFERED: errors are buffered and printed at midnight, at the end of the program or by a /set/log/errors request
+#LOG_MODE=OFF
+#LOG_MODE=ON
+LOG_MODE=BUFFERED
 #--log files
 LOGFILE=/tmp/rscp2mqtt.log
 TOPIC_LOG_FILE=/tmp/rscp2mqtt.history
@@ -44,6 +47,10 @@ RETAIN_FOR_SETUP=true
 #-MQTT Topics
 #--Topic prefix (max 24 characters), default is e3dc
 PREFIX=e3dc
+
+#-MQTT Payload
+#--Boolean values true/false or 1/0
+USE_TRUE_FALSE=true
 
 #-Power Meter
 #--PM_INDEX can be set multiple times if several power meters exist, default is 0

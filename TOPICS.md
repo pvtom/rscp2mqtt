@@ -217,6 +217,9 @@ All topics are listed with the default prefix "e3dc".
 | Software Release | e3dc/system/software | "S10_XXXX_XXX" |
 | Solar Energy | e3dc/solar/energy | [kWh] |
 | Time Zone | e3dc/time/zone | "Europe/City" |
+| Program Status | e3dc/rscp2mqtt/status | "connected" |
+| Program Version | e3dc/rscp2mqtt/long_version | "3.23.influxdb" |
+| Program Version | e3dc/rscp2mqtt/version | "3.23" |
 | Wallbox Battery | e3dc/wallbox/charge_battery_before_car | (true/false) |
 | Wallbox Battery | e3dc/wallbox/discharge_battery_to_car | (true/false) |
 | Wallbox Battery | e3dc/wallbox/discharge_battery_until | [%] |
@@ -293,6 +296,8 @@ Energy topics are collected for today, yesterday and the current week, month, ye
 
 ****) The value is required to be able to calculate the daily value. To ensure that the value survives a restart, set RETAIN_FOR_SETUP=true in .config.
 
+The boolean values "true" and "false" are saved in the InfluxDB as "1" and "0". By setting the configuration parameter `USE_TRUE_FALSE=false`, this behavior can also be set for the MQTT payload.
+
 ### Writeable Topics
 
 Please find detailled information and examples in the [README](README.md).
@@ -339,7 +344,8 @@ Please find detailled information and examples in the [README](README.md).
 | Settings and others | | |
 | Refresh all topics | e3dc/set/force | 1 |
 | Refresh specific topics | e3dc/set/force | "e3dc/history/2021.*" |
-| Log all topics and payloads to the log file | e3dc/set/log | 1 |
+| Log all topics and payloads to the log file | e3dc/set/log/cache | 1 |
+| Log collected error messages to the log file | e3dc/set/log/errors | 1 |
 | Log internal stuff to the log file | e3dc/set/health | 1 |
 | Set refresh interval [sec] | e3dc/set/interval | (1-300) |
 | Enable PM requests | e3dc/set/requests/pm | (true/false) |
