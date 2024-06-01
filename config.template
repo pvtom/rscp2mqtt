@@ -19,6 +19,13 @@ MQTT_RETAIN=false
 MQTT_AUTH=false
 MQTT_USER=
 MQTT_PASSWORD=
+#--MQTT TLS configuration
+MQTT_TLS=false
+MQTT_TLS_CAFILE=
+MQTT_TLS_CAPATH=
+MQTT_TLS_CERTFILE=
+MQTT_TLS_KEYFILE=
+MQTT_TLS_PASSWORD=
 
 #-System
 #--cycle interval in seconds (max 300 seconds)
@@ -105,6 +112,13 @@ INFLUXDB_MEASUREMENT=e3dc
 INFLUXDB_MEASUREMENT_META=e3dc_meta
 INFLUXDB_TOPIC=e3dc/[a-z]+/power
 INFLUXDB_TOPIC=e3dc/day/.*
+#--TLS encryption
+CURL_HTTPS=false
+CURL_OPT_SSL_VERIFYPEER=true
+CURL_OPT_SSL_VERIFYHOST=true
+CURL_OPT_CAINFO=
+CURL_OPT_SSLCERT=
+CURL_OPT_SSLKEY=
 
 #-InfluxDB v1
 #--if compiled with InfluxDB option

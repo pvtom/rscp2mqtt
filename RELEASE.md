@@ -1,5 +1,14 @@
 ## Release Notes
 
+### Release v3.24 (01.06.2024)
+
+Bug fixes:
+- Prevention of a program crash when reconnecting to the MQTT broker
+
+Features:
+- MQTT with TLS support
+- InfluxDB with https
+
 ### Release v3.23 (12.05.2024)
 
 Bug fixes:

@@ -63,3 +63,17 @@ INFLUXDB_2_TOKEN=<my_token>
 ```
 
 Please use the web admin tool of the InfluxDB v2.x to configure the bucket, the orga and the token.
+
+### TLS encryption
+
+rscp2mqtt uses the library libcurl for the connection to InfluxDB. To establish a TLS connection, please use the following configuration parameters.
+```
+CURL_HTTPS=true
+CURL_OPT_SSL_VERIFYPEER=true
+CURL_OPT_SSL_VERIFYHOST=true
+CURL_OPT_CAINFO=
+CURL_OPT_SSLCERT=
+CURL_OPT_SSLKEY=
+```
+
+For the configuration of the database look at the official InfluxDB documentation.

@@ -16,6 +16,12 @@ typedef struct _config_t {
     char mqtt_user[128];
     char mqtt_password[128];
     bool mqtt_auth;
+    char *mqtt_tls_cafile;
+    char *mqtt_tls_capath;
+    char *mqtt_tls_certfile;
+    char *mqtt_tls_keyfile;
+    char *mqtt_tls_password;
+    bool mqtt_tls;
     int mqtt_qos;
     bool mqtt_retain;
     char mqtt_client_id[128];
@@ -32,6 +38,13 @@ typedef struct _config_t {
     char influxdb_orga[128];
     char influxdb_bucket[128];
     char influxdb_token[128];
+    bool curl_https;
+    char *curl_protocol;
+    bool curl_opt_ssl_verifypeer;
+    bool curl_opt_ssl_verifyhost;
+    char *curl_opt_cainfo;
+    char *curl_opt_sslcert;
+    char *curl_opt_sslkey;
 #endif
     char prefix[25];
     int history_start_year;

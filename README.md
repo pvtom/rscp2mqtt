@@ -46,6 +46,7 @@ For continuous provision of values, you can configure several topics that are pu
 - Query of historical daily values
 - Multiple power meters
 - Switch between wallboxes
+- TLS connections ([MQTT broker](MQTT_TLS.md), InfluxDB)
 
 Please also take a look at the [release notes](RELEASE.md).
 
@@ -152,19 +153,19 @@ or to show the help page
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [3.23]
+rscp2mqtt [3.24]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
-MQTT broker >localhost:1883< qos = >0< retain = >false< client id >✗< prefix >e3dc<
+MQTT broker >localhost:1883< qos = >0< retain = >false< tls >✗< client id >✗< prefix >e3dc<
 Fetching data every second.
 Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox (0) ✗ | Autorefresh ✓
-Log level = 0
+Log Level = 2 (BUFFERED)
 Stdout to terminal
 
-[2024-05-12 19:00:00] pid=30230 ppid=1 RscpMqttMain.cpp(2952) Connecting to server 192.168.178.111:5033
-[2024-05-12 19:00:00] pid=30230 ppid=1 RscpMqttMain.cpp(2959) Success: E3DC connected.
-[2024-05-12 19:00:00] pid=30230 ppid=1 RscpMqttMain.cpp(1896) RSCP authentication level 10
-[2024-05-12 19:00:00] pid=30230 ppid=1 RscpMqttMain.cpp(2428) Connecting to broker localhost:1883
-[2024-05-12 19:00:00] pid=30230 ppid=1 RscpMqttMain.cpp(2440) Success: MQTT broker connected.
+[2024-06-01 09:00:00] pid=30240 ppid=1 RscpMqttMain.cpp(3022) Connecting to server 192.168.178.111:5033
+[2024-06-01 09:00:00] pid=30240 ppid=1 RscpMqttMain.cpp(3029) Success: E3DC connected.
+[2024-06-01 09:00:00] pid=30240 ppid=1 RscpMqttMain.cpp(1903) RSCP authentication level 10
+[2024-06-01 09:00:00] pid=30240 ppid=1 RscpMqttMain.cpp(2435) Connecting to broker localhost:1883
+[2024-06-01 09:00:00] pid=30240 ppid=1 RscpMqttMain.cpp(2456) Success: MQTT broker connected.
 ```
 
 Check the configuration if the connections are not established.
