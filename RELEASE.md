@@ -1,5 +1,10 @@
 ## Release Notes
 
+### Release v3.25 (08.06.2024)
+
+Features:
+- Issue #74: Min. Charge/Discharge Limit
+
 ### Release v3.24 (01.06.2024)
 
 Bug fixes:

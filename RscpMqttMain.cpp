@@ -21,7 +21,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "3.24"
+#define RSCP2MQTT_VERSION       "3.25"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32

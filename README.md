@@ -153,7 +153,7 @@ or to show the help page
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [3.24]
+rscp2mqtt [3.25]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
 MQTT broker >localhost:1883< qos = >0< retain = >false< tls >✗< client id >✗< prefix >e3dc<
 Fetching data every second.
@@ -161,11 +161,11 @@ Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox (0) ✗ | Aut
 Log Level = 2 (BUFFERED)
 Stdout to terminal
 
-[2024-06-01 09:00:00] pid=30240 ppid=1 RscpMqttMain.cpp(3022) Connecting to server 192.168.178.111:5033
-[2024-06-01 09:00:00] pid=30240 ppid=1 RscpMqttMain.cpp(3029) Success: E3DC connected.
-[2024-06-01 09:00:00] pid=30240 ppid=1 RscpMqttMain.cpp(1903) RSCP authentication level 10
-[2024-06-01 09:00:00] pid=30240 ppid=1 RscpMqttMain.cpp(2435) Connecting to broker localhost:1883
-[2024-06-01 09:00:00] pid=30240 ppid=1 RscpMqttMain.cpp(2456) Success: MQTT broker connected.
+[2024-06-08 08:00:00] pid=30250 ppid=1 RscpMqttMain.cpp(3022) Connecting to server 192.168.178.111:5033
+[2024-06-08 08:00:00] pid=30250 ppid=1 RscpMqttMain.cpp(3029) Success: E3DC connected.
+[2024-06-08 08:00:00] pid=30250 ppid=1 RscpMqttMain.cpp(1903) RSCP authentication level 10
+[2024-06-08 08:00:00] pid=30250 ppid=1 RscpMqttMain.cpp(2435) Connecting to broker localhost:1883
+[2024-06-08 08:00:00] pid=30250 ppid=1 RscpMqttMain.cpp(2456) Success: MQTT broker connected.
 ```
 
 Check the configuration if the connections are not established.
@@ -238,6 +238,7 @@ Set the charging and discharging power limits in [W]
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/max_charge_power" -m 2300
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/max_discharge_power" -m 4500
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/discharge_start_power" -m 65
 ```
 
 ### Idle Periods

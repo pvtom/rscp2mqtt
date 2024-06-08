@@ -309,6 +309,7 @@ Please find detailled information and examples in the [README](README.md).
 | Set limits for battery charging and discharging | e3dc/set/power_limits | (true/false) |
 |  - set the charging and discharging power limits | e3dc/set/max_charge_power | [W] |
 |  - set the charging and discharging power limits | e3dc/set/max_discharge_power | [W] |
+|  - set the charging and discharging power limits | e3dc/set/discharge_start_power | [W] |
 | Set idle periods to lock battery charging or discharging | e3dc/set/idle_period | "day:mode:active:hh:mi-hh:mi", e.g. "sunday:charge:true:00:00-23:59" |
 | SOC Limiter | | |
 | Limit discharging of the house battery to SOC | e3dc/set/limit/discharge/soc | (0-100) |
