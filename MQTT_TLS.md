@@ -13,7 +13,7 @@ MQTT_TLS_CERTFILE=/home/pi/client.crt
 MQTT_TLS_KEYFILE=/home/pi/client.key
 ```
 
-### Certificates and broker configuration
+### Certificates and Broker Configuration
 
 Please follow these commands to create an example environment on your computer with a running Mosquitto broker:
 
@@ -53,7 +53,7 @@ openssl x509 -req -in client.csr -CA /etc/mosquitto/ca_certificates/ca.crt -CAke
 chmod a+r *
 ```
 
-### Broker configuration
+### Broker Configuration
 ```
 cd /etc/mosquitto/conf.d
 
@@ -74,7 +74,7 @@ Restart the MQTT broker
 systemctl restart mosquitto.service
 ```
 
-### Prepare client 
+### Prepare Client 
 
 Copy client key and certificate
 ```

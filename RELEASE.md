@@ -1,5 +1,16 @@
 ## Release Notes
 
+### Release v3.26 (14.07.2024)
+
+Features:
+- Issue #76: Multiple wallboxes
+- Additional tags and topics by configuration
+- Raw data mode
+- Deletion of deprecated wallbox commands (e3dc/set/wallbox/control)
+
+Pull request:
+- #78 (build workflow)
+
 ### Release v3.25 (08.06.2024)
 
 Features:

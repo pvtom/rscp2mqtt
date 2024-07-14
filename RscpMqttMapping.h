@@ -57,17 +57,16 @@
 #define IDX_BATTERY_SOC_MAX                13
 #define IDX_GRID_IN_DURATION               14
 #define IDX_SUN_DURATION                   15
-#define IDX_WALLBOX_INDEX                  16
-#define IDX_WALLBOX_DAY_ENERGY_ALL         17
-#define IDX_WALLBOX_DAY_ENERGY_SOLAR       18
-#define IDX_WALLBOX_ENERGY_ALL_START       19
-#define IDX_WALLBOX_ENERGY_SOLAR_START     20
-#define IDX_WALLBOX_LAST_ENERGY_ALL        21
-#define IDX_WALLBOX_LAST_ENERGY_SOLAR      22
 #define IDX_PM_POWER                       100
 #define IDX_PM_ENERGY                      200
 #define IDX_PVI_ENERGY                     300
 #define IDX_PVI_ENERGY_START               400
+#define IDX_WALLBOX_DAY_ENERGY_ALL         500
+#define IDX_WALLBOX_DAY_ENERGY_SOLAR       510
+#define IDX_WALLBOX_ENERGY_ALL_START       520
+#define IDX_WALLBOX_ENERGY_SOLAR_START     530
+#define IDX_WALLBOX_LAST_ENERGY_ALL        540
+#define IDX_WALLBOX_LAST_ENERGY_SOLAR      550
 
 namespace RSCP_MQTT {
 
@@ -110,6 +109,22 @@ typedef struct _not_supported_tags_t {
 
 std::vector<not_supported_tags_t> NotSupportedTags;
 
+typedef struct _additional_tags_t {
+    uint32_t req_container;
+    uint32_t req_tag;
+    int order;
+    int req_index;
+    bool one_shot;
+} additional_tags_t;
+
+std::vector<additional_tags_t> AdditionalTags;
+
+bool compareAdditionalTags(RSCP_MQTT::additional_tags_t c1, RSCP_MQTT::additional_tags_t c2) {
+    if (c1.req_container < c2.req_container) return(true);
+    if ((c1.req_container == c2.req_container) && (c1.order < c2.order)) return(true);
+    return(false);
+}
+
 typedef struct _message_cache_t {
     int type;
     uint32_t container;
@@ -136,6 +151,7 @@ typedef struct _mqtt_data_t {
 } mqtt_data_t;
 
 std::queue<mqtt_data_t> mqttQ;
+std::vector<mqtt_data_t> rawData;
 
 typedef struct _cache_t {
     uint32_t container;
@@ -170,13 +186,6 @@ cache_t cache[] = {
     { 0, 0, IDX_BATTERY_SOC_MAX, "battery/soc_max", "", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
     { 0, 0, IDX_GRID_IN_DURATION, "grid_in_limit_duration", "", F_AUTO, UNIT_MIN, 1, 0, false, false, false },
     { 0, 0, IDX_SUN_DURATION, "sunshine_duration", "", F_AUTO, UNIT_MIN, 1, 0, false, false, false },
-    { 0, 0, IDX_WALLBOX_INDEX, "wallbox/index", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { 0, 0, IDX_WALLBOX_DAY_ENERGY_ALL, "wallbox/energy/day/total", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
-    { 0, 0, IDX_WALLBOX_DAY_ENERGY_SOLAR, "wallbox/energy/day/solar", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
-    { 0, 0, IDX_WALLBOX_ENERGY_ALL_START, "wallbox/energy_start/total", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
-    { 0, 0, IDX_WALLBOX_ENERGY_SOLAR_START, "wallbox/energy_start/solar", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
-    { 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL, "wallbox/energy/last_charging/total", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
-    { 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR, "wallbox/energy/last_charging/solar", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
     { 0, TAG_INFO_SW_RELEASE, 0, "system/software", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_INFO_PRODUCTION_DATE, 0, "system/production_date", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
     { 0, TAG_INFO_SERIAL_NUMBER, 0, "system/serial_number", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
@@ -440,27 +449,34 @@ cache_t templates[] = {
     { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "%s/active_phases/L2", "", F_AUTO, UNIT_NONE, 1, 2, false, false, false },
     { TAG_PM_DATA, TAG_PM_ACTIVE_PHASES, 0, "%s/active_phases/L3", "", F_AUTO, UNIT_NONE, 1, 4, false, false, false },
     // WALLBOX
-    { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "wallbox/phases/L1", "", F_AUTO, UNIT_NONE, 1, 1, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "wallbox/phases/L2", "", F_AUTO, UNIT_NONE, 1, 2, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "wallbox/phases/L3", "", F_AUTO, UNIT_NONE, 1, 4, false, false, false },
-    { TAG_WB_DATA, TAG_WB_NUMBER_PHASES, 0, "wallbox/number_phases", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_SOC, 0, "wallbox/soc", "", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_KEY_STATE, 0, "wallbox/key_state", "", F_AUTO, UNIT_NONE, 1, 1, false, false, false },
-    { TAG_WB_DATA, TAG_WB_ENERGY_ALL, 0, "wallbox/energy/total", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, 0, "wallbox/energy/solar", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L1, 0, "wallbox/energy/L1", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L2, 0, "wallbox/energy/L2", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L3, 0, "wallbox/energy/L3", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_POWER_L1, 0, "wallbox/power/L1", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_POWER_L2, 0, "wallbox/power/L2", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
-    { TAG_WB_DATA, TAG_WB_PM_POWER_L3, 0, "wallbox/power/L3", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
-    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 3, "wallbox/max_current", "", F_AUTO, UNIT_A, 1, 0, false, false, false },
-    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
-    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/plugged", "", F_AUTO, UNIT_NONE, 1, 8, false, false, false },
-    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/locked", "", F_AUTO, UNIT_NONE, 1, 16, false, false, false },
-    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/charging", "", F_AUTO, UNIT_NONE, 1, 32, false, false, false },
-    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/suspended", "", F_AUTO, UNIT_NONE, 1, 64, false, false, false },
-    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "wallbox/sun_mode", "", F_AUTO, UNIT_NONE, 1, 128, false, false, false }
+    { 0, 0, IDX_WALLBOX_DAY_ENERGY_ALL, "%s/energy/day/total", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
+    { 0, 0, IDX_WALLBOX_DAY_ENERGY_SOLAR, "%s/energy/day/solar", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
+    { 0, 0, IDX_WALLBOX_ENERGY_ALL_START, "%s/energy_start/total", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
+    { 0, 0, IDX_WALLBOX_ENERGY_SOLAR_START, "%s/energy_start/solar", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
+    { 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL, "%s/energy/last_charging/total", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
+    { 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR, "%s/energy/last_charging/solar", "", F_AUTO, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_INDEX, 0, "%s/index", "", F_AUTO, UNIT_NONE, 1, 1, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "%s/phases/L1", "", F_AUTO, UNIT_NONE, 1, 1, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "%s/phases/L2", "", F_AUTO, UNIT_NONE, 1, 2, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "%s/phases/L3", "", F_AUTO, UNIT_NONE, 1, 4, false, false, false },
+    { TAG_WB_DATA, TAG_WB_NUMBER_PHASES, 0, "%s/number_phases", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_SOC, 0, "%s/soc", "", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_KEY_STATE, 0, "%s/key_state", "", F_AUTO, UNIT_NONE, 1, 1, false, false, false },
+    { TAG_WB_DATA, TAG_WB_ENERGY_ALL, 0, "%s/energy/total", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, 0, "%s/energy/solar", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L1, 0, "%s/energy/L1", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L2, 0, "%s/energy/L2", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_ENERGY_L3, 0, "%s/energy/L3", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_POWER_L1, 0, "%s/power/L1", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_POWER_L2, 0, "%s/power/L2", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_PM_POWER_L3, 0, "%s/power/L3", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false },
+    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 3, "%s/max_current", "", F_AUTO, UNIT_A, 1, 0, false, false, false },
+    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "%s/status", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "%s/plugged", "", F_AUTO, UNIT_NONE, 1, 8, false, false, false },
+    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "%s/locked", "", F_AUTO, UNIT_NONE, 1, 16, false, false, false },
+    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "%s/charging", "", F_AUTO, UNIT_NONE, 1, 32, false, false, false },
+    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "%s/suspended", "", F_AUTO, UNIT_NONE, 1, 64, false, false, false },
+    { TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2, "%s/sun_mode", "", F_AUTO, UNIT_NONE, 1, 128, false, false, false }
 };
 
 std::vector<cache_t> RscpMqttCacheTempl(templates, templates + sizeof(templates) / sizeof(cache_t));
@@ -468,6 +484,7 @@ std::vector<cache_t> RscpMqttCacheTempl(templates, templates + sizeof(templates)
 typedef struct _rec_cache_t {
     uint32_t container;
     uint32_t tag;
+    int index;
     char topic[TOPIC_SIZE];
     char regex_true[REGEX_SIZE];
     char value_true[PAYLOAD_SIZE];
@@ -482,56 +499,56 @@ typedef struct _rec_cache_t {
 } rec_cache_t;
 
 rec_cache_t rec_cache[] = {
-    { 0, TAG_EMS_REQ_START_MANUAL_CHARGE, "set/manual_charge", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
-    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_WEATHER_REGULATED_CHARGE_ENABLED, "set/weather_regulation", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
-    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_POWER_LIMITS_USED, "set/power_limits", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_DISCHARGE_START_POWER, "set/discharge_start_power",  PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
-    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_DISCHARGE_START_POWER, "set/discharge_start/power",  PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
-    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_MAX_CHARGE_POWER, "set/max_charge_power", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
-    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_MAX_CHARGE_POWER, "set/max_charge/power", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
-    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_MAX_DISCHARGE_POWER, "set/max_discharge_power", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
-   { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_MAX_DISCHARGE_POWER, "set/max_discharge/power", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
-    { TAG_EMS_REQ_SET_POWER, TAG_EMS_REQ_SET_POWER_MODE, "power_mode: mode", "", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, 0, false, true },
-    { TAG_EMS_REQ_SET_POWER, TAG_EMS_REQ_SET_POWER_VALUE, "power_mode: value", "", "", "", "", "", UNIT_NONE, RSCP::eTypeInt32, 0, false, true },
-    { TAG_SE_REQ_SET_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE, "set/reserve/percent", PAYLOAD_REGEX_0_100, "", "", "", "", UNIT_PERCENT, RSCP::eTypeFloat32, -1, false, true },
-    { TAG_SE_REQ_SET_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE_W, "set/reserve/energy", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_WH, RSCP::eTypeFloat32, -1, false, true },
-    { 0, 0, "set/power_mode", "^auto$|^idle:[0-9]{1,4}$|^charge:[0-9]{1,5}:[0-9]{1,4}$|^discharge:[0-9]{1,5}:[0-9]{1,4}$|^grid_charge:[0-9]{1,5}:[0-9]{1,4}$", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { 0, 0, "set/idle_period", SET_IDLE_PERIOD_REGEX, "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { 0, TAG_EMS_REQ_SET_BATTERY_TO_CAR_MODE, "set/wallbox/discharge_battery_to_car", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
-    { 0, TAG_EMS_REQ_SET_BATTERY_BEFORE_CAR_MODE, "set/wallbox/charge_battery_before_car", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
-    { 0, TAG_EMS_REQ_SET_WB_DISCHARGE_BAT_UNTIL, "set/wallbox/discharge_battery_until", PAYLOAD_REGEX_2_DIGIT, "", "", "", "", UNIT_PERCENT, RSCP::eTypeUChar8, -1, false, true },
-    { 0, TAG_EMS_REQ_SET_WALLBOX_ENFORCE_POWER_ASSIGNMENT, "set/wallbox/disable_battery_at_mix_mode", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/control", "^solar:[0-9]{1,2}$|^mix:[0-9]{1,2}$|^stop$", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true }, // deprecated
-    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/sun_mode", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/toggle", "^true|on|1$", "1", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/suspended", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, "set/wallbox/max_current", "^[0-9]{1,2}$", "", "", "", "", UNIT_A, RSCP::eTypeBool, -1, false, true },
-    { TAG_WB_REQ_DATA, TAG_WB_REQ_SET_NUMBER_PHASES, "set/wallbox/number_phases", "^1|3$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
-    { 0, 0, "set/requests/pm", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { 0, 0, "set/requests/pvi", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { 0, 0, "set/requests/dcb", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { 0, 0, "set/soc_limiter", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { 0, 0, "set/statistic_values", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { 0, 0, "set/daily_values", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { 0, 0, "set/limit/charge/soc", PAYLOAD_REGEX_0_100, "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
-    { 0, 0, "set/limit/charge/durable", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
-    { 0, 0, "set/limit/discharge/soc", PAYLOAD_REGEX_0_100, "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
-    { 0, 0, "set/limit/discharge/durable", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
-    { 0, 0, "set/limit/discharge/by_home_power", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
-    { 0, 0, "set/log", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { 0, 0, "set/log/cache", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { 0, 0, "set/log/errors", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { 0, 0, "set/health", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { 0, 0, "set/force", "[a-zA-z0-9/_.*]*", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
-    { 0, 0, "set/interval", "^[1-9]|[1-9][0-9]|[1-2][0-9][0-9]|300$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
-    { 0, 0, "set/wallbox/index", "^[0-7]$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
-    { 0, 0, "set/request/day", "^[0-9]{4}-[0-1]?[0-9]-[0-3]?[0-9]$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, true, true }
+    { 0, TAG_EMS_REQ_START_MANUAL_CHARGE, 0, "set/manual_charge", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
+    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_WEATHER_REGULATED_CHARGE_ENABLED, 0, "set/weather_regulation", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_POWER_LIMITS_USED, 0, "set/power_limits", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_DISCHARGE_START_POWER, 0, "set/discharge_start/power",  PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
+    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_MAX_CHARGE_POWER, 0, "set/max_charge_power", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
+    { TAG_EMS_REQ_SET_POWER_SETTINGS, TAG_EMS_MAX_DISCHARGE_POWER, 0, "set/max_discharge/power", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
+    { TAG_EMS_REQ_SET_POWER, TAG_EMS_REQ_SET_POWER_MODE, 0, "power_mode: mode", "", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, 0, false, true },
+    { TAG_EMS_REQ_SET_POWER, TAG_EMS_REQ_SET_POWER_VALUE, 0, "power_mode: value", "", "", "", "", "", UNIT_NONE, RSCP::eTypeInt32, 0, false, true },
+    { TAG_SE_REQ_SET_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE, 0, "set/reserve/percent", PAYLOAD_REGEX_0_100, "", "", "", "", UNIT_PERCENT, RSCP::eTypeFloat32, -1, false, true },
+    { TAG_SE_REQ_SET_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE_W, 0, "set/reserve/energy", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_WH, RSCP::eTypeFloat32, -1, false, true },
+    { 0, 0, 0, "set/power_mode", "^auto$|^idle:[0-9]{1,4}$|^charge:[0-9]{1,5}:[0-9]{1,4}$|^discharge:[0-9]{1,5}:[0-9]{1,4}$|^grid_charge:[0-9]{1,5}:[0-9]{1,4}$", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, 0, "set/idle_period", SET_IDLE_PERIOD_REGEX, "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, TAG_EMS_REQ_SET_BATTERY_TO_CAR_MODE, 0, "set/wallbox/discharge_battery_to_car", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, TAG_EMS_REQ_SET_BATTERY_BEFORE_CAR_MODE, 0, "set/wallbox/charge_battery_before_car", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, TAG_EMS_REQ_SET_WB_DISCHARGE_BAT_UNTIL, 0, "set/wallbox/discharge_battery_until", PAYLOAD_REGEX_2_DIGIT, "", "", "", "", UNIT_PERCENT, RSCP::eTypeUChar8, -1, false, true },
+    { 0, TAG_EMS_REQ_SET_WALLBOX_ENFORCE_POWER_ASSIGNMENT, 0, "set/wallbox/disable_battery_at_mix_mode", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, 0, "set/wallbox/sun_mode", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, 0, "set/wallbox/toggle", "^true|on|1$", "1", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, 0, "set/wallbox/suspended", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, 0, "set/wallbox/max_current", "^[0-9]{1,2}$", "", "", "", "", UNIT_A, RSCP::eTypeUChar8, -1, false, true },
+    { TAG_WB_REQ_DATA, TAG_WB_REQ_SET_NUMBER_PHASES, 0, "set/wallbox/number_phases", "^1|3$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, 0, 0, "set/requests/pm", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, 0, "set/requests/pvi", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, 0, "set/requests/dcb", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, 0, "set/soc_limiter", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, 0, "set/statistic_values", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, 0, "set/daily_values", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, 0, "set/limit/charge/soc", PAYLOAD_REGEX_0_100, "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, 0, 0, "set/limit/charge/durable", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, 0, 0, "set/limit/discharge/soc", PAYLOAD_REGEX_0_100, "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, 0, 0, "set/limit/discharge/durable", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, 0, 0, "set/limit/discharge/by_home_power", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_W, RSCP::eTypeUInt32, -1, false, true },
+    { 0, 0, 0, "set/log", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, 0, "set/log/cache", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, 0, "set/log/rcache", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, 0, "set/log/errors", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, 0, "set/health", "^true|on|1$", "true", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, 0, "set/raw_mode", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, 0, "set/force", "[a-zA-z0-9/_.*]*", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
+    { 0, 0, 0, "set/interval", "^[1-9]|[1-9][0-9]|[1-2][0-9][0-9]|300$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { 0, 0, 0, "set/request/day", "^[0-9]{4}-[0-1]?[0-9]-[0-3]?[0-9]$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, true, true }
 };
 
 std::vector<rec_cache_t> RscpMqttReceiveCache(rec_cache, rec_cache + sizeof(rec_cache) / sizeof(rec_cache_t));
 
 bool compareRecCache(RSCP_MQTT::rec_cache_t c1, RSCP_MQTT::rec_cache_t c2) {
-    return(c1.container < c2.container);
+    if (c1.container < c2.container) return(true);
+    if ((c1.container == c2.container) && (c1.tag < c2.tag)) return(true);
+    if ((c1.container == c2.container) && (c1.tag == c2.tag) && (c1.index < c2.index)) return(true);
+    return(false);
 }
 
 }

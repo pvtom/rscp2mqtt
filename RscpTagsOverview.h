@@ -3597,7 +3597,34 @@ rscp_err_codes_t rscp_err_codes[] = {
 };
 
 std::vector<rscp_err_codes_t> RscpErrorOverview(rscp_err_codes, rscp_err_codes + sizeof(rscp_err_codes) / sizeof(rscp_err_codes_t));
-    
+
+typedef struct _rscp_types_t {
+    uint8_t code;
+    char type[14];
+} rscp_types_t;
+
+rscp_types_t rscp_types[] = {
+    { 0, "None" },
+    { 1, "Bool" },
+    { 2, "Char8" },
+    { 3, "UChar8" },
+    { 4, "Int16" },
+    { 5, "UInt16" },
+    { 6, "Int32" },
+    { 7, "UInt32" },
+    { 8, "Int64" },
+    { 9, "UInt64" },
+    { 10, "Float32" },
+    { 11, "Double64" },
+    { 12, "Bitfield" },
+    { 13, "String" },
+    { 14, "Container" },
+    { 15, "Timestamp" },
+    { 16, "ByteArray" }
+};
+
+std::vector<rscp_types_t> RscpTypeNames(rscp_types, rscp_types + sizeof(rscp_types) / sizeof(rscp_types_t));
+
 }
  
 #endif

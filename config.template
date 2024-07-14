@@ -42,8 +42,12 @@ TOPIC_LOG_FILE=/tmp/rscp2mqtt.history
 DISABLE_MQTT_PUBLISH=false
 #--set power mode
 AUTO_REFRESH=false
+#-- EMS requests
+EMS_REQUESTS=true
 #--Start of Operation
 HISTORY_START_YEAR=2022
+#--Request todays, weekly, monthly, yearly historical values
+HST_REQUESTS=true
 #--Request daily historical values
 DAILY_VALUES=true
 #--Publish statistic values
@@ -77,7 +81,13 @@ BATTERY_STRINGS=1
 #--Battery Modules
 DCB_REQUESTS=true
 
-#-Battery SOC limiter
+#-Raw Data Mode
+RAW_MODE=false
+
+#-Additional Tags and Topics
+#--please look at NEWTAGS.md
+
+#-Battery SOC Limiter
 SOC_LIMITER=true
 LIMIT_CHARGE_SOC=0
 LIMIT_DISCHARGE_SOC=0
@@ -85,8 +95,9 @@ LIMIT_CHARGE_DURABLE=false
 LIMIT_DISCHARGE_DURABLE=false
 LIMIT_DISCHARGE_BY_HOME_POWER=0
 
-#-Wallbox Support for the wallbox with the specified index
-#--only one WB_INDEX entry is supported, default is 0
+#-Wallboxes
+#--for the wallboxes specified by WB_INDEX (0..7)
+#--use multiple WB_INDEX entries for further wallboxes
 WALLBOX=true
 WB_INDEX=0
 

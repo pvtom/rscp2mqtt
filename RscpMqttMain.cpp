@@ -21,7 +21,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "3.25"
+#define RSCP2MQTT_VERSION       "3.26"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -33,6 +33,7 @@
 #define IDLE_PERIOD_CACHE_SIZE  14
 #define DEFAULT_PREFIX          "e3dc"
 #define SUBSCRIBE_TOPIC         "set/#"
+#define RECURSION_MAX_LEVEL     7
 
 #define MQTT_PORT_DEFAULT       1883
 
@@ -64,7 +65,8 @@ static time_t e3dc_ts = 0;
 static time_t e3dc_diff = 0;
 static int gmt_diff = 0;
 static config_t cfg;
-static int day, leap_day, year, curr_day, curr_year, battery_nr, pm_nr;
+static wb_t wb_stat;
+static int day, leap_day, year, curr_day, curr_year, battery_nr, pm_nr, wb_nr;
 static uint8_t period_change_nr = 0;
 static bool period_trigger = false;
 static bool history_init = true;
@@ -75,6 +77,7 @@ std::mutex mtx;
 
 static bool mqttRcvd = false;
 static bool go = true;
+static bool tags_added = false;
 
 #ifdef INFLUXDB
     CURL *curl = NULL;
@@ -118,6 +121,42 @@ char *tagName(std::vector<RSCP_TAGS::tag_overview_t> & v, uint32_t tag) {
         }
     }
     return(NULL); 
+}
+
+uint32_t tagID(std::vector<RSCP_TAGS::tag_overview_t> & v, char *name) {
+    for (std::vector<RSCP_TAGS::tag_overview_t>::iterator it = v.begin(); it != v.end(); ++it) {
+        if (!strcmp(it->name, name)) {
+            return(it->tag);
+        }
+    }
+    return(0); 
+}
+
+bool isTag(std::vector<RSCP_TAGS::tag_overview_t> & v, char *name, bool must_be_request_tag) {
+    for (std::vector<RSCP_TAGS::tag_overview_t>::iterator it = v.begin(); it != v.end(); ++it) {
+        if (!strcmp(it->name, name) && (!must_be_request_tag || (must_be_request_tag && it->request))) {
+            return(true);
+        }
+    }
+    return(false); 
+}
+
+char *typeName(std::vector<RSCP_TAGS::rscp_types_t> & v, uint8_t code) {
+    for (std::vector<RSCP_TAGS::rscp_types_t>::iterator it = v.begin(); it != v.end(); ++it) {
+        if (it->code == code) {
+            return(it->type);
+        }
+    }
+    return(NULL);
+}
+
+uint8_t typeID(std::vector<RSCP_TAGS::rscp_types_t> & v, char *type) {
+    for (std::vector<RSCP_TAGS::rscp_types_t>::iterator it = v.begin(); it != v.end(); ++it) {
+        if (!strcmp(it->type, type)) {
+            return(it->code);
+        }
+    }
+    return(0);
 }
 
 char *errName(std::vector<RSCP_TAGS::rscp_err_codes_t> & v, int code) {
@@ -172,18 +211,6 @@ int storeMQTTReceivedValue(std::vector<RSCP_MQTT::rec_cache_t> & c, char *topic_
     }
     mtx.unlock();
     return(0);
-}
-
-void hotfixSetEntry(std::vector<RSCP_MQTT::rec_cache_t> & c, uint32_t tag, int type, char *regex_true) {
-    printf("hotfixSetEntry was called with tag >0x%08X< type >%d< regex_true >%s<\n", tag, type, regex_true);
-    for (std::vector<RSCP_MQTT::rec_cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
-        if (it->tag == tag) {
-            if (type) it->type = type;
-            if (regex_true && (strcmp(regex_true, ""))) strcpy(it->regex_true, regex_true);
-            printf("hotfixSetEntry: tag >%s< topic >%s< type >%d< regex_true >%s<\n", tagName(RSCP_TAGS::RscpTagsOverview, it->tag), it->topic, it->type, it->regex_true);
-        }
-    }
-    return;
 }
 
 // topic: <prefix>/set/power_mode payload: auto / idle:60 (cycles) / discharge:2000:60 (Watt:cycles) / charge:2000:60 (Watt:cycles) / grid_charge:2000:60 (Watt:cycles)
@@ -347,6 +374,7 @@ void addTemplTopics(uint32_t container, int index, char *seg, int start, int n, 
         for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCacheTempl.begin(); it != RSCP_MQTT::RscpMqttCacheTempl.end(); ++it) {
             if (it->container == container) {
                 RSCP_MQTT::cache_t cache = { it->container, it->tag, c, "", "", it->format, "", it->divisor, it->bit_to_bool, it->history_log, it->changed, it->influx, it->forced };
+                if (it->index > 1) cache.index = it->index + c * 10;
                 if ((seg == NULL) && (index == 0)) { // no args
                     cache.index = it->index;
                     strcpy(cache.topic, it->topic);
@@ -371,6 +399,32 @@ void addTemplTopics(uint32_t container, int index, char *seg, int start, int n, 
     return;
 }
 
+void addTopic(uint32_t container, uint32_t tag, char *topic, char *unit, int format, int divisor, int bit_to_bool, bool finalize) {
+    RSCP_MQTT::cache_t cache = { container, tag, 0, "", "", format, "", divisor, bit_to_bool, false, false, false, false };
+    strcpy(cache.topic, topic);
+    strcpy(cache.unit, unit);
+    RSCP_MQTT::RscpMqttCache.push_back(cache);
+
+    if (finalize) {
+        sort(RSCP_MQTT::RscpMqttCache.begin(), RSCP_MQTT::RscpMqttCache.end(), RSCP_MQTT::compareCache);
+        setTopicAttr();
+    }
+    return;
+}
+
+void addSetTopic(uint32_t container, uint32_t tag, int index, char *topic, char *regex_true, char *value_true, char *regex_false, char *value_false, int type, bool finalize) {
+    RSCP_MQTT::rec_cache_t cache = { container, tag, index, "", "", "1", "", "0", "", UNIT_NONE, type, -1, false, true };
+    strcpy(cache.topic, topic);
+    strcpy(cache.regex_true, regex_true);
+    strcpy(cache.value_true, value_true);
+    strcpy(cache.regex_false, regex_false);
+    strcpy(cache.value_false, value_false);
+    RSCP_MQTT::RscpMqttReceiveCache.push_back(cache);
+
+    if (finalize) sort(RSCP_MQTT::RscpMqttReceiveCache.begin(), RSCP_MQTT::RscpMqttReceiveCache.end(), RSCP_MQTT::compareRecCache);
+    return;
+}
+
 void mqttCallbackOnConnect(struct mosquitto *mosq, void *obj, int result) {
     char topic[TOPIC_SIZE];
     snprintf(topic, TOPIC_SIZE, "%s/%s", cfg.prefix, SUBSCRIBE_TOPIC); 
@@ -379,30 +433,33 @@ void mqttCallbackOnConnect(struct mosquitto *mosq, void *obj, int result) {
     } else {
         logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: subscribing topic >%s< failed\n", topic);
     }
+    return;
 }
 
 int mqttCallbackTlsPassword(char *buf, int size, int rwflag, void *userdata) {
     int len = strlen(cfg.mqtt_tls_password);
     if (len >= size) return 0;
     strcpy(buf, cfg.mqtt_tls_password);
-    return len;
+    return(len);
 }
 
 void mqttCallbackOnMessage(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg) {
     if (mosq && msg && msg->topic && msg->payloadlen) {
         storeMQTTReceivedValue(RSCP_MQTT::RscpMqttReceiveCache, msg->topic, (char *)msg->payload);
     }
+    return;
 }
 
 void mqttListener(struct mosquitto *m) {
     if (m) {
-         logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"MQTT: starting listener loop\n");
+         if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"MQTT: starting listener loop\n");
          mosquitto_loop_forever(m, -1, 1);
     }
+    return;
 }
 
 #ifdef INFLUXDB
-int insertInfluxDb(char *buffer) {
+void insertInfluxDb(char *buffer) {
     CURLcode res = CURLE_OK;
 
     if (strlen(buffer)) {
@@ -410,7 +467,7 @@ int insertInfluxDb(char *buffer) {
         res = curl_easy_perform(curl);
         if (res != CURLE_OK) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"InfluxDB: %s\n", curl_easy_strerror(res));
     }
-    return(res);
+    return;
 }
 
 void handleInfluxDb(char *buffer, char *topic, char *payload, char *unit, char *timestamp) {
@@ -444,13 +501,13 @@ void handleInfluxDb(char *buffer, char *topic, char *payload, char *unit, char *
 }
 #endif
 
-void publishImmediately(char *t, char *p) {
+void publishImmediately(char *t, char *p, bool influx) {
     char topic[TOPIC_SIZE];
 
     snprintf(topic, TOPIC_SIZE, "%s/%s", cfg.prefix, t);
     if (mosq) mosquitto_publish(mosq, NULL, topic, strlen(p), p, cfg.mqtt_qos, cfg.mqtt_retain);
 #ifdef INFLUXDB
-    if (cfg.influxdb_on && curl) {
+    if (cfg.influxdb_on && curl && influx) {
         char buffer[CURL_BUFFER_SIZE];
         strcpy(buffer, "");
         handleInfluxDb(buffer, topic, p, NULL, NULL);
@@ -470,11 +527,11 @@ int handleMQTT(std::vector<RSCP_MQTT::cache_t> & v, int qos, bool retain) {
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
         if ((it->changed || it->forced) && strcmp(it->topic, "") && strcmp(it->payload, "")) {
             if (cfg.verbose) {
-               if (cfg.mqtt_pub) printf("MQTT ");
 #ifdef INFLUXDB
-               if (cfg.influxdb_on && it->influx) printf("INFLUX ");
+               logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Publish topic >%s< payload >%s< unit >%s< mqtt:%s influx:%s\n", it->topic, it->payload, it->unit, cfg.mqtt_pub?"✓":"✗", (cfg.influxdb_on && it->influx)?"✓":"✗");
+#else
+               logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Publish topic >%s< payload >%s< unit >%s< mqtt:%s\n", it->topic, it->payload, it->unit, cfg.mqtt_pub?"✓":"✗");
 #endif
-               printf("publish topic >%s< payload >%s< unit >%s<\n", it->topic, it->payload, it->unit);
             }
             if (it->history_log) logMessage(cfg.historyfile, (char *)__FILE__, __LINE__, (char *)"topic >%s< payload >%s< unit >%s<\n", it->topic, it->payload, it->unit);
             if (cfg.mqtt_pub && mosq) rc = mosquitto_publish(mosq, NULL, it->topic, strlen(it->payload), it->payload, qos, retain);
@@ -501,7 +558,7 @@ int handleMQTTIdlePeriods(std::vector<RSCP_MQTT::idle_period_t> & v, int qos, bo
         e = v.back();
         snprintf(topic, TOPIC_SIZE, "%s/idle_period/%d/%d", cfg.prefix, e.marker, ++i);
         sprintf(payload, "%s:%s:%s:%02d:%02d-%02d:%02d", RSCP_MQTT::days[e.day].c_str(), e.type?"discharge":"charge", e.active?"true":"false", e.starthour, e.startminute, e.endhour, e.endminute);
-        if (cfg.verbose && cfg.mqtt_pub) printf("MQTT publish topic >%s< payload >%s<\n", topic, payload);
+        if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Publish topic >%s< payload >%s< mqtt:%s\n", topic, payload, cfg.mqtt_pub?"✓":"✗");
         if (cfg.mqtt_pub && mosq) rc = mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, qos, retain);
         v.pop_back();
     }
@@ -519,10 +576,10 @@ int handleMQTTErrorMessages(std::vector<RSCP_MQTT::error_t> & v, int qos, bool r
         e = v.back();
         snprintf(topic, TOPIC_SIZE, "%s/error_message/%d/meta", cfg.prefix, ++i);
         snprintf(payload, PAYLOAD_SIZE, "type=%d code=%d source=%s", e.type, e.code, e.source);
-        if (cfg.verbose && cfg.mqtt_pub) printf("MQTT publish topic >%s< payload >%s<\n", topic, e.message);
+        if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Publish topic >%s< payload >%s< mqtt:%s\n", topic, payload, cfg.mqtt_pub?"✓":"✗");
         if (cfg.mqtt_pub && mosq) rc = mosquitto_publish(mosq, NULL, topic, strlen(payload), payload, qos, retain);
         snprintf(topic, TOPIC_SIZE, "%s/error_message/%d", cfg.prefix, i);
-        if (cfg.verbose && cfg.mqtt_pub) printf("MQTT publish topic >%s< payload >%s<\n", topic, e.message);
+        if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Publish topic >%s< payload >%s< mqtt:%s\n", topic, e.message, cfg.mqtt_pub?"✓":"✗");
         if (cfg.mqtt_pub && mosq) rc = mosquitto_publish(mosq, NULL, topic, strlen(e.message), e.message, qos, retain);
         v.pop_back();
     }
@@ -559,7 +616,7 @@ void setupItem(std::vector<RSCP_MQTT::cache_t> & v, char *topic_in, char* payloa
             snprintf(topic, TOPIC_SIZE, "%s/set/up/0x%02X_0x%02X_0x%02X", cfg.prefix, it->container, it->tag, it->index);
             if (!strcmp(topic, topic_in) && std::regex_match(value, std::regex("[+-]?([0-9]*[.]?[0-9]+)"))) {
                 strcpy(it->payload, value);
-                logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Setup topic >%s< payload >%s< date >%s<\n", topic, value, date_in);
+                if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Setup topic >%s< payload >%s< date >%s<\n", topic, value, date_in);
                 break;
             }
         }
@@ -567,7 +624,7 @@ void setupItem(std::vector<RSCP_MQTT::cache_t> & v, char *topic_in, char* payloa
     return;
 }
 
-void logCache(std::vector<RSCP_MQTT::cache_t> & v, char *file, char *prefix) {
+void logCache(std::vector<RSCP_MQTT::cache_t> & v, char *file) {
     if (file) {
         FILE *fp;
         fp = fopen(file, "a");
@@ -580,6 +637,25 @@ void logCache(std::vector<RSCP_MQTT::cache_t> & v, char *file, char *prefix) {
     } else {
         for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
             printf("container >%s< tag >%s< index >%d< topic >%s< payload >%s< unit >%s<%s\n", tagName(RSCP_TAGS::RscpTagsOverview, it->container), tagName(RSCP_TAGS::RscpTagsOverview, it->tag), it->index, it->topic, it->payload, it->unit, (it->forced?" forced":""));
+        }
+        fflush(NULL);
+    }
+    return;
+}
+
+void logRecCache(std::vector<RSCP_MQTT::rec_cache_t> & v, char *file) {
+    if (file) {
+        FILE *fp;
+        fp = fopen(file, "a");
+        if (!fp) return;        
+        for (std::vector<RSCP_MQTT::rec_cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
+            fprintf(fp, "container >%s< tag >%s< index >%d< topic >%s< regex_true >%s< value_true >%s< regex_false >%s< value_false >%s< unit >%s< type >%s<\n", tagName(RSCP_TAGS::RscpTagsOverview, it->container), tagName(RSCP_TAGS::RscpTagsOverview, it->tag), it->index, it->topic, it->regex_true, it->value_true, it->regex_false, it->value_false, it->unit, typeName(RSCP_TAGS::RscpTypeNames, it->type));
+        }
+        fflush(fp);
+        fclose(fp);
+    } else {
+        for (std::vector<RSCP_MQTT::rec_cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
+            printf("container >%s< tag >%s< index >%d< topic >%s< regex_true >%s< value_true >%s< regex_false >%s< value_false >%s< unit >%s< type >%s<\n", tagName(RSCP_TAGS::RscpTagsOverview, it->container), tagName(RSCP_TAGS::RscpTagsOverview, it->tag), it->index, it->topic, it->regex_true, it->value_true, it->regex_false, it->value_false, it->unit, typeName(RSCP_TAGS::RscpTypeNames, it->type));
         }
         fflush(NULL);
     }
@@ -636,11 +712,17 @@ bool checkTopicUniqueness(std::vector<RSCP_MQTT::cache_t> & v) {
 }
 
 void logHealth(char *file) {
-    logMessage(file, (char *)__FILE__, __LINE__, (char *)"[%s] PVI %s | PM %s | DCB %s (%d) | Wallbox (%d) %s | Autorefresh %s Interval %d\n", RSCP2MQTT, cfg.pvi_requests?"✓":"✗", cfg.pm_requests?"✓":"✗", cfg.dcb_requests?"✓":"✗", cfg.battery_strings, cfg.wb_index, cfg.wallbox?"✓":"✗", cfg.auto_refresh?"✓":"✗", cfg.interval);
+    logMessage(file, (char *)__FILE__, __LINE__, (char *)"[%s] PVI %s | PM %s | DCB %s (%d) | Wallbox %s | Autorefresh %s | Raw data %s | Interval %d\n", RSCP2MQTT, cfg.pvi_requests?"✓":"✗", cfg.pm_requests?"✓":"✗", cfg.dcb_requests?"✓":"✗", cfg.battery_strings, cfg.wallbox?"✓":"✗", cfg.auto_refresh?"✓":"✗", cfg.raw_mode?"✓":"✗", cfg.interval);
     for (uint8_t i = 0; i < cfg.pm_number; i++) {
-        logMessage(file, (char *)__FILE__, __LINE__, (char *)"PM_INDEX >%d<\n", cfg.pm_index[i]);
+        logMessage(file, (char *)__FILE__, __LINE__, (char *)"PM_INDEX >%d<\n", cfg.pm_indexes[i]);
+    }
+    for (uint8_t i = 0; i < cfg.wb_number; i++) {
+        logMessage(file, (char *)__FILE__, __LINE__, (char *)"WB_INDEX >%d<\n", cfg.wb_indexes[i]);
     }
     logTopics(RSCP_MQTT::RscpMqttCache, file, true);
+    for (std::vector<RSCP_MQTT::additional_tags_t>::iterator it = RSCP_MQTT::AdditionalTags.begin(); it != RSCP_MQTT::AdditionalTags.end(); ++it) {
+        logMessage(file, (char *)__FILE__, __LINE__, (char *)"Container >%s< Tag >%s< added (one shot: %s).\n", tagName(RSCP_TAGS::RscpTagsOverview, it->req_container), tagName(RSCP_TAGS::RscpTagsOverview, it->req_tag), it->one_shot?"true":"false");
+    }
     logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topics sorted >%s<\n", checkTopicOrder(RSCP_MQTT::RscpMqttCache)?"true":"false");
     logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topics unique >%s<\n", checkTopicUniqueness(RSCP_MQTT::RscpMqttCache)?"true":"false");
     for (std::vector<RSCP_MQTT::not_supported_tags_t>::iterator it = RSCP_MQTT::NotSupportedTags.begin(); it != RSCP_MQTT::NotSupportedTags.end(); ++it) {
@@ -650,6 +732,7 @@ void logHealth(char *file) {
         logMessage(file, (char *)__FILE__, __LINE__, (char *)"Container >%s< Tag >%s< in temporary cache.\n", tagName(RSCP_TAGS::RscpTagsOverview, it->container), tagName(RSCP_TAGS::RscpTagsOverview, it->tag));
     }
     logMessageCache(file, false);
+    return;
 }
 
 void logMessage(char *file, char *srcfile, int line, char *format, ...) {
@@ -739,6 +822,7 @@ void logMessageCache(char *file, bool clear) {
         if (it->count) {
             if (it->container && it->tag && it->error) logMessage(file, (char *)__FILE__, it->type, it->message, tagName(RSCP_TAGS::RscpTagsOverview, it->container), tagName(RSCP_TAGS::RscpTagsOverview, it->tag), errName(RSCP_TAGS::RscpErrorOverview, it->error), it->count);
             else if (!it->container && it->tag && it->error) logMessage(file, (char *)__FILE__, it->type, it->message, tagName(RSCP_TAGS::RscpTagsOverview, it->tag), errName(RSCP_TAGS::RscpErrorOverview, it->error), it->count);
+            else if (it->container && it->tag && !it->error) logMessage(file, (char *)__FILE__, it->type, it->message, tagName(RSCP_TAGS::RscpTagsOverview, it->container), tagName(RSCP_TAGS::RscpTagsOverview, it->tag), it->count);
             else logMessage(file, (char *)__FILE__, it->type, it->message, it->count);
             if (clear) it->count = 0;
         }
@@ -760,6 +844,55 @@ void pushNotSupportedTag(uint32_t container, uint32_t tag) {
     v.tag = tag;
     RSCP_MQTT::NotSupportedTags.push_back(v);
     return;
+}
+
+bool existsAdditionalTag(uint32_t container, uint32_t tag, int index) {
+    for (std::vector<RSCP_MQTT::additional_tags_t>::iterator it = RSCP_MQTT::AdditionalTags.begin(); it != RSCP_MQTT::AdditionalTags.end(); ++it) {
+        if ((it->req_container == container) && (it->req_tag == tag) && (it->req_index == index)) return(true);
+    }
+    return(false);
+}
+
+void pushAdditionalTag(uint32_t req_container, uint32_t req_tag, int req_index, int order, bool one_shot) {
+    if (existsAdditionalTag(req_container, req_tag, req_index)) return;
+    RSCP_MQTT::additional_tags_t v;
+    v.req_container = req_container;
+    v.req_tag = req_tag;
+    v.req_index = req_index;
+    v.order = order;
+    v.one_shot = one_shot;
+    RSCP_MQTT::AdditionalTags.push_back(v);
+    tags_added = true;
+    return;
+}
+
+bool updateRawData(char *topic, char *payload) {
+    for (std::vector<RSCP_MQTT::mqtt_data_t>::iterator it = RSCP_MQTT::rawData.begin(); it != RSCP_MQTT::rawData.end(); ++it) {
+        if (!strcmp(it->topic, topic)) {
+            if (strcmp(it->payload, payload)) strcpy(it->payload, payload);
+            return(true);
+        }
+    }
+    return(false);
+}
+
+void mergeRawData(char *topic, char *payload) {
+    if (!updateRawData(topic, payload)) {
+        RSCP_MQTT::mqtt_data_t v;
+        v.topic = strdup(topic);
+        v.payload = strdup(payload);
+        RSCP_MQTT::rawData.push_back(v);
+    }
+    return; 
+}
+
+char *readRawData(char *topic) {
+    for (std::vector<RSCP_MQTT::mqtt_data_t>::iterator it = RSCP_MQTT::rawData.begin(); it != RSCP_MQTT::rawData.end(); ++it) { 
+        if (!strcmp(it->topic, topic)) {
+            return(it->payload);
+        }       
+    }
+    return(NULL);
 }
 
 void refreshCache(std::vector<RSCP_MQTT::cache_t> & v, char *payload) {
@@ -859,7 +992,7 @@ int storeIntegerValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, u
     return(value);
 }
 
-int storeFloatValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uint32_t tag, float value, int index, bool dobreak) {
+float storeFloatValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uint32_t tag, float value, int index, bool dobreak) {
     char buf[PAYLOAD_SIZE];     
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
         if ((it->container == container) && (it->tag == tag) && (it->index == index)) {
@@ -888,7 +1021,7 @@ int storeFloatValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uin
     return(value);
 }
 
-int storeStringValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uint32_t tag, char *value, int index) {
+void storeStringValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uint32_t tag, char *value, int index) {
     char buf[PAYLOAD_SIZE];
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
         if ((it->container == container) && (it->tag == tag) && (it->index == index)) {
@@ -900,7 +1033,7 @@ int storeStringValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, ui
             break;
         }
     }
-    return(1);
+    return;
 }
 
 int getIntegerValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uint32_t tag, int index) {
@@ -923,6 +1056,58 @@ float getFloatValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uin
         }
     }
     return(value);
+}
+
+void preparePayload(RscpProtocol *protocol, SRscpValue *response, char **buf) {
+    switch (response->dataType) {
+        case RSCP::eTypeBool: {
+            if (protocol->getValueAsBool(response)) strcpy(*buf, cfg.true_value);
+            else strcpy(*buf, cfg.false_value);
+            break;
+        }
+        case RSCP::eTypeInt16: {
+            snprintf(*buf, PAYLOAD_SIZE, "%i", protocol->getValueAsInt16(response));
+            break;
+        }
+        case RSCP::eTypeTimestamp:
+        case RSCP::eTypeInt32: {
+            snprintf(*buf, PAYLOAD_SIZE, "%i", protocol->getValueAsInt32(response));
+            break;
+        }
+        case RSCP::eTypeUInt16: {
+            snprintf(*buf, PAYLOAD_SIZE, "%u", protocol->getValueAsUInt16(response));
+            break;
+        }
+        case RSCP::eTypeUInt32: {
+            snprintf(*buf, PAYLOAD_SIZE, "%u", protocol->getValueAsUInt32(response));
+            break;
+        }
+        case RSCP::eTypeChar8: {
+            snprintf(*buf, PAYLOAD_SIZE, "%i", protocol->getValueAsChar8(response));
+            break;
+        }
+        case RSCP::eTypeUChar8: {
+            snprintf(*buf, PAYLOAD_SIZE, "%u", protocol->getValueAsUChar8(response));
+            break;
+        }
+        case RSCP::eTypeFloat32: {
+            snprintf(*buf, PAYLOAD_SIZE, "%0.2f", protocol->getValueAsFloat32(response));
+            break;
+        }
+        case RSCP::eTypeDouble64: {
+            snprintf(*buf, PAYLOAD_SIZE, "%0.2f", protocol->getValueAsDouble64(response));
+            break;
+        }
+        case RSCP::eTypeString: {
+            snprintf(*buf, PAYLOAD_SIZE, "%s", protocol->getValueAsString(response).c_str());
+            break;
+        }
+        default: {
+            strcpy(*buf, "");
+            break;
+        }
+    }
+    return;
 }
 
 int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protocol, SRscpValue *response, uint32_t container, int index) {
@@ -1128,10 +1313,8 @@ void classifyValues(std::vector<RSCP_MQTT::cache_t> & c) {
     else if ((battery_power == 0) && (battery_soc == 100)) storeStringValue(c, 0, 0, (char *)"FULL", IDX_BATTERY_STATE);
     else if (battery_power == 0) storeStringValue(c, 0, 0, (char *)"PENDING", IDX_BATTERY_STATE);
     else storeStringValue(c, 0, 0, (char *)"CHARGING", IDX_BATTERY_STATE);
-
     if (grid_power <= 0) storeStringValue(c, 0, 0, (char *)"IN", IDX_GRID_STATE);
     else storeStringValue(c, 0, 0, (char *)"OUT", IDX_GRID_STATE);
-
     return;
 }
 
@@ -1243,112 +1426,118 @@ void statisticValues(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
     return;
 }
 
-void wallboxDailyNull(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
-    int wallbox_energy_total = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_ALL, 0);
-    int wallbox_energy_solar = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, 0);
-    storeIntegerValue(c, 0, 0, wallbox_energy_total, IDX_WALLBOX_ENERGY_ALL_START, true);
-    if (reset) storeIntegerValue(c, 0, 0, 0, IDX_WALLBOX_DAY_ENERGY_ALL, true);
-    storeIntegerValue(c, 0, 0, wallbox_energy_solar, IDX_WALLBOX_ENERGY_SOLAR_START, true);
-    if (reset) storeIntegerValue(c, 0, 0, 0, IDX_WALLBOX_DAY_ENERGY_SOLAR, true);
-    if (cfg.store_setup) {
-        storeSetupItem(0, 0, IDX_WALLBOX_ENERGY_ALL_START, wallbox_energy_total);
-        storeSetupItem(0, 0, IDX_WALLBOX_ENERGY_SOLAR_START, wallbox_energy_solar);
+void wallboxDailyNull(std::vector<RSCP_MQTT::cache_t> & c, int wb_number, bool reset) {
+    for (uint8_t i = 0; i < wb_number; i++) {
+        int wallbox_energy_total = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_ALL, i);
+        int wallbox_energy_solar = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, i);
+        storeIntegerValue(c, 0, 0, wallbox_energy_total, i + IDX_WALLBOX_ENERGY_ALL_START, true);
+        if (reset) storeIntegerValue(c, 0, 0, 0, i + IDX_WALLBOX_DAY_ENERGY_ALL, true);
+        storeIntegerValue(c, 0, 0, wallbox_energy_solar, i + IDX_WALLBOX_ENERGY_SOLAR_START, true);
+        if (reset) storeIntegerValue(c, 0, 0, 0, i + IDX_WALLBOX_DAY_ENERGY_SOLAR, true);
+        if (cfg.store_setup) {
+            storeSetupItem(0, 0, i + IDX_WALLBOX_ENERGY_ALL_START, wallbox_energy_total);
+            storeSetupItem(0, 0, i + IDX_WALLBOX_ENERGY_SOLAR_START, wallbox_energy_solar);
+        }
     }
     return;
 }
 
-void wallboxDaily(std::vector<RSCP_MQTT::cache_t> & c, bool reset) {
-    int wallbox_energy_total = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_ALL, 0);
-    int wallbox_energy_solar = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, 0);
+void wallboxDaily(std::vector<RSCP_MQTT::cache_t> & c, int wb_number, bool reset) {
+    int wallbox_energy_total;
+    int wallbox_energy_solar;
     int energy_start;
     bool correct = false;
-    static int add_total = 0;
-    static int total = 0;
-    static int add_solar = 0;
-    static int solar = 0;
 
-    if (reset) {
-        if (cfg.store_setup) {
-            storeSetupItem(0, 0, IDX_WALLBOX_ENERGY_ALL_START, wallbox_energy_total);
-            storeSetupItem(0, 0, IDX_WALLBOX_ENERGY_SOLAR_START, wallbox_energy_solar);
-        }
-        storeIntegerValue(c, 0, 0, wallbox_energy_total, IDX_WALLBOX_ENERGY_ALL_START, true);
-        storeIntegerValue(c, 0, 0, 0, IDX_WALLBOX_DAY_ENERGY_ALL, true);
-        storeIntegerValue(c, 0, 0, wallbox_energy_solar, IDX_WALLBOX_ENERGY_SOLAR_START, true);
-        storeIntegerValue(c, 0, 0, 0, IDX_WALLBOX_DAY_ENERGY_SOLAR, true);
-        add_total = 0;
-        total = 0;
-        add_solar = 0;
-        solar = 0;
-    } else {
-        energy_start = getIntegerValue(c, 0, 0, IDX_WALLBOX_ENERGY_ALL_START);
-        if (wallbox_energy_total - energy_start >= total) {
-            storeIntegerValue(c, 0, 0, add_total + wallbox_energy_total - energy_start, IDX_WALLBOX_DAY_ENERGY_ALL, true);
-            total = wallbox_energy_total - energy_start; 
+    for (uint8_t i = 0; i < wb_number; i++) {
+        wallbox_energy_total = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_ALL, i);
+        wallbox_energy_solar = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, i);
+        if (reset) {
+            if (cfg.store_setup) {
+                storeSetupItem(0, 0, i + IDX_WALLBOX_ENERGY_ALL_START, wallbox_energy_total);
+                storeSetupItem(0, 0, i + IDX_WALLBOX_ENERGY_SOLAR_START, wallbox_energy_solar);
+            }
+            storeIntegerValue(c, 0, 0, wallbox_energy_total, i + IDX_WALLBOX_ENERGY_ALL_START, true);
+            storeIntegerValue(c, 0, 0, 0, i + IDX_WALLBOX_DAY_ENERGY_ALL, true);
+            storeIntegerValue(c, 0, 0, wallbox_energy_solar, i + IDX_WALLBOX_ENERGY_SOLAR_START, true);
+            storeIntegerValue(c, 0, 0, 0, i + IDX_WALLBOX_DAY_ENERGY_SOLAR, true);
+            wb_stat.day_add_total[i] = 0;
+            wb_stat.day_total[i] = 0;
+            wb_stat.day_add_solar[i] = 0;
+            wb_stat.day_solar[i] = 0;
         } else {
-            correct = true;
-            add_total += total;
-            total = 0;
+            energy_start = getIntegerValue(c, 0, 0, i + IDX_WALLBOX_ENERGY_ALL_START);
+            if (wallbox_energy_total - energy_start >= wb_stat.day_total[i]) {
+                storeIntegerValue(c, 0, 0, wb_stat.day_add_total[i] + wallbox_energy_total - energy_start, i + IDX_WALLBOX_DAY_ENERGY_ALL, true);
+                wb_stat.day_total[i] = wallbox_energy_total - energy_start; 
+            } else {
+                correct = true;
+                wb_stat.day_add_total[i] += wb_stat.day_total[i];
+                wb_stat.day_total[i] = 0;
+            }
+            energy_start = getIntegerValue(c, 0, 0, i + IDX_WALLBOX_ENERGY_SOLAR_START);
+            if (wallbox_energy_solar - energy_start >= wb_stat.day_solar[i]) {
+                storeIntegerValue(c, 0, 0, wb_stat.day_add_solar[i] + wallbox_energy_solar - energy_start, i + IDX_WALLBOX_DAY_ENERGY_SOLAR, true);
+                wb_stat.day_solar[i] = wallbox_energy_solar - energy_start;
+            } else {
+                correct = true;
+                wb_stat.day_add_solar[i] += wb_stat.day_solar[i];
+                wb_stat.day_solar[i] = 0;
+            }
         }
-        energy_start = getIntegerValue(c, 0, 0, IDX_WALLBOX_ENERGY_SOLAR_START);
-        if (wallbox_energy_solar - energy_start >= solar) {
-            storeIntegerValue(c, 0, 0, add_solar + wallbox_energy_solar - energy_start, IDX_WALLBOX_DAY_ENERGY_SOLAR, true);
-            solar = wallbox_energy_solar - energy_start;
-        } else {
-            correct = true;
-            add_solar += solar;
-            solar = 0;
-        }
-    }
-    if (correct) wallboxDailyNull(c, false);
-    return;
-}
-
-void wallboxLastCharging(std::vector<RSCP_MQTT::cache_t> & c) {
-    static int wallbox_energy_total_start = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_ALL, 0);
-    static int wallbox_energy_solar_start = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, 0);
-    static int wallbox_plugged_last = 0;
-    static int diff_total = 0;
-    static int diff_solar = 0;
-    static int add_total = 0;
-    static int add_solar = 0;
-    int wallbox_energy_total = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_ALL, 0);
-    int wallbox_energy_solar = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, 0);
-    int wallbox_plugged = getIntegerValue(c, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2) & 8;
-
-    if (!wallbox_plugged_last && wallbox_plugged) {
-        storeIntegerValue(c, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL, true);
-        storeIntegerValue(c, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR, true);
-        wallbox_energy_total_start = wallbox_energy_total;
-        wallbox_energy_solar_start = wallbox_energy_solar;
-        add_total = 0;
-        add_solar = 0;
-        diff_total = 0;
-        diff_solar = 0;
-    }
-    if ((wallbox_energy_total - wallbox_energy_total_start < 0) || !wallbox_energy_total) {
-        wallbox_energy_total_start = wallbox_energy_total;
-        add_total = diff_total;
-        diff_total = 0;
-    }
-    if ((wallbox_energy_solar - wallbox_energy_solar_start < 0) || !wallbox_energy_solar) {
-        wallbox_energy_solar_start = wallbox_energy_solar;
-        add_solar = diff_solar;
-        diff_solar = 0;
-    }
-    if (wallbox_plugged_last != wallbox_plugged) {
-        wallbox_plugged_last = wallbox_plugged;
-    }
-    if (wallbox_energy_total > (wallbox_energy_total_start + diff_total - add_total)) {
-        diff_total = storeIntegerValue(c, 0, 0, add_total + wallbox_energy_total - wallbox_energy_total_start, IDX_WALLBOX_LAST_ENERGY_ALL, true);
-    }
-    if (wallbox_energy_solar > (wallbox_energy_solar_start + diff_solar - add_solar)) {
-        diff_solar = storeIntegerValue(c, 0, 0, add_solar + wallbox_energy_solar - wallbox_energy_solar_start, IDX_WALLBOX_LAST_ENERGY_SOLAR, true);
+        if (correct) wallboxDailyNull(c, wb_number, false);
     }
     return;
 }
 
-int createRequest(SRscpFrameBuffer * frameBuffer) {
+void wallboxLastCharging(std::vector<RSCP_MQTT::cache_t> & c, int wb_number) {
+    static bool start = true;
+    int wallbox_energy_total;
+    int wallbox_energy_solar;
+    int wallbox_plugged;
+
+    for (uint8_t i = 0; i < wb_number; i++) {
+        if (start) {
+            wb_stat.last_wallbox_energy_total_start[i] = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_ALL, i);
+            wb_stat.last_wallbox_energy_solar_start[i] = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, i);
+        }
+        wallbox_energy_total = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_ALL, i);
+        wallbox_energy_solar = getIntegerValue(c, TAG_WB_DATA, TAG_WB_ENERGY_SOLAR, i);
+        wallbox_plugged = getIntegerValue(c, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2 + i * 10) & 8;
+        if (!wb_stat.last_wallbox_plugged_last[i] && wallbox_plugged) {
+            storeIntegerValue(c, 0, 0, 0, i + IDX_WALLBOX_LAST_ENERGY_ALL, true);
+            storeIntegerValue(c, 0, 0, 0, i + IDX_WALLBOX_LAST_ENERGY_SOLAR, true);
+            wb_stat.last_wallbox_energy_total_start[i] = wallbox_energy_total;
+            wb_stat.last_wallbox_energy_solar_start[i] = wallbox_energy_solar;
+            wb_stat.last_add_total[i] = 0;
+            wb_stat.last_add_solar[i] = 0;
+            wb_stat.last_diff_total[i] = 0;
+            wb_stat.last_diff_solar[i] = 0;
+        }
+        if ((wallbox_energy_total - wb_stat.last_wallbox_energy_total_start[i] < 0) || !wallbox_energy_total) {
+            wb_stat.last_wallbox_energy_total_start[i] = wallbox_energy_total;
+            wb_stat.last_add_total[i] = wb_stat.last_diff_total[i];
+            wb_stat.last_diff_total[i] = 0;
+        }
+        if ((wallbox_energy_solar - wb_stat.last_wallbox_energy_solar_start[i] < 0) || !wallbox_energy_solar) {
+            wb_stat.last_wallbox_energy_solar_start[i] = wallbox_energy_solar;
+            wb_stat.last_add_solar[i] = wb_stat.last_diff_solar[i];
+            wb_stat.last_diff_solar[i] = 0;
+        }
+        if (wb_stat.last_wallbox_plugged_last[i] != wallbox_plugged) {
+            wb_stat.last_wallbox_plugged_last[i] = wallbox_plugged;
+        }
+        if (wallbox_energy_total > (wb_stat.last_wallbox_energy_total_start[i] + wb_stat.last_diff_total[i] - wb_stat.last_add_total[i])) {
+            wb_stat.last_diff_total[i] = storeIntegerValue(c, 0, 0, wb_stat.last_add_total[i] + wallbox_energy_total - wb_stat.last_wallbox_energy_total_start[i], i + IDX_WALLBOX_LAST_ENERGY_ALL, true);
+        }
+        if (wallbox_energy_solar > (wb_stat.last_wallbox_energy_solar_start[i] + wb_stat.last_diff_solar[i] - wb_stat.last_add_solar[i])) {
+            wb_stat.last_diff_solar[i] = storeIntegerValue(c, 0, 0, wb_stat.last_add_solar[i] + wallbox_energy_solar - wb_stat.last_wallbox_energy_solar_start[i], i + IDX_WALLBOX_LAST_ENERGY_SOLAR, true);
+        }
+    }
+    if (start) start = false;
+    return;
+}
+
+void createRequest(SRscpFrameBuffer * frameBuffer) {
     RscpProtocol protocol;
     SRscpValue rootValue;
 
@@ -1402,28 +1591,39 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
         //if (!cfg.daemon) printf("\nRequest cyclic data at %s (%li)\n", buffer, rawtime);
         //if (!cfg.daemon && e3dc_ts) printf("Difference to E3DC time is %li hour(s)\n", e3dc_diff);
         // request power data information
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_PV);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_BAT);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_HOME);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_GRID);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_ADD);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_COUPLING_MODE);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_MODE);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_STATUS);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_BALANCED_PHASES);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_BAT_SOC);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_STORED_ERRORS);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_USED_CHARGE_LIMIT);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_BAT_CHARGE_LIMIT);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_DCDC_CHARGE_LIMIT);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_USER_CHARGE_LIMIT);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_USED_DISCHARGE_LIMIT);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_BAT_DISCHARGE_LIMIT);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_DCDC_DISCHARGE_LIMIT);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_USER_DISCHARGE_LIMIT);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_REMAINING_BAT_CHARGE_POWER);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_REMAINING_BAT_DISCHARGE_POWER);
-        protocol.appendValue(&rootValue, TAG_EMS_REQ_EMERGENCY_POWER_STATUS);
+        if (cfg.ems_requests) {
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_PV);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_BAT);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_HOME);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_GRID);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_POWER_ADD);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_COUPLING_MODE);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_MODE);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_STATUS);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_BALANCED_PHASES);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_BAT_SOC);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_STORED_ERRORS);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_USED_CHARGE_LIMIT);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_BAT_CHARGE_LIMIT);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_DCDC_CHARGE_LIMIT);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_USER_CHARGE_LIMIT);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_USED_DISCHARGE_LIMIT);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_BAT_DISCHARGE_LIMIT);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_DCDC_DISCHARGE_LIMIT);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_USER_DISCHARGE_LIMIT);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_REMAINING_BAT_CHARGE_POWER);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_REMAINING_BAT_DISCHARGE_POWER);
+            protocol.appendValue(&rootValue, TAG_EMS_REQ_EMERGENCY_POWER_STATUS);
+        }
+
+        if (tags_added) {
+            for (std::vector<RSCP_MQTT::additional_tags_t>::iterator it = RSCP_MQTT::AdditionalTags.begin(); it != RSCP_MQTT::AdditionalTags.end(); ++it) {
+                if ((it->req_container == 0) && ((it->one_shot == false) || (it->one_shot && !e3dc_ts))) {
+                    if (it->req_index >= 0) protocol.appendValue(&rootValue, it->req_tag, it->req_index);
+                    else protocol.appendValue(&rootValue, it->req_tag);
+                }
+            }
+        }
 
         // Wallbox
         if (cfg.wallbox) {
@@ -1503,7 +1703,7 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
             SRscpValue PMContainer;
             for (uint8_t i = 0; i < cfg.pm_number; i++) {
                 protocol.createContainerValue(&PMContainer, TAG_PM_REQ_DATA);
-                protocol.appendValue(&PMContainer, TAG_PM_INDEX, (uint8_t)cfg.pm_index[i]);
+                protocol.appendValue(&PMContainer, TAG_PM_INDEX, (uint8_t)cfg.pm_indexes[i]);
                 protocol.appendValue(&PMContainer, TAG_PM_REQ_POWER_L1);
                 protocol.appendValue(&PMContainer, TAG_PM_REQ_POWER_L2);
                 protocol.appendValue(&PMContainer, TAG_PM_REQ_POWER_L3);
@@ -1537,7 +1737,6 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                 protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_CURRENT, i);
                 protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_STRING_ENERGY_ALL, i);
             }
-            protocol.appendValue(&PVIContainer, TAG_PVI_REQ_DC_STRING_ENERGY_ALL, (uint8_t)0);
             protocol.appendValue(&PVIContainer, TAG_PVI_REQ_AC_POWER, (uint8_t)0);
             protocol.appendValue(&PVIContainer, TAG_PVI_REQ_AC_POWER, (uint8_t)1);
             protocol.appendValue(&PVIContainer, TAG_PVI_REQ_AC_POWER, (uint8_t)2);
@@ -1582,27 +1781,29 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
         // Wallbox
         if (cfg.wallbox) {
             SRscpValue WBContainer;
-            protocol.createContainerValue(&WBContainer, TAG_WB_REQ_DATA) ;
-            protocol.appendValue(&WBContainer, TAG_WB_INDEX, (uint8_t)cfg.wb_index);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_SOC);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ACTIVE_PHASES);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_EXTERN_DATA_ALG);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_NUMBER_PHASES);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_KEY_STATE);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_POWER_L1);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_POWER_L2);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_POWER_L3);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_ENERGY_ALL);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_ENERGY_SOLAR);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ENERGY_L1);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ENERGY_L2);
-            protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ENERGY_L3);
-            protocol.appendValue(&rootValue, WBContainer);
-            protocol.destroyValueData(WBContainer);
+            for (uint8_t i = 0; i < cfg.wb_number; i++) {
+                protocol.createContainerValue(&WBContainer, TAG_WB_REQ_DATA) ;
+                protocol.appendValue(&WBContainer, TAG_WB_INDEX, (uint8_t)cfg.wb_indexes[i]);
+                protocol.appendValue(&WBContainer, TAG_WB_REQ_SOC);
+                protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ACTIVE_PHASES);
+                protocol.appendValue(&WBContainer, TAG_WB_REQ_EXTERN_DATA_ALG);
+                protocol.appendValue(&WBContainer, TAG_WB_REQ_NUMBER_PHASES);
+                protocol.appendValue(&WBContainer, TAG_WB_REQ_KEY_STATE);
+                protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_POWER_L1);
+                protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_POWER_L2);
+                protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_POWER_L3);
+                protocol.appendValue(&WBContainer, TAG_WB_REQ_ENERGY_ALL);
+                protocol.appendValue(&WBContainer, TAG_WB_REQ_ENERGY_SOLAR);
+                protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ENERGY_L1);
+                protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ENERGY_L2);
+                protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ENERGY_L3);
+                protocol.appendValue(&rootValue, WBContainer);
+                protocol.destroyValueData(WBContainer);
+            }
         }
 
         // request db history information
-        if (e3dc_ts) {
+        if (cfg.hst_requests && e3dc_ts) {
             SRscpValue dbContainer;
             start.nanoseconds = 0;
             interval.nanoseconds = 0;
@@ -1695,6 +1896,30 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                 }
             }
         }
+
+        if (tags_added) {
+            uint32_t container = 0;
+            SRscpValue ReqContainer;
+            for (std::vector<RSCP_MQTT::additional_tags_t>::iterator it = RSCP_MQTT::AdditionalTags.begin(); it != RSCP_MQTT::AdditionalTags.end(); ++it) {
+                if ((it->req_container != 0) && ((it->one_shot == false) || (it->one_shot && !e3dc_ts))) {
+                    if (container && (it->req_container != container)) {
+                        protocol.appendValue(&rootValue, ReqContainer);
+                        protocol.destroyValueData(ReqContainer);
+                    }
+                    if (it->req_container && (it->req_container != container)) {
+                        protocol.createContainerValue(&ReqContainer, it->req_container);
+                        container = it->req_container;
+                    }
+                    if (it->req_index >= 0) protocol.appendValue(&ReqContainer, it->req_tag, it->req_index);
+                    else protocol.appendValue(&ReqContainer, it->req_tag);
+                }
+            }
+            if (container) {
+                protocol.appendValue(&rootValue, ReqContainer);
+                protocol.destroyValueData(ReqContainer);
+            }
+        }
+
         // handle incoming MQTT requests
         if (mqttRcvd || cfg.auto_refresh) {
             mqttRcvd = false;
@@ -1707,15 +1932,12 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                 if ((it->done == false) || (it->refresh_count > 0)) {
                     if (it->refresh_count > 0) it->refresh_count = it->refresh_count - 1;
                     if (!it->container && !it->tag) { //system call
-                        if (!strcmp(it->topic, "set/log") || !strcmp(it->topic, "set/log/cache")) logCache(RSCP_MQTT::RscpMqttCache, cfg.logfile, buffer);
+                        if (!strcmp(it->topic, "set/log") || !strcmp(it->topic, "set/log/cache")) logCache(RSCP_MQTT::RscpMqttCache, cfg.logfile);
+                        if (!strcmp(it->topic, "set/log/rcache")) logRecCache(RSCP_MQTT::RscpMqttReceiveCache, cfg.logfile);
                         if (!strcmp(it->topic, "set/log/errors")) logMessageCache(cfg.logfile, false);
                         if (!strcmp(it->topic, "set/health")) logHealth(cfg.logfile);
                         if (!strcmp(it->topic, "set/force")) refreshCache(RSCP_MQTT::RscpMqttCache, it->payload);
                         if ((!strcmp(it->topic, "set/interval")) && (atoi(it->payload) >= DEFAULT_INTERVAL_MIN) && (atoi(it->payload) <= DEFAULT_INTERVAL_MAX)) cfg.interval = atoi(it->payload);
-                        if ((!strcmp(it->topic, "set/wallbox/index")) && (atoi(it->payload) >= 0) && (atoi(it->payload) < MAX_WB_COUNT)) {
-                            cfg.wb_index = atoi(it->payload);
-                            storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, cfg.wb_index, IDX_WALLBOX_INDEX, true);
-                        }
                         if ((!strcmp(it->topic, "set/power_mode")) && cfg.auto_refresh) handleSetPower(RSCP_MQTT::RscpMqttReceiveCache, TAG_EMS_REQ_SET_POWER, it->payload);
                         if (!strcmp(it->topic, "set/limit/charge/soc")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_CHARGE_SOC, true);
                         if (!strcmp(it->topic, "set/limit/discharge/soc")) storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(it->payload), IDX_LIMIT_DISCHARGE_SOC, true);
@@ -1732,8 +1954,17 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                         if (!strcmp(it->topic, "set/requests/dcb")) {
                             if (!strcmp(it->payload, "true")) cfg.dcb_requests = true; else cfg.dcb_requests = false;
                         }
+                        if (!strcmp(it->topic, "set/requests/ems")) {
+                            if (!strcmp(it->payload, "true")) cfg.ems_requests = true; else cfg.ems_requests = false;
+                        }
+                        if (!strcmp(it->topic, "set/requests/history")) {
+                            if (!strcmp(it->payload, "true")) cfg.hst_requests = true; else cfg.hst_requests = false;
+                        }
                         if (!strcmp(it->topic, "set/soc_limiter")) {
                             if (!strcmp(it->payload, "true")) cfg.soc_limiter = true; else cfg.soc_limiter = false;
+                        }
+                        if (!strcmp(it->topic, "set/raw_mode")) {
+                            if (!strcmp(it->payload, "true")) cfg.raw_mode = true; else cfg.raw_mode = false;
                         }
                         if (!strcmp(it->topic, "set/daily_values")) {
                             if (!strcmp(it->payload, "true")) cfg.daily_values = true; else cfg.daily_values = false;
@@ -1751,33 +1982,22 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
                     if (it->container && (it->container != container)) {
                         protocol.createContainerValue(&ReqContainer, it->container);
                         if (it->container == TAG_SE_REQ_SET_EP_RESERVE) protocol.appendValue(&ReqContainer, TAG_SE_PARAM_INDEX, 0);
-                        if (it->container == TAG_WB_REQ_DATA) protocol.appendValue(&ReqContainer, TAG_WB_INDEX, (uint8_t)cfg.wb_index);
+                        if (it->container == TAG_WB_REQ_DATA) protocol.appendValue(&ReqContainer, TAG_WB_INDEX, (uint8_t)cfg.wb_indexes[it->index]);
                         container = it->container;
                     }
-
                     // Wallbox
                     if (cfg.wallbox && (container == TAG_WB_REQ_DATA) && (it->tag == TAG_WB_EXTERN_DATA)) {
                         uint8_t wallboxExt[6];
 
                         if (max_current < 0) {
-                            sun_mode = getIntegerValue(RSCP_MQTT::RscpMqttCache, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2) & 128;
-                            max_current = getIntegerValue(RSCP_MQTT::RscpMqttCache, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 3);
+                            sun_mode = getIntegerValue(RSCP_MQTT::RscpMqttCache, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2 + it->index * 10) & 128;
+                            max_current = getIntegerValue(RSCP_MQTT::RscpMqttCache, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 3 + it->index * 10);
                         }
                         for (size_t i = 0; i < sizeof(wallboxExt); ++i) wallboxExt[i] = 0;
-                        if (strstr(it->topic, "control")) { // deprecated
-                            if (sscanf(it->payload, "solar:%d", (int*)&wallboxExt[1]) == 1) {
-                                sun_mode = 1;
-                            } else if (sscanf(it->payload, "mix:%d", (int*)&wallboxExt[1]) == 1) {
-                                sun_mode = 0;
-                            } else if (!strcmp(it->payload, "stop")) {
-                                wallboxExt[4] = 1;
-                            } else {
-                                logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: wallbox format incorrect. >%<\n", it->payload);
-                            }
-                        } else if (strstr(it->topic, "toggle")) {
+                        if (strstr(it->topic, "toggle")) {
                             wallboxExt[4] = 1;
                         } else if (strstr(it->topic, "suspended")) {
-                            int suspended = getIntegerValue(RSCP_MQTT::RscpMqttCache, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2) & 64;
+                            int suspended = getIntegerValue(RSCP_MQTT::RscpMqttCache, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, 2 + it->index * 10) & 64;
                             if ((!suspended && !strcmp(it->payload, "1")) || (suspended && !strcmp(it->payload, "0"))) {
                                 wallboxExt[4] = 1;
                             }
@@ -1870,11 +2090,83 @@ int createRequest(SRscpFrameBuffer * frameBuffer) {
     // the root value object should be destroyed after the data is copied into the frameBuffer and is not needed anymore
     protocol.destroyValueData(rootValue);
 
-    return(0);
+    return;
+}
+
+void publishRaw(RscpProtocol *protocol, SRscpValue *response, char *topic) {
+    char *payload_new = (char *)malloc(PAYLOAD_SIZE * sizeof(char));
+    char *payload_old = readRawData(topic);
+    preparePayload(protocol, response, &payload_new);
+    if (payload_old && strcmp(payload_old, payload_new)) {
+        publishImmediately(topic, payload_new, false);
+        updateRawData(topic, payload_new);
+    } else if (!payload_old) {
+        publishImmediately(topic, payload_new, false);
+        mergeRawData(topic, payload_new);
+    }
+    if (payload_new) free(payload_new);
+    return;
+}
+
+void handleRaw(RscpProtocol *protocol, SRscpValue *response, uint32_t *cache, int level) {
+    int l = level + 1;
+    char topic[TOPIC_SIZE];
+
+    if (response->dataType == RSCP::eTypeError) return;
+
+    if (!l && (response->dataType != RSCP::eTypeContainer)) {
+        sprintf(topic, "raw/%s", tagName(RSCP_TAGS::RscpTagsOverview, response->tag));
+        publishRaw(protocol, response, topic);
+        return;
+    }
+    std::vector<SRscpValue> data = protocol->getValueAsContainer(response);
+    for (size_t i = 0; i < data.size(); ++i) {
+        if (data[i].dataType != RSCP::eTypeError) {
+            cache[l] = response->tag;
+            if (data[i].dataType == RSCP::eTypeContainer) {
+                if (l < RECURSION_MAX_LEVEL) handleRaw(protocol, &data[i], cache, l);
+                else logMessageByTag(response->tag, data[i].tag, 0, __LINE__, (char *)"Error: Next recursion level not possible. Container >%s< Tag >%s< [%d]\n");
+            } else {
+                cache[l + 1] = data[i].tag;
+                strcpy(topic, "raw");
+                for (int i = 0; i < RECURSION_MAX_LEVEL; i++) {
+                    if (cache[i]) {
+                        strcat(topic, "/");
+                        strcat(topic, tagName(RSCP_TAGS::RscpTagsOverview, cache[i])); 
+                    }
+                }
+                publishRaw(protocol, &data[i], topic);
+            }
+        }
+    }
+    protocol->destroyValueData(data);
+    return;
+}
+
+void handleContainer(RscpProtocol *protocol, SRscpValue *response, uint32_t *cache, int level) {
+    int l = level + 1;
+
+    if ((response->dataType == RSCP::eTypeError) && (response->dataType != RSCP::eTypeContainer)) return;
+    std::vector<SRscpValue> data = protocol->getValueAsContainer(response);
+    for (size_t i = 0; i < data.size(); ++i) {
+        if (data[i].dataType != RSCP::eTypeError) {
+            cache[l] = response->tag;
+            if (data[i].dataType == RSCP::eTypeContainer) {
+                if (l < RECURSION_MAX_LEVEL) handleContainer(protocol, &data[i], cache, l);
+                else logMessageByTag(response->tag, data[i].tag, 0, __LINE__, (char *)"Error: Next recursion level not possible. Container >%s< Tag >%s< [%d]\n");
+            } else {
+                cache[l + 1] = data[i].tag;
+                storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &data[i], cache[l], 0);
+            }
+        }
+    }
+    protocol->destroyValueData(data);
+    return;
 }
 
 int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
     RSCP_MQTT::date_t x;
+    uint32_t cache[RECURSION_MAX_LEVEL];
 
     // check if any of the response has the error flag set and react accordingly
     if (response->dataType == RSCP::eTypeError) {
@@ -1891,6 +2183,11 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
         return(-1);
     }
 
+    if (cfg.raw_mode) {
+        for (int i = 0; i < RECURSION_MAX_LEVEL; i++) cache[i] = 0;
+        handleRaw(protocol, response, cache, -1);
+    } 
+
     // check the SRscpValue TAG to detect which response it is
     switch (response->tag) {
     case TAG_RSCP_AUTHENTICATION: {
@@ -1900,7 +2197,7 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
         uint8_t ucAccessLevel = protocol->getValueAsUChar8(response);
         if (ucAccessLevel > 0) {
             iAuthenticated = 1;
-            logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"RSCP authentication level %i\n", ucAccessLevel);
+            if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"RSCP authentication level %i\n", ucAccessLevel);
         } else logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"RSCP authentication failed. Please check your configuration (E3DC_USER, E3DC_PASSWORD).\n");
         break;
     }
@@ -1952,7 +2249,6 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                         cfg.bat_dcb_start[battery_nr] = battery_nr?cfg.bat_dcb_count[battery_nr - 1]:0;
                         storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
                         addTemplTopics(TAG_BAT_DCB_INFO, 1, NULL, cfg.bat_dcb_start[battery_nr], cfg.bat_dcb_start[battery_nr] + cfg.bat_dcb_count[battery_nr], 1, true);
-                        if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"TAG_BAT_DCB_COUNT battery_nr = %d bat_dcb_count = %d bat_dcb_start = %d\n", battery_nr, cfg.bat_dcb_count[battery_nr], cfg.bat_dcb_start[battery_nr]);
                         break;
                     }
                     case TAG_BAT_SPECIFICATION: {
@@ -1996,16 +2292,17 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                                 uint8_t wallboxExt[8];
                                 memcpy(&wallboxExt, &wallboxContent[j].data[0], sizeof(wallboxExt));
                                 for (size_t b = 0; b < sizeof(wallboxExt); ++b) {
-                                    storeIntegerValue(RSCP_MQTT::RscpMqttCache, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, wallboxExt[b], b, false);
+                                    storeIntegerValue(RSCP_MQTT::RscpMqttCache, TAG_WB_EXTERN_DATA_ALG, TAG_WB_EXTERN_DATA, wallboxExt[b], b + wb_nr * 10, false);
                                 }
                             }
                          }
                      }
                  }
             } else {
-                storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
+                storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, wb_nr);
             }
         }
+        wb_nr++;
         protocol->destroyValueData(containerData);
         break;
     }
@@ -2015,8 +2312,10 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
             if (containerData[i].dataType == RSCP::eTypeError) {
                 // handle error for example access denied errors
                 uint32_t uiErrorCode = protocol->getValueAsUInt32(&containerData[i]);
-                logMessageByTag(response->tag, containerData[i].tag, uiErrorCode, __LINE__, (char *)"Error: Container >%s< Tag >%s< received >%s< [%d]\n");
-                if (uiErrorCode == 6) pushNotSupportedTag(response->tag, containerData[i].tag);
+                if (uiErrorCode == 6) {
+                    pushNotSupportedTag(response->tag, containerData[i].tag);
+                    logMessageByTag(response->tag, containerData[i].tag, uiErrorCode, __LINE__, (char *)"Not supported by the device: Container >%s< Tag >%s< received >%s< [%d]\n");
+                } else logMessageByTag(response->tag, containerData[i].tag, uiErrorCode, __LINE__, (char *)"Error: Container >%s< Tag >%s< received >%s< [%d]\n");
             } else {
             switch (containerData[i].tag) {
                 case TAG_PVI_TEMPERATURE:
@@ -2238,7 +2537,10 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
         break;
     }
     default:
-        storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, response, 0, 0);
+        if (response->dataType == RSCP::eTypeContainer) {
+            for (int i = 0; i < RECURSION_MAX_LEVEL; i++) cache[i] = 0;
+            handleContainer(protocol, response, cache, -1);
+        } else storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, response, 0, 0);
         break;
     }
     return(0);
@@ -2266,6 +2568,7 @@ static int processReceiveBuffer(const unsigned char * ucBuffer, int iLength) {
     year = curr_year;
     battery_nr = 0;
     pm_nr = 0;
+    wb_nr = 0;
     for (size_t i = 0; i < frame.data.size(); i++)
         handleResponseValue(&protocol, &frame.data[i]);
 
@@ -2371,6 +2674,7 @@ static void receiveLoop(bool & bStopExecution) {
             }
         }
     }
+    return;
 }
 
 static void mainLoop(void) {
@@ -2420,9 +2724,9 @@ static void mainLoop(void) {
             classifyValues(RSCP_MQTT::RscpMqttCache);
             if (cfg.pm_requests) pmSummation(RSCP_MQTT::RscpMqttCache, cfg.pm_number);
             if (cfg.pvi_requests) pviString(RSCP_MQTT::RscpMqttCache, cfg.pvi_tracker, new_day);
-            if (cfg.wallbox) wallboxDaily(RSCP_MQTT::RscpMqttCache, new_day);
+            if (cfg.wallbox) wallboxDaily(RSCP_MQTT::RscpMqttCache, cfg.wb_number, new_day);
             if (cfg.statistic_values) statisticValues(RSCP_MQTT::RscpMqttCache, new_day);
-            if (cfg.wallbox) wallboxLastCharging(RSCP_MQTT::RscpMqttCache);
+            if (cfg.wallbox) wallboxLastCharging(RSCP_MQTT::RscpMqttCache, cfg.wb_number);
             if (new_day && cfg.log_level) logMessageCache(cfg.logfile, true);
         }
 
@@ -2432,7 +2736,7 @@ static void mainLoop(void) {
                 mosq = mosquitto_new(cfg.mqtt_client_id, true, NULL);
             else
                 mosq = mosquitto_new(NULL, true, NULL);
-            logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Connecting to broker %s:%u\n", cfg.mqtt_host, cfg.mqtt_port);
+            if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Connecting to broker %s:%u\n", cfg.mqtt_host, cfg.mqtt_port);
             if (mosq) {
                 char topic[TOPIC_SIZE];
                 snprintf(topic, TOPIC_SIZE, "%s/rscp2mqtt/status", cfg.prefix);
@@ -2453,7 +2757,7 @@ static void mainLoop(void) {
                 if (!mosquitto_connect(mosq, cfg.mqtt_host, cfg.mqtt_port, 10)) {
                     std::thread th(mqttListener, mosq);
                     th.detach();
-                    logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Success: MQTT broker connected.\n");
+                    if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Success: MQTT broker connected.\n");
                 } else {
                     logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: MQTT broker connection failed.\n");
                     mosquitto_destroy(mosq);
@@ -2497,7 +2801,7 @@ static void mainLoop(void) {
                 cleanupCache(RSCP_MQTT::RscpMqttCacheTempl);
                 if (cfg.save_memory) RSCP_TAGS::RscpTagsOverview.clear();
                 if (cfg.pvi_requests) pviStringNull(RSCP_MQTT::RscpMqttCache, cfg.pvi_tracker);
-                if (cfg.wallbox) wallboxDailyNull(RSCP_MQTT::RscpMqttCache, true);
+                if (cfg.wallbox) wallboxDailyNull(RSCP_MQTT::RscpMqttCache, cfg.wb_number, true);
                 while (!RSCP_MQTT::mqttQ.empty()) {
                     RSCP_MQTT::mqtt_data_t x;
                     x = RSCP_MQTT::mqttQ.front();
@@ -2506,20 +2810,22 @@ static void mainLoop(void) {
                     if (x.payload) {free(x.payload); x.payload = NULL;}
                     RSCP_MQTT::mqttQ.pop();
                 }
-                publishImmediately((char *)"rscp2mqtt/version", (char *)RSCP2MQTT_VERSION);
-                publishImmediately((char *)"rscp2mqtt/long_version", (char *)RSCP2MQTT);
-                if (cfg.mqtt_tls) publishImmediately((char *)"rscp2mqtt/mqtt/encryption", (char *)"tls");
-                else publishImmediately((char *)"rscp2mqtt/mqtt/encryption", (char *)"none");
+                publishImmediately((char *)"rscp2mqtt/version", (char *)RSCP2MQTT_VERSION, true);
+                publishImmediately((char *)"rscp2mqtt/long_version", (char *)RSCP2MQTT, true);
+                if (cfg.mqtt_tls) publishImmediately((char *)"rscp2mqtt/mqtt/encryption", (char *)"tls", true);
+                else publishImmediately((char *)"rscp2mqtt/mqtt/encryption", (char *)"none", true);
 #ifdef INFLUXDB
-                if (cfg.curl_https) publishImmediately((char *)"rscp2mqtt/curl/protocol", (char *)"https");
-                else publishImmediately((char *)"rscp2mqtt/curl/protocol", (char *)"http");
+                if (cfg.curl_https) publishImmediately((char *)"rscp2mqtt/curl/protocol", (char *)"https", true);
+                else publishImmediately((char *)"rscp2mqtt/curl/protocol", (char *)"http", true);
 #endif
+                if (cfg.once) go = false;
             }
             sleep(1);
         } else {
             wsleep(cfg.interval);
         }
     }
+    return;
 }
 
 int main(int argc, char *argv[]) {
@@ -2529,15 +2835,17 @@ int main(int argc, char *argv[]) {
 
     cfg.daemon = false;
     cfg.verbose = false;
+    cfg.once = false;
 
     while (i < argc) {
         if (!strcmp(argv[i], "--daemon") || !strcmp(argv[i], "-d")) cfg.daemon = true;
         if (!strcmp(argv[i], "--verbose") || !strcmp(argv[i], "-v")) cfg.verbose = true;
         if ((!strcmp(argv[i], "--config") || !strcmp(argv[i], "-c")) && (i+1 < argc)) cfile = argv[++i];
+        if (!strcmp(argv[i], "--once") || !strcmp(argv[i], "-1")) cfg.once = true;
         if (!strcmp(argv[i], "--help")) {
             printf("rscp2mqtt [%s] - Bridge between an E3/DC home power station and an MQTT broker\n\n", RSCP2MQTT);
             printf("Usage: rscp2mqtt [options]\n\n");
-            printf("Options:\n  -c, --config <file>\n  -d, --daemon\t\tdaemon mode\n  -v, --verbose\t\tverbose mode\n\n");
+            printf("Options:\n  -c, --config <file>\n  -d, --daemon\t\tdaemon mode\n  -v, --verbose\t\tverbose mode\n  -1, --once\t\tone interval runtime\n\n");
             printf("For more details please visit https://github.com/pvtom/rscp2mqtt\n");
             exit(EXIT_SUCCESS);
         }
@@ -2575,23 +2883,29 @@ int main(int argc, char *argv[]) {
     cfg.pvi_requests = true;
     cfg.pvi_tracker = 0;
     cfg.pvi_temp_count = 0;
+    memset((void *)&wb_stat, 0, sizeof(wb_t));
     for (uint8_t i = 0; i < MAX_DCB_COUNT; i++) {
         cfg.bat_dcb_count[i] = 0;
         cfg.bat_dcb_start[i] = 0;
     }
     for (uint8_t i = 0; i < MAX_PM_COUNT; i++) {
-        cfg.pm_index[i] = 0;
+        cfg.pm_indexes[i] = 0;
+    }
+    for (uint8_t i = 0; i < MAX_WB_COUNT; i++) {
+        cfg.wb_indexes[i] = 0;
     }
     cfg.save_memory = false;
     cfg.pm_number = 0;
+    cfg.wb_number = 0;
     cfg.pm_extern = false;
     cfg.pm_requests = true;
     cfg.dcb_requests = true;
     cfg.soc_limiter = false;
+    cfg.ems_requests = true;
+    cfg.hst_requests = true;
     cfg.daily_values = true;
     cfg.statistic_values = true;
     cfg.wallbox = false;
-    cfg.wb_index = 0;
     cfg.auto_refresh = false;
     cfg.store_setup = false;
     strcpy(cfg.prefix, DEFAULT_PREFIX);
@@ -2620,8 +2934,7 @@ int main(int argc, char *argv[]) {
     cfg.log_level = 0;
     strcpy(cfg.true_value, "true");
     strcpy(cfg.false_value, "false");
-
-    uint32_t hotfix_tag = 0;
+    cfg.raw_mode = false;
 
     // signal handler
     signal(SIGINT, signal_handler);
@@ -2736,9 +3049,15 @@ int main(int argc, char *argv[]) {
             else if ((strcasecmp(key, "PM_EXTERN") == 0) && (strcasecmp(value, "true") == 0))
                 cfg.pm_extern = true;
             else if (strcasecmp(key, "PM_INDEX") == 0) {
-                if ((cfg.pm_number < MAX_PM_COUNT) && (atoi(value) >= 0) && (atoi(value) <= 127)) cfg.pm_index[cfg.pm_number++] = atoi(value);
+                if ((cfg.pm_number < MAX_PM_COUNT) && (atoi(value) >= 0) && (atoi(value) <= 127)) cfg.pm_indexes[cfg.pm_number++] = atoi(value);
+            } else if (strcasecmp(key, "WB_INDEX") == 0) {
+                if ((cfg.wb_number < MAX_WB_COUNT) && (atoi(value) >= 0) && (atoi(value) < MAX_WB_COUNT)) cfg.wb_indexes[cfg.wb_number++] = atoi(value);
             } else if ((strcasecmp(key, "PM_REQUESTS") == 0) && (strcasecmp(value, "false") == 0))
                 cfg.pm_requests = false;
+            else if ((strcasecmp(key, "EMS_REQUESTS") == 0) && (strcasecmp(value, "false") == 0))
+                cfg.ems_requests = false;
+            else if ((strcasecmp(key, "HST_REQUESTS") == 0) && (strcasecmp(value, "false") == 0))
+                cfg.hst_requests = false;
             else if ((strcasecmp(key, "DCB_REQUESTS") == 0) && (strcasecmp(value, "false") == 0))
                 cfg.dcb_requests = false;
             else if ((strcasecmp(key, "SOC_LIMITER") == 0) && (strcasecmp(value, "true") == 0))
@@ -2749,8 +3068,6 @@ int main(int argc, char *argv[]) {
                 cfg.statistic_values = false;
             else if ((strcasecmp(key, "WALLBOX") == 0) && (strcasecmp(value, "true") == 0))
                 cfg.wallbox = true;
-            else if (strcasecmp(key, "WB_INDEX") == 0)
-                cfg.wb_index = atoi(value);
             else if ((strcasecmp(key, "LIMIT_CHARGE_SOC") == 0) && (atoi(value) >= 0) && (atoi(value) <= 100))
                 storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(value), IDX_LIMIT_CHARGE_SOC, true);
             else if ((strcasecmp(key, "LIMIT_DISCHARGE_SOC") == 0) && (atoi(value) >= 0) && (atoi(value) <= 100))
@@ -2790,16 +3107,60 @@ int main(int argc, char *argv[]) {
                 influx_reduced = true;
             }
 #endif
-            else if (strcasecmp(key, "HOTFIX_SET_TAG") == 0) {
-                printf("HOTFIX_SET_TAG tag >0x%08X<\n", (uint32_t)atol(value));
-                hotfix_tag = (uint32_t)atol(value);
-                hotfixSetEntry(RSCP_MQTT::RscpMqttReceiveCache, hotfix_tag, 0, NULL);
+            else if ((strcasecmp(key, "RAW_MODE") == 0) && (strcasecmp(value, "true") == 0))
+                cfg.raw_mode = true;
+            else if (strncasecmp(key, "ADD_NEW_REQUEST", strlen("ADD_NEW_REQUEST")) == 0) {
+                int order = 0;
+                int index = -1;
+                char container[128];
+                char tag[128];
+                bool one_shot = false;
+                memset(container, 0, sizeof(container));
+                memset(tag, 0, sizeof(tag));
+                if (!strcasecmp(key, "ADD_NEW_REQUEST_AT_START")) one_shot = true;
+                if ((sscanf(value, "%127[^:-]:%127[^:-]:%d-%d", container, tag, &index, &order) == 4) || (sscanf(value, "%127[^:-]:%127[^:-]-%d", container, tag, &order) == 3)) {
+                    if (isTag(RSCP_TAGS::RscpTagsOverview, container, true) && isTag(RSCP_TAGS::RscpTagsOverview, tag, false)) pushAdditionalTag(tagID(RSCP_TAGS::RscpTagsOverview, container), tagID(RSCP_TAGS::RscpTagsOverview, tag), index, order, one_shot);
+                } else logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"key >%s< value >%s< not enough attributes.\n", key, value);
             }
-            else if (strcasecmp(key, "HOTFIX_TO_TYPE") == 0) {
-                if (hotfix_tag) hotfixSetEntry(RSCP_MQTT::RscpMqttReceiveCache, hotfix_tag, atoi(value), NULL);
+            else if (strcasecmp(key, "ADD_NEW_TOPIC") == 0) {
+                int index = -1;
+                int divisor = 1;
+                int bit = 1;
+                char container[128];
+                char tag[128];
+                char topic[TOPIC_SIZE];
+                char unit[128];
+                memset(container, 0, sizeof(container));
+                memset(tag, 0, sizeof(tag));
+                memset(topic, 0, sizeof(topic));
+                memset(unit, 0, sizeof(unit));
+                if ((sscanf(value, "%127[^:]:%127[^:]:%127[^:]:%d:%d:%127[^:]", container, tag, unit, &divisor, &bit, topic) == 6)) {
+                    if (isTag(RSCP_TAGS::RscpTagsOverview, container, false) && isTag(RSCP_TAGS::RscpTagsOverview, tag, false)) addTopic(tagID(RSCP_TAGS::RscpTagsOverview, container), tagID(RSCP_TAGS::RscpTagsOverview, tag), topic, unit, F_AUTO, divisor, bit, true);
+                } else logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"key >%s< value >%s< not enough attributes.\n", key, value);
             }
-            else if (strcasecmp(key, "HOTFIX_TO_REGEX") == 0) {
-                if (hotfix_tag) hotfixSetEntry(RSCP_MQTT::RscpMqttReceiveCache, hotfix_tag, 0, value);
+            else if (strcasecmp(key, "ADD_NEW_SET_TOPIC") == 0) {
+                int index = -1;
+                int divisor = 1;
+                int bit = 1;
+                char container[128];
+                char tag[128];
+                char topic[TOPIC_SIZE];
+                char regex_true[128];
+                char value_true[128];
+                char regex_false[128];
+                char value_false[128];
+                char type[128];
+                memset(container, 0, sizeof(container));
+                memset(tag, 0, sizeof(tag));
+                memset(topic, 0, sizeof(topic));
+                memset(regex_true, 0, sizeof(regex_true));
+                memset(value_true, 0, sizeof(value_true));
+                memset(regex_false, 0, sizeof(regex_false));
+                memset(value_false, 0, sizeof(value_false));
+                memset(type, 0, sizeof(type));
+                if ((sscanf(value, "%127[^:]:%127[^:]:%127[^:]:%127[^:]:%127[^:]:%127[^:]:%127[^:]:%127[^:]", container, tag, topic, regex_true, value_true, regex_false, value_false, type) == 8)) {
+                    if (isTag(RSCP_TAGS::RscpTagsOverview, container, false) && isTag(RSCP_TAGS::RscpTagsOverview, tag, false)) addSetTopic(tagID(RSCP_TAGS::RscpTagsOverview, container), tagID(RSCP_TAGS::RscpTagsOverview, tag), 0, topic, regex_true, value_true, regex_false, value_false, typeID(RSCP_TAGS::RscpTypeNames, type), true);
+                } else logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"key >%s< value >%s< not enough attributes.\n", key, value);
             }
         }
     }
@@ -2818,9 +3179,8 @@ int main(int argc, char *argv[]) {
     if ((cfg.mqtt_qos < 0) || (cfg.mqtt_qos > 2)) cfg.mqtt_qos = 0;
     if ((cfg.pvi_tracker < 0) || (cfg.pvi_tracker > 127)) cfg.pvi_tracker = 0;
     if ((cfg.battery_strings < 1) || (cfg.battery_strings > 127)) cfg.battery_strings = 1;
-    if ((cfg.wb_index < 0) || (cfg.wb_index > MAX_WB_COUNT)) cfg.wb_index = 0;
     if (cfg.pm_number == 0) cfg.pm_number = 1;
-    if (cfg.pm_extern) cfg.pm_index[0] = 6;
+    if (cfg.pm_extern) cfg.pm_indexes[0] = 6;
 #ifdef INFLUXDB
     if ((cfg.influxdb_version < 1) || (cfg.influxdb_version > 2)) cfg.influxdb_version = 1;
 #endif
@@ -2828,10 +3188,23 @@ int main(int argc, char *argv[]) {
 
     // prepare RscpMqttReceiveCache
     for (uint8_t c = 0; c < IDLE_PERIOD_CACHE_SIZE; c++) {
-        RSCP_MQTT::rec_cache_t cache = { 0, 0, "set/idle_period", SET_IDLE_PERIOD_REGEX, "", "", "", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true };
-        RSCP_MQTT::RscpMqttReceiveCache.push_back(cache);
+        addSetTopic(0, 0, 0, (char *)"set/idle_period", (char *)SET_IDLE_PERIOD_REGEX, (char *)"", (char *)"", (char *)"", RSCP::eTypeBool, true);
     }
-    sort(RSCP_MQTT::RscpMqttReceiveCache.begin(), RSCP_MQTT::RscpMqttReceiveCache.end(), RSCP_MQTT::compareRecCache);
+    if (cfg.wallbox) {
+        for (uint8_t c = 0; c < cfg.wb_number; c++) {
+            char topic[TOPIC_SIZE];
+            sprintf(topic, "set/wallbox/%d/sun_mode", c + 1);
+            addSetTopic(TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, c, topic, (char *)"^true|on|1$", (char *)"1", (char *)"^false|off|0$", (char *)"0", RSCP::eTypeBool, false);
+            sprintf(topic, "set/wallbox/%d/toggle", c + 1);
+            addSetTopic(TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, c, topic, (char *)"^true|on|1$", (char *)"1", (char *)"", (char *)"", RSCP::eTypeBool, false);
+            sprintf(topic, "set/wallbox/%d/suspended", c + 1);
+            addSetTopic(TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, c, topic, (char *)"^true|on|1$", (char *)"1", (char *)"^false|off|0$", (char *)"0", RSCP::eTypeBool, false);
+            sprintf(topic, "set/wallbox/%d/max_current", c + 1);
+            addSetTopic(TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, c, topic, (char *)"^[0-9]{1,2}$", (char *)"", (char *)"", (char *)"", RSCP::eTypeUChar8, false);
+            sprintf(topic, "set/wallbox/%d/number_phases", c + 1);
+            addSetTopic(TAG_WB_REQ_DATA, TAG_WB_REQ_SET_NUMBER_PHASES, c, topic, (char *)"^1|3$", (char *)"", (char *)"", (char *)"", RSCP::eTypeUChar8, true);
+        }
+    }
 
     printf("rscp2mqtt [%s]\n", RSCP2MQTT);
     printf("E3DC system >%s:%u< user: >%s<\n", cfg.e3dc_ip, cfg.e3dc_port, cfg.e3dc_user);
@@ -2860,10 +3233,11 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    printf("MQTT broker >%s:%u< qos = >%i< retain = >%s< tls >%s< client id >%s< prefix >%s<\n", cfg.mqtt_host, cfg.mqtt_port, cfg.mqtt_qos, cfg.mqtt_retain ? "true" : "false", cfg.mqtt_tls?"✓":"✗", strcmp(cfg.mqtt_client_id, "")?cfg.mqtt_client_id:"✗", cfg.prefix);
-
     addPrefix(RSCP_MQTT::RscpMqttCache, cfg.prefix);
     addPrefix(RSCP_MQTT::RscpMqttCacheTempl, cfg.prefix);
+
+    // Additional Tags
+    sort(RSCP_MQTT::AdditionalTags.begin(), RSCP_MQTT::AdditionalTags.end(), RSCP_MQTT::compareAdditionalTags);
 
     // History year
     if (cfg.verbose) printf("History year range from %d to %d\n", cfg.history_start_year, curr_year);
@@ -2885,14 +3259,27 @@ int main(int argc, char *argv[]) {
 
     // Wallbox
     if (cfg.wallbox) {
-        addTemplTopics(TAG_WB_DATA, 0, NULL, 0, 1, 1, false);
-        addTemplTopics(TAG_WB_EXTERN_DATA_ALG, 0, NULL, 0, 1, 1, false);
+        if (cfg.wb_number == 0) cfg.wb_number = 1;
+        addTemplTopics(TAG_WB_DATA, (cfg.wb_number == 1)?0:1, (char *)"wallbox", 0, cfg.wb_number, 1, false);
+        addTemplTopics(TAG_WB_EXTERN_DATA_ALG, (cfg.wb_number == 1)?0:1, (char *)"wallbox", 0, cfg.wb_number, 1, false);
+        addTemplTopicsIdx(IDX_WALLBOX_DAY_ENERGY_ALL, (char *)"wallbox", 0, cfg.wb_number, 1, false);
+        addTemplTopicsIdx(IDX_WALLBOX_DAY_ENERGY_SOLAR, (char *)"wallbox", 0, cfg.wb_number, 1, false);
+        addTemplTopicsIdx(IDX_WALLBOX_ENERGY_ALL_START, (char *)"wallbox", 0, cfg.wb_number, 1, false);
+        addTemplTopicsIdx(IDX_WALLBOX_ENERGY_SOLAR_START, (char *)"wallbox", 0, cfg.wb_number, 1, false);
+        addTemplTopicsIdx(IDX_WALLBOX_LAST_ENERGY_ALL, (char *)"wallbox", 0, cfg.wb_number, 1, false);
+        addTemplTopicsIdx(IDX_WALLBOX_LAST_ENERGY_SOLAR, (char *)"wallbox", 0, cfg.wb_number, 1, false);
+        for (uint8_t i = 0; i < cfg.wb_number; i++) {
+            storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, i + IDX_WALLBOX_LAST_ENERGY_ALL, true);
+            storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, i + IDX_WALLBOX_LAST_ENERGY_SOLAR, true);
+        }
     }
 
     // Power Meters 
     addTemplTopics(TAG_PM_DATA, (cfg.pm_number == 1)?0:1, (char *)"pm", 0, cfg.pm_number, 1, false);
     addTemplTopicsIdx(IDX_PM_POWER, (char *)"pm", 0, cfg.pm_number, 1, false);
     addTemplTopicsIdx(IDX_PM_ENERGY, (char *)"pm", 0, cfg.pm_number, 1, true);
+
+    printf("MQTT broker >%s:%u< qos = >%i< retain = >%s< tls >%s< client id >%s< prefix >%s<\n", cfg.mqtt_host, cfg.mqtt_port, cfg.mqtt_qos, cfg.mqtt_retain?"✓":"✗", cfg.mqtt_tls?"✓":"✗", strcmp(cfg.mqtt_client_id, "")?cfg.mqtt_client_id:"✗", cfg.prefix);
 
 #ifdef INFLUXDB
     if (cfg.curl_https) cfg.curl_protocol = strdup("https");
@@ -2912,40 +3299,44 @@ int main(int argc, char *argv[]) {
         }
     }
 #endif
-    printf("Fetching data every ");
-    if (cfg.interval == 1) printf("second.\n"); else printf("%i seconds.\n", cfg.interval);
-
     printf("Requesting PVI %s | PM (", cfg.pvi_requests?"✓":"✗");
     for (uint8_t i = 0; i < cfg.pm_number; i++) {
         if (i) printf(",");
-        printf("%d", cfg.pm_index[i]);
+        printf("%d", cfg.pm_indexes[i]);
     }
-    printf(") | DCB %s (%d battery string%s) | Wallbox (%d) %s | Autorefresh %s\n", cfg.dcb_requests?"✓":"✗", cfg.battery_strings, (cfg.battery_strings > 1)?"s":"", cfg.wb_index, cfg.wallbox?"✓":"✗", cfg.auto_refresh?"✓":"✗");
+    printf(") | DCB %s (%d battery string%s) | Wallbox%s %s", cfg.dcb_requests?"✓":"✗", cfg.battery_strings, (cfg.battery_strings > 1)?"s":"", (cfg.wallbox && (cfg.wb_number > 1))?"es":"", cfg.wallbox?"✓":"✗"); 
+    if (cfg.wallbox) {
+        printf(" (");
+        for (uint8_t i = 0; i < cfg.wb_number; i++) {
+            if (i) printf(","); 
+            printf("%d", cfg.wb_indexes[i]); 
+        }
+        printf(")");
+    }
+    printf(" | Interval %d | Autorefresh %s | Raw data %s | ", cfg.interval, cfg.auto_refresh?"✓":"✗", cfg.raw_mode?"✓":"✗");
 
-    if (!cfg.mqtt_pub) printf("DISABLE_MQTT_PUBLISH / DRYRUN mode\n");
     switch (cfg.log_level) {
         case 1: {
-                    printf("Log Level = %d (ON)\n", cfg.log_level);
+                    printf("Logging ON\n");
                     break;
                 }
         case 2: {
-                    printf("Log Level = %d (BUFFERED)\n", cfg.log_level);
+                    printf("Logging BUFFERED\n");
                     break;
                 }
         default: {
-                    printf("Log Level = %d (OFF)\n", cfg.log_level);
+                    printf("Logging OFF\n");
                     break;
                 }
     }
 
-    if (isatty(STDOUT_FILENO)) {
-      printf("Stdout to terminal\n");
-    } else {
+    if (!cfg.mqtt_pub) printf("DISABLE_MQTT_PUBLISH / DRYRUN mode\n");
+
+    if (!isatty(STDOUT_FILENO)) {
       printf("Stdout to pipe/file\n");
       cfg.daemon = false;
       cfg.verbose = false;
     }
-    printf("\n");
 
     if (cfg.daemon) {
         printf("...working as a daemon.\n");
@@ -2968,14 +3359,6 @@ int main(int argc, char *argv[]) {
     } else {
         if (cfg.logfile) free(cfg.logfile);
         cfg.logfile = NULL;
-    }
-
-    if (cfg.verbose) logTopics(RSCP_MQTT::RscpMqttCache, cfg.logfile, false);
-
-    if (cfg.wallbox) {
-        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, cfg.wb_index, IDX_WALLBOX_INDEX, true);
-        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_ALL, true);
-        storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 0, IDX_WALLBOX_LAST_ENERGY_SOLAR, true);
     }
 
     // MQTT init
@@ -3019,14 +3402,14 @@ int main(int argc, char *argv[]) {
     // application which re-connections to server on connection lost
     while (go) {
         // connect to server
-        logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Connecting to server %s:%u\n", cfg.e3dc_ip, cfg.e3dc_port);
+        if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Connecting to server %s:%u\n", cfg.e3dc_ip, cfg.e3dc_port);
         iSocket = SocketConnect(cfg.e3dc_ip, cfg.e3dc_port);
         if (iSocket < 0) {
             logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: E3DC connection failed\n");
             sleep(1);
             continue;
         }
-        logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Success: E3DC connected.\n");
+        if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Success: E3DC connected.\n");
 
         // reset authentication flag
         iAuthenticated = 0;
@@ -3079,6 +3462,7 @@ int main(int argc, char *argv[]) {
     RSCP_MQTT::RscpMqttReceiveCache.clear();
     RSCP_MQTT::MessageCache.clear();
     RSCP_MQTT::NotSupportedTags.clear();
+    RSCP_MQTT::AdditionalTags.clear();
     RSCP_MQTT::TopicStore.clear();
     RSCP_MQTT::IdlePeriodCache.clear();
     RSCP_MQTT::ErrorCache.clear();

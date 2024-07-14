@@ -23,7 +23,7 @@ Supported topic areas are:
 - Values of the power meter (PM)
 - Values of the photovoltaic inverter (PVI)
 - Values of the emergency power supply (EP)
-- Values of the wallbox (WB)
+- Values of wallboxes (WB)
 
 For continuous provision of values, you can configure several topics that are published in each cycle. Default: Only modified values will be published.
 
@@ -45,8 +45,10 @@ For continuous provision of values, you can configure several topics that are pu
 - Historical data for past years
 - Query of historical daily values
 - Multiple power meters
-- Switch between wallboxes
-- TLS connections ([MQTT broker](MQTT_TLS.md), InfluxDB)
+- Multiple wallboxes
+- TLS connections ([MQTT broker](MQTT_TLS.md), [InfluxDB](INFLUXDB.md))
+- [Additional tags and topics](NEWTAGS.md) by configuration
+- Raw data mode
 
 Please also take a look at the [release notes](RELEASE.md).
 
@@ -135,7 +137,7 @@ To do this, set in the .config file: `LOG_MODE=BUFFERED`.
 You can also switch off the logging of such messages completely with `LOG_MODE=OFF`.
 If every event is to be logged: `LOG_MODE=ON`.
 
-## Program start
+## Program Start
 
 Start the program:
 ```
@@ -153,19 +155,10 @@ or to show the help page
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [3.25]
+rscp2mqtt [3.26]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
-MQTT broker >localhost:1883< qos = >0< retain = >false< tls >✗< client id >✗< prefix >e3dc<
-Fetching data every second.
-Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox (0) ✗ | Autorefresh ✓
-Log Level = 2 (BUFFERED)
-Stdout to terminal
-
-[2024-06-08 08:00:00] pid=30250 ppid=1 RscpMqttMain.cpp(3022) Connecting to server 192.168.178.111:5033
-[2024-06-08 08:00:00] pid=30250 ppid=1 RscpMqttMain.cpp(3029) Success: E3DC connected.
-[2024-06-08 08:00:00] pid=30250 ppid=1 RscpMqttMain.cpp(1903) RSCP authentication level 10
-[2024-06-08 08:00:00] pid=30250 ppid=1 RscpMqttMain.cpp(2435) Connecting to broker localhost:1883
-[2024-06-08 08:00:00] pid=30250 ppid=1 RscpMqttMain.cpp(2456) Success: MQTT broker connected.
+MQTT broker >localhost:1883< qos = >0< retain = >✗< tls >✗< client id >✗< prefix >e3dc<
+Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox ✗ | Interval 2 | Autorefresh ✓ | Raw data ✗ | Logging OFF
 ```
 
 Check the configuration if the connections are not established.
@@ -356,11 +349,11 @@ Turn on the functionality in the configuration file .config, add/change the foll
 AUTO_REFRESH=true
 ```
 
-## Wallbox Control
+### Wallbox Control
 
 The commands for controlling an E3/DC wallbox can be found [here](WALLBOX.md).
 
-## Historical daily data
+### Historical Daily Data
 
 Historical data for a specific day (format "YYYY-MM-DD") can be queried by
 ```
@@ -372,7 +365,7 @@ Please use the script `request_days.sh` to request data for a time span.
 ./request_days.sh localhost 1883 e3dc 2024-01-01 2024-01-13
 ```
 
-## System Commands
+### System Commands
 
 Refresh all topics
 ```
@@ -406,6 +399,14 @@ Turn DCB requests on or off (true/1/false/0)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/requests/dcb" -m true
 ```
+Turn EMS requests on or off (true/1/false/0)
+``` 
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/requests/ems" -m true
+``` 
+Turn history requests on or off (true/1/false/0)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/requests/history" -m true
+```
 Turn SOC limiter on or off (true/1/false/0)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/soc_limiter" -m true
@@ -417,6 +418,10 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/daily_values" -m true
 Turn statistic values on or off (true/1/false/0)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/statistic_values" -m true
+```
+Turn raw data mode on or off (true/1/false/0)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/raw_mode" -m true
 ```
 
 ## Used Libraries and Licenses

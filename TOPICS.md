@@ -100,7 +100,7 @@ All topics are listed with the default prefix "e3dc".
 | EMS Inverter Count | e3dc/system/inverter_count | |
 | EMS Max Charge Power | e3dc/ems/max_charge/power | [W] |
 | EMS Max Discharge Power | e3dc/ems/max_discharge/power | [W] |
-| EMS Mode | e3dc/mode | (0,1,...) |
+| EMS Mode | e3dc/mode | |
 | EMS Power Limits Used | e3dc/ems/power_limits | (true/false) |
 | EMS Powersave Enabled | e3dc/ems/power_save | (true/false) |
 | EMS Remaining Battery Charge Power | e3dc/ems/remaining_battery_charge_power | [W] |
@@ -175,8 +175,8 @@ All topics are listed with the default prefix "e3dc".
 | PVI Energy String2 (today) | e3dc/pvi/energy/string_2 | Wh |
 | PVI Energy String1 (all-time) | e3dc/pvi/energy_all/string_1 | Wh |
 | PVI Energy String2 (all-time) | e3dc/pvi/energy_all/string_2 | Wh |
-| PVI Energy String1 (midnight) **** | e3dc/pvi/energy_start/string_1 | Wh |
-| PVI Energy String2 (midnight) **** | e3dc/pvi/energy_start/string_2 | Wh |
+| PVI Energy String1 (midnight) ***** | e3dc/pvi/energy_start/string_1 | Wh |
+| PVI Energy String2 (midnight) ***** | e3dc/pvi/energy_start/string_2 | Wh |
 | PVI Frequency | e3dc/pvi/frequency_over | [Hz] |
 | PVI Frequency | e3dc/pvi/frequency_under | [Hz] |
 | PVI Max Apparent Power L1 | e3dc/pvi/max_apparent_power/L1 | [VA] |
@@ -209,10 +209,10 @@ All topics are listed with the default prefix "e3dc".
 | PVI Voltage L3 | e3dc/pvi/voltage/L3 | [V] |
 | Sunshine Duration (today) | e3dc/sunshine_duration | [min] |
 | Serial Number | e3dc/system/serial_number | "S10-XXXXXXXXXXXX" |
-| SOC limiter | e3dc/limit/charge/durable | (0,1) |
+| SOC limiter | e3dc/limit/charge/durable | (0/1) |
 | SOC limiter | e3dc/limit/charge/soc | [%] |
 | SOC limiter | e3dc/limit/discharge/by_home_power | [W] |
-| SOC limiter | e3dc/limit/discharge/durable | (0,1) |
+| SOC limiter | e3dc/limit/discharge/durable | (0/1) |
 | SOC limiter | e3dc/limit/discharge/soc | [%] |
 | Software Release | e3dc/system/software | "S10_XXXX_XXX" |
 | Solar Energy | e3dc/solar/energy | [kWh] |
@@ -224,35 +224,35 @@ All topics are listed with the default prefix "e3dc".
 | Wallbox Battery | e3dc/wallbox/discharge_battery_to_car | (true/false) |
 | Wallbox Battery | e3dc/wallbox/discharge_battery_until | [%] |
 | Wallbox Battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
-| Wallbox Suspended | e3dc/wallbox/suspended | (true/false) |
-| Wallbox Charging | e3dc/wallbox/charging | (true/false) |
-| Wallbox Current | e3dc/wallbox/max_current | [A] |
-| Wallbox Energy L1 | e3dc/wallbox/energy/L1 | [Wh] |
-| Wallbox Energy L2 | e3dc/wallbox/energy/L2 | [Wh] |
-| Wallbox Energy L3 | e3dc/wallbox/energy/L3 | [Wh] |
-| Wallbox Energy Solar | e3dc/wallbox/energy/solar | [Wh] |
-| Wallbox Energy Solar (midnight) **** | e3dc/wallbox/energy_start/solar | [Wh] |
-| Wallbox Energy Solar (today) | e3dc/wallbox/day/solar | [Wh] |
-| Wallbox Energy Solar Last Charging | e3dc/wallbox/energy/last_charging/solar | [Wh] |
-| Wallbox Energy Total | e3dc/wallbox/energy/total | [Wh] |
-| Wallbox Energy Total (midnight) **** | e3dc/wallbox/energy_start/total | [Wh] |
-| Wallbox Energy Total (today) | e3dc/wallbox/energy/day/total | [Wh] |
-| Wallbox Energy Total Last Charging | e3dc/wallbox/energy/last_charging/total | [Wh] |
-| Wallbox Index | e3dc/wallbox/index | (0..7) |
-| Wallbox Key State | e3dc/wallbox/key_state | (true/false) |
-| Wallbox Locked | e3dc/wallbox/locked | (true/false) |
-| Wallbox Mode | e3dc/wallbox/sun_mode | (true/false) |
-| Wallbox Phases | e3dc/wallbox/phases/L1 | (true/false) |
-| Wallbox Phases | e3dc/wallbox/phases/L2 | (true/false) |
-| Wallbox Phases | e3dc/wallbox/phases/L3 | (true/false) |
-| Wallbox Phases | e3dc/wallbox/number_phases | |
-| Wallbox Plugged | e3dc/wallbox/plugged | (true/false) |
+| Wallbox Suspended **** | e3dc/wallbox/suspended | (true/false) |
+| Wallbox Charging ****| e3dc/wallbox/charging | (true/false) |
+| Wallbox Current **** | e3dc/wallbox/max_current | [A] |
+| Wallbox Energy L1 **** | e3dc/wallbox/energy/L1 | [Wh] |
+| Wallbox Energy L2 **** | e3dc/wallbox/energy/L2 | [Wh] |
+| Wallbox Energy L3 **** | e3dc/wallbox/energy/L3 | [Wh] |
+| Wallbox Energy Solar **** | e3dc/wallbox/energy/solar | [Wh] |
+| Wallbox Energy Solar (midnight) ***** | e3dc/wallbox/energy_start/solar | [Wh] |
+| Wallbox Energy Solar (today) **** | e3dc/wallbox/day/solar | [Wh] |
+| Wallbox Energy Solar Last Charging **** | e3dc/wallbox/energy/last_charging/solar | [Wh] |
+| Wallbox Energy Total **** | e3dc/wallbox/energy/total | [Wh] |
+| Wallbox Energy Total (midnight) ***** | e3dc/wallbox/energy_start/total | [Wh] |
+| Wallbox Energy Total (today) **** | e3dc/wallbox/energy/day/total | [Wh] |
+| Wallbox Energy Total Last Charging **** | e3dc/wallbox/energy/last_charging/total | [Wh] |
+| Wallbox Index **** | e3dc/wallbox/index | (0..7) |
+| Wallbox Key State **** | e3dc/wallbox/key_state | (true/false) |
+| Wallbox Locked **** | e3dc/wallbox/locked | (true/false) |
+| Wallbox Mode **** | e3dc/wallbox/sun_mode | (true/false) |
+| Wallbox Phases **** | e3dc/wallbox/phases/L1 | (true/false) |
+| Wallbox Phases **** | e3dc/wallbox/phases/L2 | (true/false) |
+| Wallbox Phases **** | e3dc/wallbox/phases/L3 | (true/false) |
+| Wallbox Phases **** | e3dc/wallbox/number_phases | (1/3) |
+| Wallbox Plugged **** | e3dc/wallbox/plugged | (true/false) |
 | Wallbox Power All | e3dc/wallbox/solar/power | [W] |
 | Wallbox Power Solar | e3dc/wallbox/total/power | [W] |
-| Wallbox Power L1 | e3dc/wallbox/power/L1 | [W] |
-| Wallbox Power L2 | e3dc/wallbox/power/L2 | [W] |
-| Wallbox Power L3 | e3dc/wallbox/power/L3 | [W] |
-| Wallbox SOC | e3dc/wallbox/soc | [%] |
+| Wallbox Power L1 **** | e3dc/wallbox/power/L1 | [W] |
+| Wallbox Power L2 **** | e3dc/wallbox/power/L2 | [W] |
+| Wallbox Power L3 **** | e3dc/wallbox/power/L3 | [W] |
+| Wallbox SOC **** | e3dc/wallbox/soc | [%] |
 | Week Autarky | e3dc/week/autarky | [%] |
 | Week Battery Energy Charge | e3dc/week/battery/energy/charge | [kWh] |
 | Week Consumed Production | e3dc/week/consumed | [%] |
@@ -294,7 +294,9 @@ Energy topics are collected for today, yesterday and the current week, month, ye
 
 ***) If more than one power meter exists (PM_INDEX configured multiple times), topics are extended by the number of the power meter
 
-****) The value is required to be able to calculate the daily value. To ensure that the value survives a restart, set RETAIN_FOR_SETUP=true in .config.
+****) If more than one wallbox exists (WB_INDEX configured multiple times), topics are extended by the number of the wallbox
+
+*****) The value is required to be able to calculate the daily value. To ensure that the value survives a restart, set RETAIN_FOR_SETUP=true in .config.
 
 The boolean values "true" and "false" are saved in the InfluxDB as "1" and "0". By setting the configuration parameter `USE_TRUE_FALSE=false`, this behavior can also be set for the MQTT payload.
 
@@ -312,7 +314,7 @@ Please find detailled information and examples in the [README](README.md).
 |  - set the charging and discharging power limits | e3dc/set/discharge_start_power | [W] |
 | Set idle periods to lock battery charging or discharging | e3dc/set/idle_period | "day:mode:active:hh:mi-hh:mi", e.g. "sunday:charge:true:00:00-23:59" |
 | SOC Limiter | | |
-| Limit discharging of the house battery to SOC | e3dc/set/limit/discharge/soc | (0-100) |
+| Limit discharging of the house battery to SOC | e3dc/set/limit/discharge/soc | (0..100) |
 | Set the home power value which stops discharging the battery | e3dc/set/limit/discharge/by_home_power | [W] |
 | Keep the limiter setting even after the day change | e3dc/set/limit/discharge/durable | (true/false) |
 | Limit charging of the house battery to SOC | e3dc/set/limit/charge/soc | (0-100) |
@@ -327,19 +329,15 @@ Please find detailled information and examples in the [README](README.md).
 | Control the power management (charge in [W], number of cycles) | e3dc/set/power_mode | "charge:2000:60" |
 | Control the power management (charge from grid in [W], number of cycles)  | e3dc/set/power_mode | "grid_charge:2000:60" |
 | Wallbox | | |
-| Set the active wallbox by index (0..7) | e3dc/set/wallbox/index | (0..7) |
 | Set sun mode | e3dc/set/wallbox/sun_mode | (true/false) |
 | Set max current | e3dc/set/wallbox/max_current in [A] | (1..32) |
 | Suspend charging | e3dc/set/wallbox/suspended | (true/false) |
 | Toggle suspend charging | e3dc/set/wallbox/toggle | true |
-| (deprecated) Set solar mode with the current in [A] | e3dc/set/wallbox/control | "solar:16" |
-| (deprecated) Set mix mode with the current in [A] | e3dc/set/wallbox/control | "mix:8" |
-| (deprecated) Stop charging | e3dc/set/wallbox/control | "stop" |
 | Set battery to car mode | e3dc/set/wallbox/discharge_battery_to_car | (true/false) |
 | Set battery before car mode | e3dc/set/wallbox/charge_battery_before_car | (true/false) |
 | Set battery discharge until [%] | e3dc/set/wallbox/discharge_battery_until | [%] |
 | Set disable charging battery at mix mode | e3dc/set/wallbox/disable_battery_at_mix_mode | (true/false) |
-| Set number of phases (1,3) | e3dc/set/wallbox/number_phases | (1,3) |
+| Set number of phases | e3dc/set/wallbox/number_phases | (1/3) |
 | Historical daily data | | |
 | Query data for a specific day | e3dc/set/request/day | "2023-12-31" |
 | Settings and others | | |
@@ -352,8 +350,11 @@ Please find detailled information and examples in the [README](README.md).
 | Enable PM requests | e3dc/set/requests/pm | (true/false) |
 | Enable PVI requests | e3dc/set/requests/pvi | (true/false) |
 | Enable DCB requests | e3dc/set/requests/dcb | (true/false) |
+| Enable History requests | e3dc/set/requests/history | (true/false) |
+| Enable EMS requests | e3dc/set/requests/ems | (true/false) |
 | Enable SOC limiter | e3dc/set/soc_limiter | (true/false) |
 | Enable daily historical values | e3dc/set/daily_values | (true/false) |
 | Enable statistic values | e3dc/set/statistic_values | (true/false) |
+| Enable raw data mode | e3dc/set/raw_mode | (true/false) |
 
 Instead of the values "true" or "false", you can also use "1" or "0".
