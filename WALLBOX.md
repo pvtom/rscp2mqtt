@@ -58,45 +58,68 @@ The following topics are sent to the MQTT broker:
 | Wallbox Power L3 * | e3dc/wallbox/power/L3 | [W] |
 | Wallbox SOC * | e3dc/wallbox/soc | [%] |
 
-*) If more than one wallbox exists, topics are extended by the number of the wallbox (1..8), e.g. e3dc/wallbox/1/charging, e3dc/wallbox/2/charging, ...
+*) If more than one wallbox exists (maximum 8), topics are extended by the number of the wallbox (1..8), e.g. e3dc/wallbox/1/charging, e3dc/wallbox/2/charging, ... e3dc/wallbox/8/charging
+
+**) The value is required to be able to calculate the daily value.
 
 ### Wallbox Control
 
-In addition, these topics can be published to control the wallboxes:
+In addition, the following topics can be published to control the wallboxes:
 
 Sun Mode (true/1/false/0)
 ```
+# if one wallbox is available
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/sun_mode" -m true
-# or
+#
+# or if more than one wallbox is available
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/1/sun_mode" -m true # for the first wallbox
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/2/sun_mode" -m true # for the second wallbox
+# ...
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/8/sun_mode" -m true # for the eighth wallbox
 ```
 
 Suspend charging (true/1/false/0)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/suspended" -m true
-# or
+#
+# or if more than one wallbox is available
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/1/suspended" -m true # for the first wallbox
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/2/suspended" -m true # for the second wallbox
+# ...
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/8/suspended" -m true # for the eighth wallbox
 ```
 
 Toggle suspend charging
 ```
-mosquitto_pub -h localhost -p 1883 -t"e3dc/set/wallbox/toggle" -m 1
-# or
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/toggle" -m 1
+#
+# or if more than one wallbox is available
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/1/toggle" -m 1 # for the first wallbox
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/2/toggle" -m 1 # for the second wallbox
+# ...
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/8/toggle" -m 1 # for the eighth wallbox
 ```
 
 Set max current (1..32 A)
 ```
 mosquitto_pub -h localhost -p 1883 -t"e3dc/set/wallbox/max_current" -m 16
-# or
+#
+# or if more than one wallbox is available
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/1/max_current" -m 16 # for the first wallbox
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/2/max_current" -m 16 # for the second wallbox
+# ...
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/8/max_current" -m 16 # for the eighth wallbox
 ```
 
 Set number of phases (1/3)
 ```
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/number_phases" -m 1
-# or
+#
+# or if more than one wallbox is available
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/1/number_phases" -m 1 # for the first wallbox
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/2/number_phases" -m 1 # for the second wallbox
+# ...
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/8/number_phases" -m 1 # for the eighth wallbox
 ```
 
 The following settings apply to all available wallboxes:

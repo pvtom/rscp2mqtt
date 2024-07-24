@@ -83,6 +83,8 @@ DCB_REQUESTS=true
 
 #-Raw Data Mode
 RAW_MODE=false
+#-- filter topics to be published (optional, only one entry possible!)
+RAW_TOPIC_REGEX=raw/TAG_DCDC_DATA/.*
 
 #-Additional Tags and Topics
 #--please look at NEWTAGS.md

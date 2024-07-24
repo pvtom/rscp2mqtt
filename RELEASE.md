@@ -1,5 +1,10 @@
 ## Release Notes
 
+### Release v3.27 (24.07.2024)
+
+Bug fixes:
+- Issue #81: Raw data mode: Possible segmentation fault due to a memory leak
+
 ### Release v3.26 (14.07.2024)
 
 Features:

@@ -98,6 +98,7 @@ typedef struct _config_t {
     char true_value[5];
     char false_value[6];
     bool raw_mode;
+    char *raw_topic_regex;    
 } config_t;
 
 #endif

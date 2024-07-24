@@ -27,6 +27,11 @@ e3dc/raw/TAG_BAT_DATA/TAG_BAT_RSOC
 The tag names are used to build the topic names.
 Raw data is only published via MQTT.
 
+To limit the amount of raw data, a configuration entry can be created with a regular expression that describes the topics to be published:
+```
+RAW_TOPIC_REGEX=raw/(TAG_DCDC_DATA|TAG_BAT_DATA)/.*
+```
+
 ### Configuration of Tags
 
 All tags that are listed in RscpTags.h and have "REQ" in their name can be used.
@@ -154,4 +159,14 @@ ADD_NEW_REQUEST=TAG_DCDC_REQ_DATA:TAG_DCDC_REQ_P_DCL-1
 ADD_NEW_REQUEST=TAG_DCDC_REQ_DATA:TAG_DCDC_REQ_ON_GRID-1
 ADD_NEW_REQUEST=TAG_DCDC_REQ_DATA:TAG_DCDC_REQ_DERATING-1
 ADD_NEW_REQUEST=TAG_DCDC_REQ_DATA:TAG_DCDC_REQ_DERATING_VALUE-1
+
+# Wallbox & Emergency Power
+ADD_NEW_REQUEST=0:TAG_EMS_REQ_GET_EP_WALLBOX_ALLOW-0
+ADD_NEW_REQUEST=0:TAG_EMS_REQ_GET_MAX_EP_WALLBOX_POWER_W-0
+ADD_NEW_REQUEST=0:TAG_EMS_REQ_GET_MIN_EP_WALLBOX_POWER_W-0
+ADD_NEW_REQUEST=0:TAG_EMS_REQ_GET_EP_WALLBOX_ENERGY-0
+ADD_NEW_REQUEST=0:TAG_EMS_REQ_EP_DELAY-0
+
+# System Specifications
+ADD_NEW_REQUEST_AT_START=0:TAG_EMS_REQ_GET_SYS_SPECS-0
 ```

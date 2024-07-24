@@ -21,7 +21,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "3.26"
+#define RSCP2MQTT_VERSION       "3.27"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -505,7 +505,7 @@ void publishImmediately(char *t, char *p, bool influx) {
     char topic[TOPIC_SIZE];
 
     snprintf(topic, TOPIC_SIZE, "%s/%s", cfg.prefix, t);
-    if (mosq) mosquitto_publish(mosq, NULL, topic, strlen(p), p, cfg.mqtt_qos, cfg.mqtt_retain);
+    if (mosq && (mosquitto_pub_topic_check(topic) == MOSQ_ERR_SUCCESS) && p && strlen(p)) mosquitto_publish(mosq, NULL, topic, strlen(p), p, cfg.mqtt_qos, cfg.mqtt_retain);
 #ifdef INFLUXDB
     if (cfg.influxdb_on && curl && influx) {
         char buffer[CURL_BUFFER_SIZE];
@@ -867,17 +867,22 @@ void pushAdditionalTag(uint32_t req_container, uint32_t req_tag, int req_index, 
 }
 
 bool updateRawData(char *topic, char *payload) {
-    for (std::vector<RSCP_MQTT::mqtt_data_t>::iterator it = RSCP_MQTT::rawData.begin(); it != RSCP_MQTT::rawData.end(); ++it) {
-        if (!strcmp(it->topic, topic)) {
-            if (strcmp(it->payload, payload)) strcpy(it->payload, payload);
-            return(true);
+    if (topic && payload) {
+        for (std::vector<RSCP_MQTT::mqtt_data_t>::iterator it = RSCP_MQTT::rawData.begin(); it != RSCP_MQTT::rawData.end(); ++it) {
+            if (!strcmp(it->topic, topic)) {
+                if (strcmp(it->payload, payload)) {
+                    if (strlen(it->payload) != strlen(payload)) it->payload = (char *)realloc(it->payload, strlen(payload) + 1);
+                    strcpy(it->payload, payload);
+                }
+                return(true);
+            }
         }
     }
     return(false);
 }
 
 void mergeRawData(char *topic, char *payload) {
-    if (!updateRawData(topic, payload)) {
+    if (topic && payload && !updateRawData(topic, payload)) {
         RSCP_MQTT::mqtt_data_t v;
         v.topic = strdup(topic);
         v.payload = strdup(payload);
@@ -2094,29 +2099,31 @@ void createRequest(SRscpFrameBuffer * frameBuffer) {
 }
 
 void publishRaw(RscpProtocol *protocol, SRscpValue *response, char *topic) {
-    char *payload_new = (char *)malloc(PAYLOAD_SIZE * sizeof(char));
+    char *payload_new = (char *)malloc(PAYLOAD_SIZE * sizeof(char) + 1);
     char *payload_old = readRawData(topic);
+    memset(payload_new, 0, sizeof(payload_new));
     preparePayload(protocol, response, &payload_new);
-    if (payload_old && strcmp(payload_old, payload_new)) {
+    if (payload_old && payload_new && strcmp(payload_new, "") && strcmp(payload_old, payload_new)) {
         publishImmediately(topic, payload_new, false);
         updateRawData(topic, payload_new);
-    } else if (!payload_old) {
+    } else if (!payload_old && payload_new && strcmp(payload_new, "")) {
         publishImmediately(topic, payload_new, false);
         mergeRawData(topic, payload_new);
     }
     if (payload_new) free(payload_new);
-    return;
-}
+    return; 
+} 
 
 void handleRaw(RscpProtocol *protocol, SRscpValue *response, uint32_t *cache, int level) {
     int l = level + 1;
     char topic[TOPIC_SIZE];
+    memset(topic, 0, sizeof(topic));
 
     if (response->dataType == RSCP::eTypeError) return;
 
     if (!l && (response->dataType != RSCP::eTypeContainer)) {
         sprintf(topic, "raw/%s", tagName(RSCP_TAGS::RscpTagsOverview, response->tag));
-        publishRaw(protocol, response, topic);
+        if (!cfg.raw_topic_regex || std::regex_match(topic, std::regex(cfg.raw_topic_regex))) publishRaw(protocol, response, topic);
         return;
     }
     std::vector<SRscpValue> data = protocol->getValueAsContainer(response);
@@ -2131,11 +2138,13 @@ void handleRaw(RscpProtocol *protocol, SRscpValue *response, uint32_t *cache, in
                 strcpy(topic, "raw");
                 for (int i = 0; i < RECURSION_MAX_LEVEL; i++) {
                     if (cache[i]) {
-                        strcat(topic, "/");
-                        strcat(topic, tagName(RSCP_TAGS::RscpTagsOverview, cache[i])); 
+                        if (strlen(topic) + strlen(tagName(RSCP_TAGS::RscpTagsOverview, cache[i])) + 2 < TOPIC_SIZE) {
+                            strcat(topic, "/");
+                            strcat(topic, tagName(RSCP_TAGS::RscpTagsOverview, cache[i]));
+                        } else logMessageByTag(response->tag, data[i].tag, 0, __LINE__, (char *)"Error: Topic name too long. Container >%s< Tag >%s< [%d]\n");
                     }
                 }
-                publishRaw(protocol, &data[i], topic);
+                if (!cfg.raw_topic_regex || std::regex_match(topic, std::regex(cfg.raw_topic_regex))) publishRaw(protocol, &data[i], topic);
             }
         }
     }
@@ -2185,8 +2194,8 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
 
     if (cfg.raw_mode) {
         for (int i = 0; i < RECURSION_MAX_LEVEL; i++) cache[i] = 0;
-        handleRaw(protocol, response, cache, -1);
-    } 
+        if (mosq) handleRaw(protocol, response, cache, -1);
+    }
 
     // check the SRscpValue TAG to detect which response it is
     switch (response->tag) {
@@ -2740,7 +2749,7 @@ static void mainLoop(void) {
             if (mosq) {
                 char topic[TOPIC_SIZE];
                 snprintf(topic, TOPIC_SIZE, "%s/rscp2mqtt/status", cfg.prefix);
-                mosquitto_threaded_set(mosq, true);
+                // mosquitto_threaded_set(mosq, true); // necessary?
                 if (cfg.mqtt_tls && cfg.mqtt_tls_password) {
                     if (mosquitto_tls_set(mosq, cfg.mqtt_tls_cafile, cfg.mqtt_tls_capath, cfg.mqtt_tls_certfile, cfg.mqtt_tls_keyfile, mqttCallbackTlsPassword) != MOSQ_ERR_SUCCESS) {
                         logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Unable to set TLS options.\n");
@@ -2755,8 +2764,10 @@ static void mainLoop(void) {
                 if (cfg.mqtt_auth && strcmp(cfg.mqtt_user, "") && strcmp(cfg.mqtt_password, "")) mosquitto_username_pw_set(mosq, cfg.mqtt_user, cfg.mqtt_password);
                 mosquitto_will_set(mosq, topic, strlen("disconnected"), "disconnected", cfg.mqtt_qos, cfg.mqtt_retain);
                 if (!mosquitto_connect(mosq, cfg.mqtt_host, cfg.mqtt_port, 10)) {
-                    std::thread th(mqttListener, mosq);
-                    th.detach();
+                    if (!cfg.once) {
+                        std::thread th(mqttListener, mosq);
+                        th.detach();
+                    }
                     if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Success: MQTT broker connected.\n");
                 } else {
                     logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: MQTT broker connection failed.\n");
@@ -2935,6 +2946,7 @@ int main(int argc, char *argv[]) {
     strcpy(cfg.true_value, "true");
     strcpy(cfg.false_value, "false");
     cfg.raw_mode = false;
+    cfg.raw_topic_regex = NULL;
 
     // signal handler
     signal(SIGINT, signal_handler);
@@ -3109,6 +3121,8 @@ int main(int argc, char *argv[]) {
 #endif
             else if ((strcasecmp(key, "RAW_MODE") == 0) && (strcasecmp(value, "true") == 0))
                 cfg.raw_mode = true;
+            else if (strcasecmp(key, "RAW_TOPIC_REGEX") == 0)
+                cfg.raw_topic_regex = strdup(value);
             else if (strncasecmp(key, "ADD_NEW_REQUEST", strlen("ADD_NEW_REQUEST")) == 0) {
                 int order = 0;
                 int index = -1;
@@ -3467,6 +3481,10 @@ int main(int argc, char *argv[]) {
     RSCP_MQTT::IdlePeriodCache.clear();
     RSCP_MQTT::ErrorCache.clear();
 
+    // MQTT disconnect
+    mosquitto_disconnect(mosq);
+    mosq = NULL;
+
     // MQTT cleanup
     mosquitto_lib_cleanup();
 
@@ -3486,6 +3504,7 @@ int main(int argc, char *argv[]) {
     if (cfg.mqtt_tls_certfile) free(cfg.mqtt_tls_certfile);
     if (cfg.mqtt_tls_keyfile) free(cfg.mqtt_tls_keyfile);
     if (cfg.mqtt_tls_password) free(cfg.mqtt_tls_password);
+    if (cfg.raw_topic_regex) free(cfg.raw_topic_regex);
 
     exit(EXIT_SUCCESS);
 }
