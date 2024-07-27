@@ -21,7 +21,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "3.27"
+#define RSCP2MQTT_VERSION       "3.28"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -881,8 +881,8 @@ bool updateRawData(char *topic, char *payload) {
     return(false);
 }
 
-void mergeRawData(char *topic, char *payload) {
-    if (topic && payload && !updateRawData(topic, payload)) {
+void insertRawData(char *topic, char *payload) {
+    if (topic && payload) {
         RSCP_MQTT::mqtt_data_t v;
         v.topic = strdup(topic);
         v.payload = strdup(payload);
@@ -2108,7 +2108,7 @@ void publishRaw(RscpProtocol *protocol, SRscpValue *response, char *topic) {
         updateRawData(topic, payload_new);
     } else if (!payload_old && payload_new && strcmp(payload_new, "")) {
         publishImmediately(topic, payload_new, false);
-        mergeRawData(topic, payload_new);
+        insertRawData(topic, payload_new);
     }
     if (payload_new) free(payload_new);
     return; 
@@ -2136,7 +2136,7 @@ void handleRaw(RscpProtocol *protocol, SRscpValue *response, uint32_t *cache, in
             } else {
                 cache[l + 1] = data[i].tag;
                 strcpy(topic, "raw");
-                for (int i = 0; i < RECURSION_MAX_LEVEL; i++) {
+                for (int i = 0; i <= l + 1; i++) {
                     if (cache[i]) {
                         if (strlen(topic) + strlen(tagName(RSCP_TAGS::RscpTagsOverview, cache[i])) + 2 < TOPIC_SIZE) {
                             strcat(topic, "/");
@@ -2193,7 +2193,6 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
     }
 
     if (cfg.raw_mode) {
-        for (int i = 0; i < RECURSION_MAX_LEVEL; i++) cache[i] = 0;
         if (mosq) handleRaw(protocol, response, cache, -1);
     }
 
@@ -2547,7 +2546,6 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
     }
     default:
         if (response->dataType == RSCP::eTypeContainer) {
-            for (int i = 0; i < RECURSION_MAX_LEVEL; i++) cache[i] = 0;
             handleContainer(protocol, response, cache, -1);
         } else storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, response, 0, 0);
         break;

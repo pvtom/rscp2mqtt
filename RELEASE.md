@@ -1,5 +1,10 @@
 ## Release Notes
 
+### Release v3.28 (27.07.2024)
+
+Bug fixes:
+- Issue #83: Raw data mode: Problem assembling the topic names
+
 ### Release v3.27 (24.07.2024)
 
 Bug fixes:
