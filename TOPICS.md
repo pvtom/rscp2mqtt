@@ -331,6 +331,7 @@ Please find detailled information and examples in the [README](README.md).
 | Control the power management (charge from grid in [W], number of cycles)  | e3dc/set/power_mode | "grid_charge:2000:60" |
 | Wallbox | | |
 | Set sun mode | e3dc/set/wallbox/sun_mode | (true/false) |
+| Set min current | e3dc/set/wallbox/min_current in [A] | (1..32) |
 | Set max current | e3dc/set/wallbox/max_current in [A] | (1..32) |
 | Suspend charging | e3dc/set/wallbox/suspended | (true/false) |
 | Toggle suspend charging | e3dc/set/wallbox/toggle | true |
