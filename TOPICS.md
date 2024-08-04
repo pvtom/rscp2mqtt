@@ -226,7 +226,8 @@ All topics are listed with the default prefix "e3dc".
 | Wallbox Battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
 | Wallbox Suspended **** | e3dc/wallbox/suspended | (true/false) |
 | Wallbox Charging ****| e3dc/wallbox/charging | (true/false) |
-| Wallbox Current **** | e3dc/wallbox/max_current | [A] |
+| Wallbox Min Current **** | e3dc/wallbox/min_current | [A] |
+| Wallbox Max Current **** | e3dc/wallbox/max_current | [A] |
 | Wallbox Energy L1 **** | e3dc/wallbox/energy/L1 | [Wh] |
 | Wallbox Energy L2 **** | e3dc/wallbox/energy/L2 | [Wh] |
 | Wallbox Energy L3 **** | e3dc/wallbox/energy/L3 | [Wh] |
