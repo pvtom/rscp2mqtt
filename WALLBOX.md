@@ -30,7 +30,8 @@ The following topics are sent to the MQTT broker:
 | Wallbox Battery | e3dc/wallbox/disable_battery_at_mix_mode | (true/false) |
 | Wallbox Suspended * | e3dc/wallbox/suspended | (true/false) |
 | Wallbox Charging *| e3dc/wallbox/charging | (true/false) |
-| Wallbox Current * | e3dc/wallbox/max_current | [A] |
+| Wallbox Min Current * | e3dc/wallbox/min_current | [A] |
+| Wallbox Max Current * | e3dc/wallbox/max_current | [A] |
 | Wallbox Energy L1 * | e3dc/wallbox/energy/L1 | [Wh] |
 | Wallbox Energy L2 * | e3dc/wallbox/energy/L2 | [Wh] |
 | Wallbox Energy L3 * | e3dc/wallbox/energy/L3 | [Wh] |
@@ -100,15 +101,26 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/2/toggle" -m 1 # for the
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/8/toggle" -m 1 # for the eighth wallbox
 ```
 
-Set max current (1..32 A)
+Set min current (6..32 A)
+``` 
+mosquitto_pub -h localhost -p 1883 -t"e3dc/set/wallbox/min_current" -m 6
+# 
+# or if more than one wallbox is available
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/1/min_current" -m 6 # for the first wallbox
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/2/min_current" -m 6 # for the second wallbox
+# ...
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/8/min_current" -m 6 # for the eighth wallbox
 ```
-mosquitto_pub -h localhost -p 1883 -t"e3dc/set/wallbox/max_current" -m 16
+
+Set max current (6..32 A)
+```
+mosquitto_pub -h localhost -p 1883 -t"e3dc/set/wallbox/max_current" -m 20
 #
 # or if more than one wallbox is available
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/1/max_current" -m 16 # for the first wallbox
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/2/max_current" -m 16 # for the second wallbox
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/1/max_current" -m 20 # for the first wallbox
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/2/max_current" -m 20 # for the second wallbox
 # ...
-mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/8/max_current" -m 16 # for the eighth wallbox
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/8/max_current" -m 20 # for the eighth wallbox
 ```
 
 Set number of phases (1/3)

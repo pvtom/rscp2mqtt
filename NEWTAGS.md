@@ -91,21 +91,24 @@ ADD_NEW_TOPIC=TAG_EMS_MAX_DC_POWER:TAG_EMS_PARAM_POWER_VALUE_L3:W:1:0:system/max
 ### Configuration of New Set Topics
 
 ```
-ADD_NEW_SET_TOPIC=<container>:<tag>:<topic>:<regex>-<datatype<
+ADD_NEW_SET_TOPIC=<container>:<tag>:<index>:<topic>:<regex>#<datatype<
 # or
-ADD_NEW_SET_TOPIC=<container>:<tag>:<topic>:<true_regex>:<true_value>:<false_regex>:<false_value>-<datatype<
+ADD_NEW_SET_TOPIC=<container>:<tag>:<index>:<topic>:<true_regex>:<true_value>:<false_regex>:<false_value>#<datatype<
 ```
-You can use "regex" to define a regular expression that checks the input payload, e.g. for permitted numbers.
+You can use "regex" to define a regular expression that checks the input payload, e.g. for permitted numbers. Don't use ":" or "#" in the regex!
 
 To check boolean values use the fields "true_regex" and "false_regex" to check the input payload for true and false. "true_value" and "false_value" define the values that are to be sent to the home power station.
+
+"index" can be the index of a wallbox. Set "0" if unknown.
 
 Possible data types are "Bool", "Char8", "UChar8", "Int32", "UInt32" and "Float32".
 
 See various examples in RscpMqttMapping.h
 
-#### Example "Other set command for weather regulation"
+#### Examples
 ```
-ADD_NEW_SET_TOPIC=TAG_EMS_REQ_SET_POWER_SETTINGS:TAG_EMS_WEATHER_REGULATED_CHARGE_ENABLED:set/weather:^true|on|1$:1:^false|off|0$:0-UChar8
+ADD_NEW_SET_TOPIC=TAG_EMS_REQ_SET_POWER_SETTINGS:TAG_EMS_WEATHER_REGULATED_CHARGE_ENABLED:0:set/weather:^true|on|1$:1:^false|off|0$:0#UChar8
+ADD_NEW_SET_TOPIC=TAG_WB_REQ_DATA:TAG_WB_REQ_SET_MIN_CHARGE_CURRENT:0:set/wallbox/min_current:^[0-9]{1,2}$#UChar8
 ```
 
 ### One-time Execution
@@ -114,6 +117,7 @@ The program can be started that it executes only one entire interval.
 ```
 ./rscp2mqtt -1
 ```
+
 ### Remarks
 
 The procedure for integrating new tags is always trial and error. The structure of the tags is not standardized. There is no guarantee that you will get the expected values. Sometimes you receive multiple tags or tag structures in response to a single query. A look at the list of generated errors can be very helpful.

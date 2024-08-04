@@ -460,6 +460,7 @@ cache_t templates[] = {
     { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "%s/phases/L2", "", F_AUTO, UNIT_NONE, 1, 2, false, false, false },
     { TAG_WB_DATA, TAG_WB_PM_ACTIVE_PHASES, 0, "%s/phases/L3", "", F_AUTO, UNIT_NONE, 1, 4, false, false, false },
     { TAG_WB_DATA, TAG_WB_NUMBER_PHASES, 0, "%s/number_phases", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false },
+    { TAG_WB_DATA, TAG_WB_MIN_CHARGE_CURRENT, 0, "%s/min_current", "", F_AUTO, UNIT_A, 1, 0, false, false, false }, // Issue #84
     { TAG_WB_DATA, TAG_WB_SOC, 0, "%s/soc", "", F_AUTO, UNIT_PERCENT, 1, 0, false, false, false },
     { TAG_WB_DATA, TAG_WB_KEY_STATE, 0, "%s/key_state", "", F_AUTO, UNIT_NONE, 1, 1, false, false, false },
     { TAG_WB_DATA, TAG_WB_ENERGY_ALL, 0, "%s/energy/total", "", F_FLOAT_0, UNIT_WH, 1, 0, false, false, false },
@@ -520,6 +521,7 @@ rec_cache_t rec_cache[] = {
     { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, 0, "set/wallbox/suspended", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
     { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, 0, "set/wallbox/max_current", "^[0-9]{1,2}$", "", "", "", "", UNIT_A, RSCP::eTypeUChar8, -1, false, true },
     { TAG_WB_REQ_DATA, TAG_WB_REQ_SET_NUMBER_PHASES, 0, "set/wallbox/number_phases", "^1|3$", "", "", "", "", UNIT_NONE, RSCP::eTypeUChar8, -1, false, true },
+    { TAG_WB_REQ_DATA, TAG_WB_REQ_SET_MIN_CHARGE_CURRENT, 0, "set/wallbox/min_current", "^[0-9]{1,2}$", "", "", "", "", UNIT_A, RSCP::eTypeUChar8, -1, false, true }, // Issue #84
     { 0, 0, 0, "set/requests/pm", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
     { 0, 0, 0, "set/requests/pvi", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },
     { 0, 0, 0, "set/requests/dcb", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, -1, false, true },

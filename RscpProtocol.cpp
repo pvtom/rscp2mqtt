@@ -5,8 +5,11 @@
  *      Author: dikirile
  */
 
+#if !defined(__MACH__)
 #include <malloc.h>
+#endif
 #include <sys/time.h>
+#include <time.h>
 #ifdef WINNT
 #include <windows.h>
 #endif
@@ -42,6 +45,13 @@ bool RscpProtocol::setHeaderTimestamp(SRscpFrame *frame) {
 	// set frame timestamp
 	frame->header.timestamp.seconds = u64Now / 1000000000;
 	frame->header.timestamp.nanoseconds = u64Now % 1000000000;
+#elif defined(__MACH__)
+        // get linux timestamp
+        struct timeval timeVal;
+        gettimeofday(&timeVal, NULL);
+        // set frame timestamp
+        frame->header.timestamp.seconds = timeVal.tv_sec;
+        frame->header.timestamp.nanoseconds = timeVal.tv_usec * 1000;
 #else
 #warning No time source is available.
 	// unknown

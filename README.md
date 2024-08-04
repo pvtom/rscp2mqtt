@@ -8,7 +8,7 @@
 
 This software module connects a home power station from E3/DC to an MQTT broker.
 
-It uses the RSCP interface of the device. The solution is based on the RSCP sample application provided by E3/DC and was developed and tested with a Raspberry Pi and a Linux PC (x86_64).
+It uses the RSCP interface of the device. The solution is based on the RSCP sample application provided by E3/DC and was developed and tested with a Raspberry Pi, a Linux PC (x86_64) and an Apple MacBook (x86_64).
 
 The tool cyclically queries data from the home power station and publishes it to an MQTT broker using these [topics](TOPICS.md).
 
@@ -54,7 +54,7 @@ Please also take a look at the [release notes](RELEASE.md).
 
 ## Docker
 
-Instead of installing the package you can use a [Docker image](DOCKER.md).
+Instead of installing the package you can use a [Docker image](DOCKER.md) for Linux platforms (not MacOS).
 
 ## Prerequisites
 
@@ -68,6 +68,11 @@ sudo apt-get install libmosquitto-dev
 If you like to transfer data to InfluxDB install the libcurl library:
 ```
 sudo apt-get install curl libcurl4-openssl-dev
+```
+
+On MacOS try
+```
+brew install mosquitto curl
 ```
 
 ## Cloning the Repository
@@ -155,7 +160,7 @@ or to show the help page
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [3.28]
+rscp2mqtt [3.29]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
 MQTT broker >localhost:1883< qos = >0< retain = >✗< tls >✗< client id >✗< prefix >e3dc<
 Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox ✗ | Interval 2 | Autorefresh ✓ | Raw data ✗ | Logging OFF

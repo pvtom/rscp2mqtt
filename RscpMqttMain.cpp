@@ -21,7 +21,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "3.28"
+#define RSCP2MQTT_VERSION       "3.29"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -69,7 +69,6 @@ static wb_t wb_stat;
 static int day, leap_day, year, curr_day, curr_year, battery_nr, pm_nr, wb_nr;
 static uint8_t period_change_nr = 0;
 static bool period_trigger = false;
-static bool history_init = true;
 static bool day_end = false;
 static bool new_day = false;
 
@@ -108,7 +107,7 @@ void wsleep(int sec) {
 }
 
 bool hasSpaces(char *s) {
-    for (int i = 0; i < strlen(s); i++) {
+    for (size_t i = 0; i < strlen(s); i++) {
         if (isspace(s[i])) return(true);
     }
     return(false);
@@ -159,7 +158,7 @@ uint8_t typeID(std::vector<RSCP_TAGS::rscp_types_t> & v, char *type) {
     return(0);
 }
 
-char *errName(std::vector<RSCP_TAGS::rscp_err_codes_t> & v, int code) {
+char *errName(std::vector<RSCP_TAGS::rscp_err_codes_t> & v, uint32_t code) {
     char *unknown = NULL;
     for (std::vector<RSCP_TAGS::rscp_err_codes_t>::iterator it = v.begin(); it != v.end(); ++it) {
         if (!it->code) unknown = it->error;
@@ -316,7 +315,6 @@ int handleSetIdlePeriod(RscpProtocol *protocol, SRscpValue *rootContainer, char 
 
 void setTopicAttr() {
     for (std::vector<RSCP_MQTT::topic_store_t>::iterator i = RSCP_MQTT::TopicStore.begin(); i != RSCP_MQTT::TopicStore.end(); ++i) {
-        if (i->topic == NULL) continue;
         switch (i->type) {
             case FORCED_TOPIC: {
                 for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCache.begin(); it != RSCP_MQTT::RscpMqttCache.end(); ++it) {
@@ -1802,6 +1800,7 @@ void createRequest(SRscpFrameBuffer * frameBuffer) {
                 protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ENERGY_L1);
                 protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ENERGY_L2);
                 protocol.appendValue(&WBContainer, TAG_WB_REQ_PM_ENERGY_L3);
+                protocol.appendValue(&WBContainer, TAG_WB_REQ_MIN_CHARGE_CURRENT); // Issue #84
                 protocol.appendValue(&rootValue, WBContainer);
                 protocol.destroyValueData(WBContainer);
             }
@@ -2017,7 +2016,7 @@ void createRequest(SRscpFrameBuffer * frameBuffer) {
                         if (wallboxExt[1] < 1) wallboxExt[1] = 1; else if (wallboxExt[1] > 32) wallboxExt[1] = 32; // max 32A
                         SRscpValue WBExtContainer;
                         protocol.createContainerValue(&WBExtContainer, TAG_WB_REQ_SET_EXTERN);
-                        protocol.appendValue(&WBExtContainer, TAG_WB_EXTERN_DATA_LEN, sizeof(wallboxExt));
+                        protocol.appendValue(&WBExtContainer, TAG_WB_EXTERN_DATA_LEN, (int)sizeof(wallboxExt));
                         protocol.appendValue(&WBExtContainer, TAG_WB_EXTERN_DATA, wallboxExt, sizeof(wallboxExt));
                         protocol.appendValue(&ReqContainer, WBExtContainer);
                         protocol.destroyValueData(WBExtContainer);
@@ -2101,7 +2100,7 @@ void createRequest(SRscpFrameBuffer * frameBuffer) {
 void publishRaw(RscpProtocol *protocol, SRscpValue *response, char *topic) {
     char *payload_new = (char *)malloc(PAYLOAD_SIZE * sizeof(char) + 1);
     char *payload_old = readRawData(topic);
-    memset(payload_new, 0, sizeof(payload_new));
+    memset(payload_new, 0, PAYLOAD_SIZE);
     preparePayload(protocol, response, &payload_new);
     if (payload_old && payload_new && strcmp(payload_new, "") && strcmp(payload_old, payload_new)) {
         publishImmediately(topic, payload_new, false);
@@ -2122,7 +2121,7 @@ void handleRaw(RscpProtocol *protocol, SRscpValue *response, uint32_t *cache, in
     if (response->dataType == RSCP::eTypeError) return;
 
     if (!l && (response->dataType != RSCP::eTypeContainer)) {
-        sprintf(topic, "raw/%s", tagName(RSCP_TAGS::RscpTagsOverview, response->tag));
+        snprintf(topic, TOPIC_SIZE, "raw/%s", tagName(RSCP_TAGS::RscpTagsOverview, response->tag));
         if (!cfg.raw_topic_regex || std::regex_match(topic, std::regex(cfg.raw_topic_regex))) publishRaw(protocol, response, topic);
         return;
     }
@@ -2176,6 +2175,10 @@ void handleContainer(RscpProtocol *protocol, SRscpValue *response, uint32_t *cac
 int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
     RSCP_MQTT::date_t x;
     uint32_t cache[RECURSION_MAX_LEVEL];
+
+    x.year = 0;
+    x.month = 0;
+    x.day = 0;
 
     // check if any of the response has the error flag set and react accordingly
     if (response->dataType == RSCP::eTypeError) {
@@ -2239,7 +2242,7 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
             } else {
                 switch (containerData[i].tag) {
                     case TAG_BAT_DCB_INFO: {
-                        int dcb_nr;
+                        int dcb_nr = 0;
                         std::vector<SRscpValue> container = protocol->getValueAsContainer(&containerData[i]);
                         for (size_t j = 0; j < container.size(); j++) {
                             if (container[j].tag == TAG_BAT_DCB_INDEX) {
@@ -2252,7 +2255,6 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                         break;
                     }
                     case TAG_BAT_DCB_COUNT: {
-                        int dcb_nr;
                         cfg.bat_dcb_count[battery_nr] = protocol->getValueAsUChar8(&containerData[i]);
                         cfg.bat_dcb_start[battery_nr] = battery_nr?cfg.bat_dcb_count[battery_nr - 1]:0;
                         storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
@@ -2344,13 +2346,13 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                 case TAG_PVI_COS_PHI:
                 case TAG_PVI_VOLTAGE_MONITORING:
                 case TAG_PVI_FREQUENCY_UNDER_OVER: {
-                    int tracker;
+                    int tracker = 0;
                     std::vector<SRscpValue> container = protocol->getValueAsContainer(&containerData[i]);
                     for (size_t j = 0; j < container.size(); j++) {
                         if (container[j].tag == TAG_PVI_INDEX) {
                             tracker = protocol->getValueAsUInt16(&container[j]);
                         }
-                        else if ((container[j].tag == TAG_PVI_VALUE)) {
+                        else if (container[j].tag == TAG_PVI_VALUE) {
                             storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(container[j]), containerData[i].tag, tracker);
                         }
                     }
@@ -2400,7 +2402,13 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
             } else {
                 switch (containerData[i].tag) {
                     case TAG_EMS_IDLE_PERIOD: {
-                        uint8_t period, type, active, starthour, startminute, endhour, endminute;
+                        uint8_t period = 0;
+                        uint8_t type = 0;
+                        uint8_t active = 0;
+                        uint8_t starthour = 0;
+                        uint8_t startminute = 0;
+                        uint8_t endhour = 0;
+                        uint8_t endminute = 0;
                         period_trigger = false;
                         std::vector<SRscpValue> container = protocol->getValueAsContainer(&containerData[i]);
                         for (size_t j = 0; j < container.size(); j++) {
@@ -2518,7 +2526,7 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                     std::vector<SRscpValue> dbData = protocol->getValueAsContainer(&(historyData[i]));
                     for (size_t j = 0; j < dbData.size(); ++j) {
                         if (response->tag == TAG_DB_HISTORY_DATA_DAY) {
-                            if (day >= 2) {
+                            if ((day >= 2) && x.year) {
                                 handleImmediately(protocol, &(dbData[j]), TAG_DB_HISTORY_DATA_DAY, x.year, x.month, x.day);
                             } else storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(dbData[j]), response->tag, day);
                         } else if (response->tag == TAG_DB_HISTORY_DATA_MONTH) {
@@ -2806,9 +2814,7 @@ static void mainLoop(void) {
         if (countdown >= 0) {
             countdown--;
             if (countdown == 0) {
-                char topic[TOPIC_SIZE];
                 cleanupCache(RSCP_MQTT::RscpMqttCacheTempl);
-                if (cfg.save_memory) RSCP_TAGS::RscpTagsOverview.clear();
                 if (cfg.pvi_requests) pviStringNull(RSCP_MQTT::RscpMqttCache, cfg.pvi_tracker);
                 if (cfg.wallbox) wallboxDailyNull(RSCP_MQTT::RscpMqttCache, cfg.wb_number, true);
                 while (!RSCP_MQTT::mqttQ.empty()) {
@@ -2903,7 +2909,6 @@ int main(int argc, char *argv[]) {
     for (uint8_t i = 0; i < MAX_WB_COUNT; i++) {
         cfg.wb_indexes[i] = 0;
     }
-    cfg.save_memory = false;
     cfg.pm_number = 0;
     cfg.wb_number = 0;
     cfg.pm_extern = false;
@@ -3094,8 +3099,6 @@ int main(int argc, char *argv[]) {
                 cfg.auto_refresh = true;
             else if ((strcasecmp(key, "RETAIN_FOR_SETUP") == 0) && (strcasecmp(value, "true") == 0))
                 cfg.store_setup = true;
-            else if ((strcasecmp(key, "SAVE_MEMORY") == 0) && (strcasecmp(value, "true") == 0))
-                cfg.save_memory = true;
             else if ((strcasecmp(key, "USE_TRUE_FALSE") == 0) && (strcasecmp(value, "false") == 0)) {
                 strcpy(cfg.true_value, "1");
                 strcpy(cfg.false_value, "0");
@@ -3135,7 +3138,6 @@ int main(int argc, char *argv[]) {
                 } else logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"key >%s< value >%s< not enough attributes.\n", key, value);
             }
             else if (strcasecmp(key, "ADD_NEW_TOPIC") == 0) {
-                int index = -1;
                 int divisor = 1;
                 int bit = 1;
                 char container[128];
@@ -3151,11 +3153,9 @@ int main(int argc, char *argv[]) {
                 } else logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"key >%s< value >%s< not enough attributes.\n", key, value);
             }
             else if (strcasecmp(key, "ADD_NEW_SET_TOPIC") == 0) {
-                int index = -1;
-                int divisor = 1;
-                int bit = 1;
                 char container[128];
                 char tag[128];
+                int index = 0;
                 char topic[TOPIC_SIZE];
                 char regex_true[128];
                 char value_true[128];
@@ -3170,9 +3170,11 @@ int main(int argc, char *argv[]) {
                 memset(regex_false, 0, sizeof(regex_false));
                 memset(value_false, 0, sizeof(value_false));
                 memset(type, 0, sizeof(type));
-                if ((sscanf(value, "%127[^:]:%127[^:]:%127[^:]:%127[^:]:%127[^:]:%127[^:]:%127[^:]:%127[^:]", container, tag, topic, regex_true, value_true, regex_false, value_false, type) == 8)) {
-                    if (isTag(RSCP_TAGS::RscpTagsOverview, container, false) && isTag(RSCP_TAGS::RscpTagsOverview, tag, false)) addSetTopic(tagID(RSCP_TAGS::RscpTagsOverview, container), tagID(RSCP_TAGS::RscpTagsOverview, tag), 0, topic, regex_true, value_true, regex_false, value_false, typeID(RSCP_TAGS::RscpTypeNames, type), true);
-                } else logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"key >%s< value >%s< not enough attributes.\n", key, value);
+                if ((sscanf(value, "%127[^:#]:%127[^:#]:%d:%127[^:#]:%127[^:#]:%127[^:#]:%127[^:#]:%127[^:#]#%127[^:#]", container, tag, &index, topic, regex_true, value_true, regex_false, value_false, type) == 9) || (sscanf(value, "%127[^:#]:%127[^:#]:%d:%127[^:#]:%127[^:#]#%127[^:#]", container, tag, &index, topic, regex_true, type) == 6)) {
+                    if (isTag(RSCP_TAGS::RscpTagsOverview, container, false) && isTag(RSCP_TAGS::RscpTagsOverview, tag, false) && (index >= 0)) addSetTopic(tagID(RSCP_TAGS::RscpTagsOverview, container), tagID(RSCP_TAGS::RscpTagsOverview, tag), index, topic, regex_true, value_true, regex_false, value_false, typeID(RSCP_TAGS::RscpTypeNames, type), true);
+                } else {
+                    logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"key >%s< value >%s< not enough attributes.\n", key, value);
+                }
             }
         }
     }
@@ -3213,6 +3215,11 @@ int main(int argc, char *argv[]) {
             addSetTopic(TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, c, topic, (char *)"^true|on|1$", (char *)"1", (char *)"^false|off|0$", (char *)"0", RSCP::eTypeBool, false);
             sprintf(topic, "set/wallbox/%d/max_current", c + 1);
             addSetTopic(TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, c, topic, (char *)"^[0-9]{1,2}$", (char *)"", (char *)"", (char *)"", RSCP::eTypeUChar8, false);
+
+// Issue #84
+            sprintf(topic, "set/wallbox/%d/min_current", c + 1);
+            addSetTopic(TAG_WB_REQ_DATA, TAG_WB_REQ_SET_MIN_CHARGE_CURRENT, c, topic, (char *)"^[0-9]{1,2}$", (char *)"", (char *)"", (char *)"", RSCP::eTypeUChar8, false);
+
             sprintf(topic, "set/wallbox/%d/number_phases", c + 1);
             addSetTopic(TAG_WB_REQ_DATA, TAG_WB_REQ_SET_NUMBER_PHASES, c, topic, (char *)"^1|3$", (char *)"", (char *)"", (char *)"", RSCP::eTypeUChar8, true);
         }

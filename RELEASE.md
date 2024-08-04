@@ -1,5 +1,14 @@
 ## Release Notes
 
+### Release v3.29 (04.08.2024)
+
+Bug fixes:
+- Issue #85: Error in "New Set Topics"
+
+Features:
+- Issue #84: Wallbox - min current
+- MacOS support
+
 ### Release v3.28 (27.07.2024)
 
 Bug fixes:
