@@ -21,7 +21,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "3.29"
+#define RSCP2MQTT_VERSION       "3.30"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -40,7 +40,7 @@
 #ifdef INFLUXDB
     #define RSCP2MQTT               RSCP2MQTT_VERSION".influxdb"
     #define INFLUXDB_PORT_DEFAULT   8086
-    #define CURL_BUFFER_SIZE        1024
+    #define CURL_BUFFER_SIZE        65536
 #else
     #define RSCP2MQTT               RSCP2MQTT_VERSION
 #endif
@@ -2607,7 +2607,6 @@ static void receiveLoop(bool & bStopExecution) {
     // multiple frames can only occur in this example if one or more frames are received with a big time delay
     // this should usually not occur but handling this is shown in this example
     int iReceivedRscpFrames = 0;
-
     int iResult;
 
     while (!bStopExecution && ((iReceivedBytes > 0) || iReceivedRscpFrames == 0)) {
@@ -2628,23 +2627,30 @@ static void receiveLoop(bool & bStopExecution) {
         // receive data
         // Issues #55, #61 and #67
         while (1) {
+            errno = 0; // Issue #87
             iResult = SocketRecvData(iSocket, &vecDynamicBuffer[0] + iReceivedBytes, vecDynamicBuffer.size() - iReceivedBytes);
             if (iResult < 0) {
                 if ((errno == EAGAIN) || (errno == EWOULDBLOCK) || (errno == EINTR)) continue;
                 logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Socket receive error. errno %i\n", errno);
                 bStopExecution = true;
+                vecDynamicBuffer.resize(0); // Issue #87
+                iReceivedBytes = 0; // Issue #87
+                break;
             } else if (iResult == 0) {
                 // connection was closed regularly by peer
                 // if this happens on startup each time the possible reason is
                 // wrong AES password or wrong network subnet (adapt hosts.allow file required)
                 logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Connection closed by peer. Perhaps E3DC_AES_PASSWORD is not configured correctly.\n");
                 bStopExecution = true;
+                vecDynamicBuffer.resize(0); // Issue #87
+                iReceivedBytes = 0; // Issue #87
+                break;
             }
             break;
         }
 
         // increment amount of received bytes
-        iReceivedBytes += iResult;
+        if (!bStopExecution) iReceivedBytes += iResult; // Issue #87
 
         // process all received frames
         while (!bStopExecution) {
@@ -2668,6 +2674,8 @@ static void receiveLoop(bool & bStopExecution) {
                 logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: parsing RSCP frame: %i\n", iProcessedBytes);
                 // stop execution as the data received is not RSCP data
                 bStopExecution = true;
+                vecDynamicBuffer.resize(0); // Issue #87
+                iReceivedBytes = 0; // Issue #87
                 break;
             } else if (iProcessedBytes > 0) {
                 // round up the processed bytes as iProcessedBytes does not include the zero padding bytes
@@ -2734,6 +2742,8 @@ static void mainLoop(void) {
         }
         // free frame buffer memory
         protocol.destroyFrameData(&frameBuffer);
+
+        if (bStopExecution) return; // Issue #87
 
         if (countdown <= 0) {
             classifyValues(RSCP_MQTT::RscpMqttCache);
@@ -2846,6 +2856,7 @@ static void mainLoop(void) {
 int main(int argc, char *argv[]) {
     char key[128], value[128], line[256];
     char *cfile = NULL;
+    char *env = NULL;
     int i = 0;
 
     cfg.daemon = false;
@@ -3179,6 +3190,32 @@ int main(int argc, char *argv[]) {
         }
     }
     fclose(fp);
+
+    // Overwrite with environment parameters
+    env = getenv("E3DC_IP");
+    if (env) strcpy(cfg.e3dc_ip, env);
+    env = getenv("E3DC_PORT");
+    if (env) cfg.e3dc_port = atoi(env);
+    env = getenv("E3DC_USER");
+    if (env) strcpy(cfg.e3dc_user, env);
+    env = getenv("E3DC_PASSWORD");
+    if (env) strcpy(cfg.e3dc_password, env);
+    env = getenv("E3DC_AES_PASSWORD");
+    if (env) strcpy(cfg.aes_password, env);
+    env = getenv("PREFIX");
+    if (env) strncpy(cfg.prefix, env, 24);
+    env = getenv("HISTORY_START_YEAR");
+    if (env) cfg.history_start_year = atoi(env);
+    env = getenv("INTERVAL");
+    if (env) cfg.interval = atoi(env);
+    env = getenv("RAW_MODE");
+    if (env && (strcasecmp(env, "true") == 0)) cfg.raw_mode = true;
+    env = getenv("WALLBOX");
+    if (env && (strcasecmp(env, "true") == 0)) cfg.wallbox = true;
+    env = getenv("PVI_TRACKER");
+    if (env) cfg.pvi_tracker = atoi(env);
+    env = getenv("BATTERY_STRINGS");
+    if (env) cfg.battery_strings = atoi(env);
 
 #ifdef INFLUXDB
     if (!influx_reduced) {

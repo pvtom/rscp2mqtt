@@ -1,5 +1,10 @@
 ## Release Notes
 
+### Release v3.30 (14.09.2024)
+
+Bug fixes:
+- Issue #87: Socket receive error. errno 104
+
 ### Release v3.29 (04.08.2024)
 
 Bug fixes:
