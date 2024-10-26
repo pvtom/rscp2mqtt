@@ -1,5 +1,11 @@
 ## Release Notes
 
+### Release v3.31 (26.10.2024)
+
+Bug fixes:
+- Issue #90: Cycle Time is not the Intervall given in cfg
+- Issue #91: Setting e3dc/set/discharge_start_power is not working
+
 ### Release v3.30 (14.09.2024)
 
 Bug fixes:

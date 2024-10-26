@@ -171,12 +171,12 @@ All topics are listed with the default prefix "e3dc".
 | PVI Energy L1 | e3dc/pvi/energy_all/L1 | [Wh] |
 | PVI Energy L2 | e3dc/pvi/energy_all/L2 | [Wh] |
 | PVI Energy L3 | e3dc/pvi/energy_all/L3 | [Wh] |
-| PVI Energy String1 (today) | e3dc/pvi/energy/string_1 | Wh |
-| PVI Energy String2 (today) | e3dc/pvi/energy/string_2 | Wh |
-| PVI Energy String1 (all-time) | e3dc/pvi/energy_all/string_1 | Wh |
-| PVI Energy String2 (all-time) | e3dc/pvi/energy_all/string_2 | Wh |
-| PVI Energy String1 (midnight) ***** | e3dc/pvi/energy_start/string_1 | Wh |
-| PVI Energy String2 (midnight) ***** | e3dc/pvi/energy_start/string_2 | Wh |
+| PVI Energy String1 (today) | e3dc/pvi/energy/string_1 | [Wh] |
+| PVI Energy String2 (today) | e3dc/pvi/energy/string_2 | [Wh] |
+| PVI Energy String1 (all-time) | e3dc/pvi/energy_all/string_1 | [Wh] |
+| PVI Energy String2 (all-time) | e3dc/pvi/energy_all/string_2 | [Wh] |
+| PVI Energy String1 (midnight) ***** | e3dc/pvi/energy_start/string_1 | [Wh] |
+| PVI Energy String2 (midnight) ***** | e3dc/pvi/energy_start/string_2 | [Wh] |
 | PVI Frequency | e3dc/pvi/frequency_over | [Hz] |
 | PVI Frequency | e3dc/pvi/frequency_under | [Hz] |
 | PVI Max Apparent Power L1 | e3dc/pvi/max_apparent_power/L1 | [VA] |

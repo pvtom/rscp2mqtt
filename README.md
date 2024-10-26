@@ -160,7 +160,7 @@ or to show the help page
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [3.30]
+rscp2mqtt [3.31]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
 MQTT broker >localhost:1883< qos = >0< retain = >✗< tls >✗< client id >✗< prefix >e3dc<
 Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox ✗ | Interval 2 | Autorefresh ✓ | Raw data ✗ | Logging OFF
