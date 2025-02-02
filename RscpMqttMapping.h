@@ -282,6 +282,21 @@ cache_t cache[] = {
     { TAG_SE_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE_MAX_W, 0, "reserve/max", "", F_FLOAT_2, UNIT_WH, 1, 0, false, false, false },
     { TAG_SE_EP_RESERVE, TAG_SE_PARAM_LAST_SOC, 0, "reserve/last_soc", "", F_FLOAT_1, UNIT_PERCENT, 1, 0, false, false, false },
     // CONTAINER TAG_DB_HISTORY_DATA_...
+    // Issue #9
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_0_POWER, 0, "pm_0/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_1_POWER, 0, "pm_1/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_0_POWER, 1, "yesterday/pm_0/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_1_POWER, 1, "yesterday/pm_1/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_WEEK, TAG_DB_PM_0_POWER, 0, "week/pm_0/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_WEEK, TAG_DB_PM_1_POWER, 0, "week/pm_1/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_MONTH, TAG_DB_PM_0_POWER, 0, "month/pm_0/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_MONTH, TAG_DB_PM_1_POWER, 0, "month/pm_1/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_PM_0_POWER, 0, "year/pm_0/energy", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_PM_1_POWER, 0, "year/pm_1/energy", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_0_POWER, 1, "day/%d/%d/%d/pm_0/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_DAY, TAG_DB_PM_1_POWER, 1, "day/%d/%d/%d/pm_1/energy", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_PM_0_POWER, 1, "history/%d/pm_0/energy", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
+    { TAG_DB_HISTORY_DATA_YEAR, TAG_DB_PM_1_POWER, 1, "history/%d/pm_1/energy", "", F_FLOAT_0, UNIT_KWH, 1000, 0, false, false, false },
     // TODAY
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_BAT_POWER_IN, 0, "battery/energy/charge", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },
     { TAG_DB_HISTORY_DATA_DAY, TAG_DB_BAT_POWER_OUT, 0, "battery/energy/discharge", "", F_FLOAT_2, UNIT_KWH, 1000, 0, false, false, false },

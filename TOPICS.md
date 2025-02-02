@@ -127,6 +127,8 @@ All topics are listed with the default prefix "e3dc".
 | Historical Data Grid In Energy "Einspeisung" ** | e3dc/day/<year#>/<month#>/<day#>/grid/energy/in | [kWh] |
 | Historical Data Grid Out Energy "Netzbezug" ** | e3dc/day/<year#>/<month#>/<day#>/grid/energy/out | [kWh] |
 | Historical Data Home Energy ** | e3dc/day/<year#>/<month#>/<day#>/home/energy | [kWh] | 
+| Historical Data External PM 0 Energy ** | e3dc/day/<year#>/<month#>/<day#>/pm_0/energy | [kWh] |
+| Historical Data External PM 1 Energy ** | e3dc/day/<year#>/<month#>/<day#>/pm_1/energy | [kWh] |
 | Historical Data SOC ** | e3dc/day/<year#>/<month#>/<day#>/battery/rsoc | [%] |
 | Historical Data Solar Energy ** | e3dc/day/<year#>/<month#>/<day#>/solar/energy | [kWh] |
 | Home Energy | e3dc/home/energy (today) | [kWh] |
@@ -137,6 +139,8 @@ All topics are listed with the default prefix "e3dc".
 | Month Grid In Energy "Einspeisung" | e3dc/month/grid/energy/in | [kWh] |
 | Month Grid Out Energy "Netzbezug" | e3dc/month/grid/energy/out | [kWh] |
 | Month Home Energy | e3dc/month/home/energy | [kWh] |
+| Month External PM 0 Energy | e3dc/month/pm_0/energy | [kWh] | 
+| Month External PM 1 Energy | e3dc/month/pm_1/energy | [kWh] |
 | Month Solar Energy | e3dc/month/solar/energy | [kWh] |
 | PM Active Phase L1 *** | e3dc/pm/active_phases/L1 | (true/false) |
 | PM Active Phase L2 *** | e3dc/pm/active_phases/L2 | (true/false) |
@@ -145,6 +149,8 @@ All topics are listed with the default prefix "e3dc".
 | PM Energy L1 *** | e3dc/pm/energy/L1 | [kWh] |
 | PM Energy L2 *** | e3dc/pm/energy/L2 | [kWh] |
 | PM Energy L3 *** | e3dc/pm/energy/L3 | [kWh] |
+| PM Energy External 0 *** | e3dc/pm_0/energy | [kWh] |
+| PM Energy External 1 ***| e3dc/pm_1/energy | [kWh] |
 | PM Power *** | e3dc/pm/power | [W] |
 | PM Power L1 *** | e3dc/pm/power/L1 | [W] |
 | PM Power L2 *** | e3dc/pm/power/L2 | [W] |
@@ -258,6 +264,8 @@ All topics are listed with the default prefix "e3dc".
 | Week Battery Energy Charge | e3dc/week/battery/energy/charge | [kWh] |
 | Week Consumed Production | e3dc/week/consumed | [%] |
 | Week Energy Discharge | e3dc/week/battery/energy/discharge | [kWh] |
+| Week External PM 0 Energy | e3dc/week/pm_0/energy | [kWh] |
+| Week External PM 1 Energy | e3dc/week/pm_1/energy | [kWh] |
 | Week Grid In Energy "Einspeisung" | e3dc/week/grid/energy/in | [kWh] |
 | Week Grid Out Energy "Netzbezug" | e3dc/week/grid/energy/out | [kWh] |
 | Week Home Energy | e3dc/week/home/energy | [kWh] |
@@ -266,12 +274,16 @@ All topics are listed with the default prefix "e3dc".
 | Year Battery Energy Charge | e3dc/year/battery/energy/charge | [kWh] |
 | Year Consumed Production | e3dc/year/consumed | [%] |
 | Year Energy Discharge | e3dc/year/battery/energy/discharge | [kWh] |
+| Year External PM 0 Energy | e3dc/year/pm_0/energy | [kWh] |
+| Year External PM 1 Energy | e3dc/year/pm_1/energy | [kWh] |
 | Year Grid In Energy "Einspeisung" | e3dc/year/grid/energy/in | [kWh] |
 | Year Grid Out Energy "Netzbezug" | e3dc/year/grid/energy/out | [kWh] |
 | Year History Autarky | e3dc/history/<year#>/autarky | [%] |
 | Year History Battery Energy Charge | e3dc/history/<year#>/battery/energy/charge | [kWh] |
 | Year History Consumed Production | e3dc/history/<year#>/consumed | [%] |
 | Year History Energy Discharge | e3dc/history/<year#>/battery/energy/discharge | [kWh] |
+| Year History External PM 0 Energy | e3dc/history/<year#>/pm_0/energy | [kWh] |
+| Year History External PM 1 Energy | e3dc/history/<year#>/pm_1/energy | [kWh] |
 | Year History Grid In Energy "Einspeisung" | e3dc/history/<year#>/grid/energy/in | [kWh] |
 | Year History Grid Out Energy "Netzbezug" | e3dc/history/<year#>/grid/energy/out | [kWh] |
 | Year History Home Energy | e3dc/history/<year#>/home/energy | [kWh] |
@@ -283,6 +295,8 @@ All topics are listed with the default prefix "e3dc".
 | Yesterday Battery SOC | e3dc/yesterday/battery/rsoc | [%] |
 | Yesterday Consumed Production | e3dc/yesterday/consumed | [%] |
 | Yesterday Energy Discharge | e3dc/yesterday/battery/energy/discharge | [kWh] |
+| Yesterday External PM 0 Energy | e3dc/yesterday/pm_0/energy | [kWh] |
+| Yesterday External PM 1 Energy | e3dc/yesterday/pm_1/energy | [kWh] |
 | Yesterday Grid In Energy "Einspeisung" | e3dc/yesterday/grid/energy/in | [kWh] |
 | Yesterday Grid Out Energy "Netzbezug" | e3dc/yesterday/grid/energy/out | [kWh] |
 | Yesterday Home Energy | e3dc/yesterday/home/energy | [kWh] |
@@ -291,6 +305,7 @@ All topics are listed with the default prefix "e3dc".
 *) If your system has more than one battery string (e.g. S10 Pro), you have to configure the parameter BATTERY_STRINGS accordingly. Battery topics that belong to a battery string are extended by the number of the battery string. Battery modules (DCB topics) are numbered consecutively.
 
 Energy topics are collected for today, yesterday and the current week, month, year and historical years if configured.
+
 **) Historical data for a specific day can be queried by publishing "e3dc/set/request/day".
 
 ***) If more than one power meter exists (PM_INDEX configured multiple times), topics are extended by the number of the power meter

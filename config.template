@@ -70,6 +70,13 @@ PM_EXTERN=false
 PM_INDEX=0
 PM_REQUESTS=true
 
+#-Addon Power Meter
+#--correct unit (Wh or kWh) or divisor (1 or 1000) if the values do not fit
+CORRECT_PM_0_UNIT=Wh
+CORRECT_PM_0_DIVISOR=1
+CORRECT_PM_1_UNIT=kWh
+CORRECT_PM_1_DIVISOR=1000
+
 #-Photovoltaic Inverter
 PVI_REQUESTS=true
 #--Number of PVI strings/trackers (disables the auto detection)

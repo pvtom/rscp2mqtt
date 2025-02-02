@@ -1,5 +1,10 @@
 ## Release Notes
 
+### Release v3.32 (02.02.2025)
+
+Features:
+- Issue #9, #96: External PM Energy Data
+
 ### Release v3.31 (26.10.2024)
 
 Bug fixes:
