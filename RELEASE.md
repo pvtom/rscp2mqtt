@@ -1,5 +1,10 @@
 ## Release Notes
 
+### Release v3.33 (15.02.2025)
+
+Bug fixes:
+- Issue #9, #96: External PM Energy Data (error with day and history topics)
+
 ### Release v3.32 (02.02.2025)
 
 Features:
