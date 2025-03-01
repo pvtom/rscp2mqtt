@@ -1,5 +1,10 @@
 ## Release Notes
 
+### Release v3.34 (01.03.2025)
+
+Features:
+- Improvements for raw data mode and additional topics (discovered during the investigation of issue #98)
+
 ### Release v3.33 (15.02.2025)
 
 Bug fixes:

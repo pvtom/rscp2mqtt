@@ -152,7 +152,16 @@ typedef struct _mqtt_data_t {
 } mqtt_data_t;
 
 std::queue<mqtt_data_t> mqttQ;
-std::vector<mqtt_data_t> rawData;
+
+typedef struct _raw_data_t {
+    char *topic;
+    char *payload;
+    int nr;
+    bool handled;
+    bool changed;
+} raw_data_t;
+
+std::vector<raw_data_t> rawData;
 
 typedef struct _cache_t {
     uint32_t container;
@@ -165,6 +174,7 @@ typedef struct _cache_t {
     int divisor;
     int bit_to_bool;
     bool history_log;
+    bool handled;
     bool changed;
     bool influx;
     bool forced;
@@ -357,6 +367,7 @@ bool compareCache(RSCP_MQTT::cache_t c1, RSCP_MQTT::cache_t c2) {
     if (c1.container < c2.container) return(true);
     if ((c1.container == c2.container) && (c1.tag < c2.tag)) return(true);
     if ((c1.container == c2.container) && (c1.tag == c2.tag) && (c1.index < c2.index)) return(true);
+    if ((c1.container == c2.container) && (c1.tag == c2.tag) && (c1.index == c2.index) && (strcmp(c1.topic, c2.topic) < 0)) return(true);
     return(false);
 }
 

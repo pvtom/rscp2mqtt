@@ -22,7 +22,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "3.33"
+#define RSCP2MQTT_VERSION       "3.34"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -856,15 +856,15 @@ void pushNotSupportedTag(uint32_t container, uint32_t tag) {
     return;
 }
 
-bool existsAdditionalTag(uint32_t container, uint32_t tag, int index) {
+bool existsAdditionalTag(uint32_t container, uint32_t tag, int index, int order) {
     for (std::vector<RSCP_MQTT::additional_tags_t>::iterator it = RSCP_MQTT::AdditionalTags.begin(); it != RSCP_MQTT::AdditionalTags.end(); ++it) {
-        if ((it->req_container == container) && (it->req_tag == tag) && (it->req_index == index)) return(true);
-    }
+        if ((it->req_container == container) && (it->req_tag == tag) && (it->req_index == index) && (it->order == order)) return(true);          
+    }           
     return(false);
 }
 
 void pushAdditionalTag(uint32_t req_container, uint32_t req_tag, int req_index, int order, bool one_shot) {
-    if (existsAdditionalTag(req_container, req_tag, req_index)) return;
+    if (existsAdditionalTag(req_container, req_tag, req_index, order)) return;
     RSCP_MQTT::additional_tags_t v;
     v.req_container = req_container;
     v.req_tag = req_tag;
@@ -876,38 +876,40 @@ void pushAdditionalTag(uint32_t req_container, uint32_t req_tag, int req_index, 
     return;
 }
 
-bool updateRawData(char *topic, char *payload) {
+void initRawData() {
+    for (std::vector<RSCP_MQTT::raw_data_t>::iterator it = RSCP_MQTT::rawData.begin(); it != RSCP_MQTT::rawData.end(); ++it) {
+        it->handled = false;
+        it->changed = false;
+    }
+    return;
+}
+
+int mergeRawData(char *topic, char *payload, bool *changed) {
+    int i = 0;
     if (topic && payload) {
-        for (std::vector<RSCP_MQTT::mqtt_data_t>::iterator it = RSCP_MQTT::rawData.begin(); it != RSCP_MQTT::rawData.end(); ++it) {
-            if (!strcmp(it->topic, topic)) {
+        for (std::vector<RSCP_MQTT::raw_data_t>::iterator it = RSCP_MQTT::rawData.begin(); it != RSCP_MQTT::rawData.end(); ++it) {
+            if (!strcmp(it->topic, topic) && !it->handled && (i == it->nr)) {
                 if (strcmp(it->payload, payload)) {
                     if (strlen(it->payload) != strlen(payload)) it->payload = (char *)realloc(it->payload, strlen(payload) + 1);
                     strcpy(it->payload, payload);
+                    it->changed = true;
+                    *changed = true;
                 }
-                return(true);
+                it->handled = true;
+                return(i);
             }
+            if (!strcmp(it->topic, topic) && it->handled) i++;
         }
-    }
-    return(false);
-}
-
-void insertRawData(char *topic, char *payload) {
-    if (topic && payload) {
-        RSCP_MQTT::mqtt_data_t v;
+        RSCP_MQTT::raw_data_t v;
         v.topic = strdup(topic);
         v.payload = strdup(payload);
+        v.handled = true;
+        v.changed = true;
+        v.nr = i;
         RSCP_MQTT::rawData.push_back(v);
+        *changed = true;
     }
-    return; 
-}
-
-char *readRawData(char *topic) {
-    for (std::vector<RSCP_MQTT::mqtt_data_t>::iterator it = RSCP_MQTT::rawData.begin(); it != RSCP_MQTT::rawData.end(); ++it) { 
-        if (!strcmp(it->topic, topic)) {
-            return(it->payload);
-        }       
-    }
-    return(NULL);
+    return(i);
 }
 
 void refreshCache(std::vector<RSCP_MQTT::cache_t> & v, char *payload) {
@@ -1085,6 +1087,13 @@ float getFloatValue(std::vector<RSCP_MQTT::cache_t> & c, uint32_t container, uin
     return(value);
 }
 
+void resetHandleFlag(std::vector<RSCP_MQTT::cache_t> & c) {
+    for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
+        it->handled = false;
+    }
+    return;
+}
+
 void preparePayload(RscpProtocol *protocol, SRscpValue *response, char **buf) {
     switch (response->dataType) {
         case RSCP::eTypeBool: {
@@ -1143,8 +1152,7 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
     int rc = -1;
 
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
-        if ((it->container > container) && (it->tag > response->tag)) break;
-        if ((!it->container || (it->container == container)) && (it->tag == response->tag) && (it->index == index)) {
+        if ((!it->container || (it->container == container)) && (it->tag == response->tag) && (it->index == index) && !it->handled) {
             switch (response->dataType) {
                 case RSCP::eTypeBool: {
                     if (protocol->getValueAsBool(response)) strcpy(buf, "true");
@@ -1287,6 +1295,8 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                 if ((atoi(it->payload) == 0) && (battery_soc > 1)) snprintf(it->payload, PAYLOAD_SIZE, "%d", battery_soc--);
                 else battery_soc = atoi(it->payload);
             }
+            it->handled = true;
+            break;
         }
     }
     return(rc);
@@ -2122,21 +2132,24 @@ void createRequest(SRscpFrameBuffer * frameBuffer) {
     return;
 }
 
-void publishRaw(RscpProtocol *protocol, SRscpValue *response, char *topic) {
-    char *payload_new = (char *)malloc(PAYLOAD_SIZE * sizeof(char) + 1);
-    char *payload_old = readRawData(topic);
-    memset(payload_new, 0, PAYLOAD_SIZE);
-    preparePayload(protocol, response, &payload_new);
-    if (payload_old && payload_new && strcmp(payload_new, "") && strcmp(payload_old, payload_new)) {
-        publishImmediately(topic, payload_new, false);
-        updateRawData(topic, payload_new);
-    } else if (!payload_old && payload_new && strcmp(payload_new, "")) {
-        publishImmediately(topic, payload_new, false);
-        insertRawData(topic, payload_new);
-    }
-    if (payload_new) free(payload_new);
-    return; 
-} 
+void publishRaw(RscpProtocol *protocol, SRscpValue *response, char *topic_in) {
+    char topic[TOPIC_SIZE];
+    char *payload = (char *)malloc(PAYLOAD_SIZE * sizeof(char) + 1);
+    bool changed = false;
+    memset(payload, 0, PAYLOAD_SIZE);
+    preparePayload(protocol, response, &payload);
+    
+    int nr = mergeRawData(topic_in, payload, &changed);
+    if (nr > 0) {
+        if (snprintf(topic, TOPIC_SIZE, "%s/%d", topic_in, nr) >= TOPIC_SIZE) {
+            logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"publishRaw: Buffer overflow\n");
+            return;
+        }
+        if (changed) publishImmediately(topic, payload, false);
+    } else if (changed) publishImmediately(topic_in, payload, false);
+    if (payload) free(payload);
+    return;
+}
 
 void handleRaw(RscpProtocol *protocol, SRscpValue *response, uint32_t *cache, int level) {
     int l = level + 1;
@@ -2612,6 +2625,7 @@ static int processReceiveBuffer(const unsigned char * ucBuffer, int iLength) {
     battery_nr = 0;
     pm_nr = 0;
     wb_nr = 0;
+    if (cfg.raw_mode) initRawData();
     for (size_t i = 0; i < frame.data.size(); i++)
         handleResponseValue(&protocol, &frame.data[i]);
 
@@ -2743,6 +2757,8 @@ static void mainLoop(void) {
         memset(&frameBuffer, 0, sizeof(frameBuffer));
 
         gettimeofday(&start, NULL);
+
+        resetHandleFlag(RSCP_MQTT::RscpMqttCache);
 
         // create an RSCP frame with requests to some example data
         createRequest(&frameBuffer);
