@@ -28,6 +28,8 @@ MQTT_TLS_KEYFILE=
 MQTT_TLS_PASSWORD=
 
 #-System
+#--verbose mode
+VERBOSE=false
 #--cycle interval in seconds (max 300 seconds)
 INTERVAL=1
 #--log mode defines the handling of errors/messages that are returned in response to a tag request

@@ -22,7 +22,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "3.34"
+#define RSCP2MQTT_VERSION       "3.35"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -354,7 +354,7 @@ void addTemplTopicsIdx(int index, char *seg, int start, int n, int inc, bool fin
     for (int c = start; c < n; c++) {
         for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCacheTempl.begin(); it != RSCP_MQTT::RscpMqttCacheTempl.end(); ++it) {
             if (it->index == index) {
-                RSCP_MQTT::cache_t cache = { it->container, it->tag, index + c, "", "", it->format, "", it->divisor, it->bit_to_bool, it->history_log, it->changed, it->influx, it->forced };
+                RSCP_MQTT::cache_t cache = { it->container, it->tag, index + c, "", "", it->format, "", it->divisor, it->bit_to_bool, it->history_log, it->handled, it->changed, it->influx, it->forced };
                 if (n == 1) {
                     snprintf(cache.topic, TOPIC_SIZE, it->topic, seg);
                 } else if (seg == NULL) {
@@ -380,7 +380,7 @@ void addTemplTopics(uint32_t container, int index, char *seg, int start, int n, 
     for (int c = start; c < n; c++) {
         for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCacheTempl.begin(); it != RSCP_MQTT::RscpMqttCacheTempl.end(); ++it) {
             if (it->container == container) {
-                RSCP_MQTT::cache_t cache = { it->container, it->tag, c, "", "", it->format, "", it->divisor, it->bit_to_bool, it->history_log, it->changed, it->influx, it->forced };
+                RSCP_MQTT::cache_t cache = { it->container, it->tag, c, "", "", it->format, "", it->divisor, it->bit_to_bool, it->history_log, it->handled, it->changed, it->influx, it->forced };
                 if (it->index > 1) cache.index = it->index + c * 10;
                 if ((seg == NULL) && (index == 0)) { // no args
                     cache.index = it->index;
@@ -407,7 +407,7 @@ void addTemplTopics(uint32_t container, int index, char *seg, int start, int n, 
 }
 
 void addTopic(uint32_t container, uint32_t tag, char *topic, char *unit, int format, int divisor, int bit_to_bool, bool finalize) {
-    RSCP_MQTT::cache_t cache = { container, tag, 0, "", "", format, "", divisor, bit_to_bool, false, false, false, false };
+    RSCP_MQTT::cache_t cache = { container, tag, 0, "", "", format, "", divisor, bit_to_bool, false, false, false, false, false };
     strcpy(cache.topic, topic);
     strcpy(cache.unit, unit);
     RSCP_MQTT::RscpMqttCache.push_back(cache);
@@ -692,35 +692,6 @@ void logTopics(std::vector<RSCP_MQTT::cache_t> & v, char *file, bool check_paylo
     return;
 }
 
-bool checkTopicOrder(std::vector<RSCP_MQTT::cache_t> & v) {
-    uint32_t container = 0;
-    uint32_t tag = 0;
-    int index = 0;
-    bool sorted = true;
-    for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
-        if ((it->container < container) && (it->tag < tag) && (it->index < index)) {
-            sorted = false;
-            break;
-        }
-        container = it->container;
-        tag = it->tag;
-        index = it->index;
-    }
-    return(sorted);
-}
-
-bool checkTopicUniqueness(std::vector<RSCP_MQTT::cache_t> & v) { 
-    int j;
-    for (std::vector<RSCP_MQTT::cache_t>::iterator i = v.begin(); i != v.end(); ++i) {
-        j = 0;
-        for (std::vector<RSCP_MQTT::cache_t>::iterator it = v.begin(); it != v.end(); ++it) {
-            if ((i->container == it->container) && (i->tag == it->tag) && (i->index == it->index) && (i->bit_to_bool == it->bit_to_bool)) j++;
-        }
-        if (j > 1) return(false);
-    }
-    return(true);
-}
-
 void logHealth(char *file) {
     logMessage(file, (char *)__FILE__, __LINE__, (char *)"[%s] PVI %s | PM %s | DCB %s (%d) | Wallbox %s | Autorefresh %s | Raw data %s | Interval %d\n", RSCP2MQTT, cfg.pvi_requests?"✓":"✗", cfg.pm_requests?"✓":"✗", cfg.dcb_requests?"✓":"✗", cfg.battery_strings, cfg.wallbox?"✓":"✗", cfg.auto_refresh?"✓":"✗", cfg.raw_mode?"✓":"✗", cfg.interval);
     for (uint8_t i = 0; i < cfg.pm_number; i++) {
@@ -733,8 +704,6 @@ void logHealth(char *file) {
     for (std::vector<RSCP_MQTT::additional_tags_t>::iterator it = RSCP_MQTT::AdditionalTags.begin(); it != RSCP_MQTT::AdditionalTags.end(); ++it) {
         logMessage(file, (char *)__FILE__, __LINE__, (char *)"Container >%s< Tag >%s< added (one shot: %s).\n", tagName(RSCP_TAGS::RscpTagsOverview, it->req_container), tagName(RSCP_TAGS::RscpTagsOverview, it->req_tag), it->one_shot?"true":"false");
     }
-    logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topics sorted >%s<\n", checkTopicOrder(RSCP_MQTT::RscpMqttCache)?"true":"false");
-    logMessage(file, (char *)__FILE__, __LINE__, (char *)"Topics unique >%s<\n", checkTopicUniqueness(RSCP_MQTT::RscpMqttCache)?"true":"false");
     for (std::vector<RSCP_MQTT::not_supported_tags_t>::iterator it = RSCP_MQTT::NotSupportedTags.begin(); it != RSCP_MQTT::NotSupportedTags.end(); ++it) {
         logMessage(file, (char *)__FILE__, __LINE__, (char *)"Container >%s< Tag >%s< not supported.\n", tagName(RSCP_TAGS::RscpTagsOverview, it->container), tagName(RSCP_TAGS::RscpTagsOverview, it->tag));
     }
@@ -782,7 +751,7 @@ void logMessage(char *file, char *srcfile, int line, char *format, ...) {
 void copyCache(std::vector<RSCP_MQTT::cache_t> & to, std::vector<RSCP_MQTT::cache_t> & from, uint32_t container) {
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = from.begin(); it != from.end(); ++it) {
         if (it->container == container) {
-            RSCP_MQTT::cache_t cache = { it->container, it->tag, it->index, "", "", it->format, "", it->divisor, it->bit_to_bool, it->history_log, it->changed, it->influx, it->forced };
+            RSCP_MQTT::cache_t cache = { it->container, it->tag, it->index, "", "", it->format, "", it->divisor, it->bit_to_bool, it->history_log, it->handled, it->changed, it->influx, it->forced };
             strcpy(cache.topic, it->topic);
             strcpy(cache.payload, it->payload);
             strcpy(cache.unit, it->unit);
@@ -1151,7 +1120,13 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
     static int battery_soc = -1;
     int rc = -1;
 
+    // Issue #102
+    uint32_t old_container = 0;
+    uint32_t old_tag = 0;
+    int old_index = -1;
+
     for (std::vector<RSCP_MQTT::cache_t>::iterator it = c.begin(); it != c.end(); ++it) {
+        if ((it->container > container) || ((old_container == it->container) && (old_tag == it->tag) && (old_index == it->index) && (it->bit_to_bool == 0))) break;
         if ((!it->container || (it->container == container)) && (it->tag == response->tag) && (it->index == index) && !it->handled) {
             switch (response->dataType) {
                 case RSCP::eTypeBool: {
@@ -1296,7 +1271,9 @@ int storeResponseValue(std::vector<RSCP_MQTT::cache_t> & c, RscpProtocol *protoc
                 else battery_soc = atoi(it->payload);
             }
             it->handled = true;
-            break;
+            old_container = it->container;
+            old_tag = it->tag;
+            old_index = it->index;
         }
     }
     return(rc);
@@ -2365,7 +2342,6 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                 uint32_t uiErrorCode = protocol->getValueAsUInt32(&containerData[i]);
                 if (uiErrorCode == 6) {
                     pushNotSupportedTag(response->tag, containerData[i].tag);
-                    logMessageByTag(response->tag, containerData[i].tag, uiErrorCode, __LINE__, (char *)"Not supported by the device: Container >%s< Tag >%s< received >%s< [%d]\n");
                 } else logMessageByTag(response->tag, containerData[i].tag, uiErrorCode, __LINE__, (char *)"Error: Container >%s< Tag >%s< received >%s< [%d]\n");
             } else {
             switch (containerData[i].tag) {
@@ -3117,6 +3093,8 @@ int main(int argc, char *argv[]) {
                 cfg.historyfile = strdup(value);
             } else if (strcasecmp(key, "INTERVAL") == 0)
                 cfg.interval = atoi(value);
+            else if ((strcasecmp(key, "VERBOSE") == 0) && (strcasecmp(value, "true") == 0))
+                cfg.verbose = true;
             else if ((strcasecmp(key, "PVI_REQUESTS") == 0) && (strcasecmp(value, "false") == 0))
                 cfg.pvi_requests = false;
             else if (strcasecmp(key, "PVI_TRACKER") == 0)
@@ -3276,6 +3254,8 @@ int main(int argc, char *argv[]) {
     if (env && (strcasecmp(env, "true") == 0)) cfg.raw_mode = true;
     env = getenv("WALLBOX");
     if (env && (strcasecmp(env, "true") == 0)) cfg.wallbox = true;
+    env = getenv("VERBOSE");
+    if (env && (strcasecmp(env, "true") == 0)) cfg.verbose = true;
     env = getenv("PVI_TRACKER");
     if (env) cfg.pvi_tracker = atoi(env);
     env = getenv("BATTERY_STRINGS");

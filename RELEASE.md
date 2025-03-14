@@ -1,5 +1,10 @@
 ## Release Notes
 
+### Release v3.35 (14.03.2025)
+
+Bug fixes:
+- Issue #102: Topic e3dc/ems/emergency_power_available is missing
+
 ### Release v3.34 (01.03.2025)
 
 Features:
