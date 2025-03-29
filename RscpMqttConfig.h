@@ -74,6 +74,8 @@ typedef struct _config_t {
     int pvi_temp_count;
     int bat_dcb_count[MAX_DCB_COUNT];
     int bat_dcb_start[MAX_DCB_COUNT];
+    int bat_dcb_cell_voltages;
+    int bat_dcb_cell_temperatures;
     bool pm_extern;
     int pm_number;
     int pm_indexes[MAX_PM_COUNT];

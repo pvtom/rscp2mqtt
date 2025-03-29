@@ -68,6 +68,9 @@
 #define IDX_WALLBOX_ENERGY_SOLAR_START     530
 #define IDX_WALLBOX_LAST_ENERGY_ALL        540
 #define IDX_WALLBOX_LAST_ENERGY_SOLAR      550
+#define IDX_BATTERY_DCB_TEMPERATURE_MIN    600
+#define IDX_BATTERY_DCB_TEMPERATURE_MAX    700
+#define IDX_BATTERY_DCB_CELL_VOLTAGE       800
 
 namespace RSCP_MQTT {
 
@@ -452,6 +455,11 @@ cache_t templates[] = {
     { TAG_BAT_DCB_INFO, TAG_BAT_DCB_WARNING, 1, "battery/dcb/%d/warning", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false, false, false },
     { TAG_BAT_DCB_INFO, TAG_BAT_DCB_ALARM, 1, "battery/dcb/%d/alarm", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false, false, false },
     { TAG_BAT_DCB_INFO, TAG_BAT_DCB_ERROR, 1, "battery/dcb/%d/error", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false, false, false },
+    { TAG_BAT_DCB_ALL_CELL_VOLTAGES, TAG_BAT_DCB_CELL_VOLTAGE, 1, "battery/dcb/%d/cell_voltage", "", F_AUTO, UNIT_V, 1, 0, false, false, false, false, false },
+    { TAG_BAT_DCB_ALL_CELL_TEMPERATURES, TAG_BAT_DCB_CELL_TEMPERATURE, 1, "battery/dcb/%d/cell_temperature", "", F_AUTO, UNIT_GRAD_C, 1, 0, false, false, false, false, false },
+    { 0, TAG_BAT_DCB_CELL_TEMPERATURE, IDX_BATTERY_DCB_TEMPERATURE_MIN, "battery/dcb/%d/cell_temperature/min", "", F_AUTO, UNIT_GRAD_C, 1, 0, false, false, false, false, false },
+    { 0, TAG_BAT_DCB_CELL_TEMPERATURE, IDX_BATTERY_DCB_TEMPERATURE_MAX, "battery/dcb/%d/cell_temperature/max", "", F_AUTO, UNIT_GRAD_C, 1, 0, false, false, false, false, false },
+    { 0, TAG_BAT_DCB_CELL_VOLTAGE, IDX_BATTERY_DCB_CELL_VOLTAGE, "battery/dcb/%d/cell_voltage", "", F_AUTO, UNIT_V, 1, 0, false, false, false, false, false },
     // PVI
     { TAG_PVI_TEMPERATURE, TAG_PVI_VALUE, 1, "pvi/temperature/%d", "", F_FLOAT_1, UNIT_GRAD_C, 1, 0, false, false, false, false, false },
     { TAG_PVI_DC_POWER, TAG_PVI_VALUE, 1, "pvi/power/string_%d", "", F_FLOAT_0, UNIT_W, 1, 0, false, false, false, false, false },

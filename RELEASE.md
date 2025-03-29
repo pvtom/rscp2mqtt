@@ -1,5 +1,10 @@
 ## Release Notes
 
+### Release v3.36 (29.03.2025)
+
+Features:
+- Issue #103: Battery module cell information (voltage and temperature)
+
 ### Release v3.35 (14.03.2025)
 
 Bug fixes:

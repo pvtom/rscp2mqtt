@@ -22,7 +22,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "3.35"
+#define RSCP2MQTT_VERSION       "3.36"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -376,7 +376,7 @@ void addTemplTopicsIdx(int index, char *seg, int start, int n, int inc, bool fin
     return;
 }
 
-void addTemplTopics(uint32_t container, int index, char *seg, int start, int n, int inc, bool finalize) {
+void addTemplTopics(uint32_t container, int index, char *seg, int start, int n, int inc, int counter, bool finalize) {
     for (int c = start; c < n; c++) {
         for (std::vector<RSCP_MQTT::cache_t>::iterator it = RSCP_MQTT::RscpMqttCacheTempl.begin(); it != RSCP_MQTT::RscpMqttCacheTempl.end(); ++it) {
             if (it->container == container) {
@@ -395,7 +395,17 @@ void addTemplTopics(uint32_t container, int index, char *seg, int start, int n, 
                     snprintf(cache.topic, TOPIC_SIZE, it->topic, buffer);
                 }
                 strcpy(cache.unit, it->unit);
-                RSCP_MQTT::RscpMqttCache.push_back(cache);
+                if (!counter) {
+                    RSCP_MQTT::RscpMqttCache.push_back(cache);
+                } else {
+                    char buffer[TOPIC_SIZE];
+                    strcpy(buffer, cache.topic);
+                    for (int i = 1; i <= counter; i++) {
+                        if (counter >= 10) snprintf(cache.topic, TOPIC_SIZE, "%s/%.2d", buffer, i);
+                        else snprintf(cache.topic, TOPIC_SIZE, "%s/%d", buffer, i);
+                        RSCP_MQTT::RscpMqttCache.push_back(cache);
+                    }
+                }
             }
         }
     }
@@ -406,8 +416,8 @@ void addTemplTopics(uint32_t container, int index, char *seg, int start, int n, 
     return;
 }
 
-void addTopic(uint32_t container, uint32_t tag, char *topic, char *unit, int format, int divisor, int bit_to_bool, bool finalize) {
-    RSCP_MQTT::cache_t cache = { container, tag, 0, "", "", format, "", divisor, bit_to_bool, false, false, false, false, false };
+void addTopic(uint32_t container, uint32_t tag, int index, char *topic, char *unit, int format, int divisor, int bit_to_bool, bool finalize) {
+    RSCP_MQTT::cache_t cache = { container, tag, index, "", "", format, "", divisor, bit_to_bool, false, false, false, false, false };
     strcpy(cache.topic, topic);
     strcpy(cache.unit, unit);
     RSCP_MQTT::RscpMqttCache.push_back(cache);
@@ -1578,7 +1588,7 @@ void createRequest(SRscpFrameBuffer * frameBuffer) {
     }
 
     if (curr_year < l->tm_year + 1900) {
-        addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, NULL, curr_year, l->tm_year + 1900, 0, true);
+        addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, NULL, curr_year, l->tm_year + 1900, 0, 0, true);
         curr_year = l->tm_year + 1900;
     } 
 
@@ -1694,6 +1704,8 @@ void createRequest(SRscpFrameBuffer * frameBuffer) {
             if (cfg.dcb_requests) {
                 for (uint8_t j = 0; j < cfg.bat_dcb_count[i]; j++) {
                     protocol.appendValue(&batteryContainer, TAG_BAT_REQ_DCB_INFO, j);
+                    protocol.appendValue(&batteryContainer, TAG_BAT_REQ_DCB_ALL_CELL_TEMPERATURES, j); // Issue #103
+                    protocol.appendValue(&batteryContainer, TAG_BAT_REQ_DCB_ALL_CELL_VOLTAGES, j); // Issue #103
                 }
             }
             if (!e3dc_ts) {
@@ -2276,13 +2288,45 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                         cfg.bat_dcb_count[battery_nr] = protocol->getValueAsUChar8(&containerData[i]);
                         cfg.bat_dcb_start[battery_nr] = battery_nr?cfg.bat_dcb_count[battery_nr - 1]:0;
                         storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
-                        addTemplTopics(TAG_BAT_DCB_INFO, 1, NULL, cfg.bat_dcb_start[battery_nr], cfg.bat_dcb_start[battery_nr] + cfg.bat_dcb_count[battery_nr], 1, true);
+                        addTemplTopics(TAG_BAT_DCB_INFO, 1, NULL, cfg.bat_dcb_start[battery_nr], cfg.bat_dcb_start[battery_nr] + cfg.bat_dcb_count[battery_nr], 1, 0, true);
+                        if (cfg.bat_dcb_cell_voltages) addTemplTopics(TAG_BAT_DCB_ALL_CELL_VOLTAGES, 1, NULL, cfg.bat_dcb_start[battery_nr], cfg.bat_dcb_start[battery_nr] + cfg.bat_dcb_count[battery_nr], 1, cfg.bat_dcb_cell_voltages, true);
+                        if (cfg.bat_dcb_cell_temperatures) addTemplTopics(TAG_BAT_DCB_ALL_CELL_TEMPERATURES, 1, NULL, cfg.bat_dcb_start[battery_nr], cfg.bat_dcb_start[battery_nr] + cfg.bat_dcb_count[battery_nr], 1, cfg.bat_dcb_cell_temperatures, true);
+                        addTemplTopicsIdx(IDX_BATTERY_DCB_TEMPERATURE_MIN, NULL, cfg.bat_dcb_start[battery_nr], cfg.bat_dcb_start[battery_nr] + cfg.bat_dcb_count[battery_nr], 1, false);
+                        addTemplTopicsIdx(IDX_BATTERY_DCB_TEMPERATURE_MAX, NULL, cfg.bat_dcb_start[battery_nr], cfg.bat_dcb_start[battery_nr] + cfg.bat_dcb_count[battery_nr], 1, false);
+                        addTemplTopicsIdx(IDX_BATTERY_DCB_CELL_VOLTAGE, NULL, cfg.bat_dcb_start[battery_nr], cfg.bat_dcb_start[battery_nr] + cfg.bat_dcb_count[battery_nr], 1, true);
                         break;
                     }
                     case TAG_BAT_SPECIFICATION: {
                         std::vector<SRscpValue> container = protocol->getValueAsContainer(&containerData[i]);
                         for (size_t j = 0; j < container.size(); j++) {
                             storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(container[j]), containerData[i].tag, battery_nr);
+                        }
+                        protocol->destroyValueData(container);
+                        break;
+                    }
+                    case TAG_BAT_DCB_ALL_CELL_VOLTAGES:
+                    case TAG_BAT_DCB_ALL_CELL_TEMPERATURES: {
+                        int dcb_nr = 0;
+                        std::vector<SRscpValue> container = protocol->getValueAsContainer(&containerData[i]);
+                        for (size_t j = 0; j < container.size(); j++) {
+                            if (container[j].tag == TAG_BAT_DCB_INDEX) {
+                                dcb_nr = protocol->getValueAsUInt16(&container[j]) + cfg.bat_dcb_start[battery_nr];
+                            } else {
+                                if (container[j].dataType == RSCP::eTypeContainer) {
+                                    std::vector<SRscpValue> subcontainer = protocol->getValueAsContainer(&container[j]);
+                                    if (containerData[i].tag == TAG_BAT_DCB_ALL_CELL_TEMPERATURES) {
+                                        storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(subcontainer[0]), 0, IDX_BATTERY_DCB_TEMPERATURE_MIN + dcb_nr);
+                                        storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(subcontainer[1]), 0, IDX_BATTERY_DCB_TEMPERATURE_MAX + dcb_nr);
+                                    } else if (containerData[i].tag == TAG_BAT_DCB_ALL_CELL_VOLTAGES) {
+                                        storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(subcontainer[0]), 0, IDX_BATTERY_DCB_CELL_VOLTAGE + dcb_nr);
+                                    }
+                                    if (cfg.bat_dcb_cell_voltages || cfg.bat_dcb_cell_temperatures) {
+                                        for (size_t k = 0; k < subcontainer.size(); k++) {
+                                            if (storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(subcontainer[k]), containerData[i].tag, dcb_nr) < 0) break;
+                                        }
+                                    }
+                                }
+                            }
                         }
                         protocol->destroyValueData(container);
                         break;
@@ -2379,15 +2423,15 @@ int handleResponseValue(RscpProtocol *protocol, SRscpValue *response) {
                 case TAG_PVI_TEMPERATURE_COUNT: {
                     cfg.pvi_temp_count = protocol->getValueAsUChar8(&containerData[i]);
                     storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
-                    addTemplTopics(TAG_PVI_TEMPERATURE, 1, NULL, 0, cfg.pvi_temp_count, 1, true);
+                    addTemplTopics(TAG_PVI_TEMPERATURE, 1, NULL, 0, cfg.pvi_temp_count, 1, 0, true);
                     break;
                 }
                 case TAG_PVI_USED_STRING_COUNT: {
                     cfg.pvi_tracker = protocol->getValueAsUChar8(&containerData[i]);
-                    addTemplTopics(TAG_PVI_DC_POWER, 1, NULL, 0, cfg.pvi_tracker, 1, false);
-                    addTemplTopics(TAG_PVI_DC_VOLTAGE, 1, NULL, 0, cfg.pvi_tracker, 1, false);
-                    addTemplTopics(TAG_PVI_DC_CURRENT, 1, NULL, 0, cfg.pvi_tracker, 1, false);
-                    addTemplTopics(TAG_PVI_DC_STRING_ENERGY_ALL, 1, NULL, 0, cfg.pvi_tracker, 1, false);
+                    addTemplTopics(TAG_PVI_DC_POWER, 1, NULL, 0, cfg.pvi_tracker, 1, 0, false);
+                    addTemplTopics(TAG_PVI_DC_VOLTAGE, 1, NULL, 0, cfg.pvi_tracker, 1, 0, false);
+                    addTemplTopics(TAG_PVI_DC_CURRENT, 1, NULL, 0, cfg.pvi_tracker, 1, 0, false);
+                    addTemplTopics(TAG_PVI_DC_STRING_ENERGY_ALL, 1, NULL, 0, cfg.pvi_tracker, 1, 0, false);
                     addTemplTopicsIdx(IDX_PVI_ENERGY, NULL, 0, cfg.pvi_tracker, 1, false);
                     addTemplTopicsIdx(IDX_PVI_ENERGY_START, NULL, 0, cfg.pvi_tracker, 1, true);
                     storeResponseValue(RSCP_MQTT::RscpMqttCache, protocol, &(containerData[i]), response->tag, 0);
@@ -2947,6 +2991,8 @@ int main(int argc, char *argv[]) {
     for (uint8_t i = 0; i < MAX_WB_COUNT; i++) {
         cfg.wb_indexes[i] = 0;
     }
+    cfg.bat_dcb_cell_voltages = 0;
+    cfg.bat_dcb_cell_temperatures = 0;
     cfg.pm_number = 0;
     cfg.wb_number = 0;
     cfg.pm_extern = false;
@@ -2995,7 +3041,12 @@ int main(int argc, char *argv[]) {
 
     RSCP_MQTT::topic_store_t store = { 0, "" };
 
+    bool skip = false;
     while (fgets(line, sizeof(line), fp)) {
+        if (!strncmp(line, "EXIT", 4)) break;
+        if (!strncmp(line, "/*", 2)) skip = true;
+        if (!strncmp(line, "*/", 2)) skip = false;
+        if (skip) continue;
         memset(key, 0, sizeof(key));
         memset(value, 0, sizeof(value));
         if (sscanf(line, "%127[^ \t=]=%127[^\n]", key, value) == 2) {
@@ -3107,6 +3158,10 @@ int main(int argc, char *argv[]) {
                 if ((cfg.pm_number < MAX_PM_COUNT) && (atoi(value) >= 0) && (atoi(value) <= 127)) cfg.pm_indexes[cfg.pm_number++] = atoi(value);
             } else if (strcasecmp(key, "WB_INDEX") == 0) {
                 if ((cfg.wb_number < MAX_WB_COUNT) && (atoi(value) >= 0) && (atoi(value) < MAX_WB_COUNT)) cfg.wb_indexes[cfg.wb_number++] = atoi(value);
+            } else if (strcasecmp(key, "DCB_CELL_VOLTAGES") == 0) {
+                if ((atoi(value) >= 0) && (atoi(value) <= 99)) cfg.bat_dcb_cell_voltages = atoi(value);
+            } else if (strcasecmp(key, "DCB_CELL_TEMPERATURES") == 0) {
+                if ((atoi(value) >= 0) && (atoi(value) <= 99)) cfg.bat_dcb_cell_temperatures = atoi(value);
             } else if ((strcasecmp(key, "PM_REQUESTS") == 0) && (strcasecmp(value, "false") == 0))
                 cfg.pm_requests = false;
             else if ((strcasecmp(key, "EMS_REQUESTS") == 0) && (strcasecmp(value, "false") == 0))
@@ -3193,6 +3248,7 @@ int main(int argc, char *argv[]) {
             else if (strcasecmp(key, "ADD_NEW_TOPIC") == 0) {
                 int divisor = 1;
                 int bit = 1;
+                int index = 0;
                 char container[128];
                 char tag[128];
                 char topic[TOPIC_SIZE];
@@ -3201,8 +3257,9 @@ int main(int argc, char *argv[]) {
                 memset(tag, 0, sizeof(tag));
                 memset(topic, 0, sizeof(topic));
                 memset(unit, 0, sizeof(unit));
-                if ((sscanf(value, "%127[^:]:%127[^:]:%127[^:]:%d:%d:%127[^:]", container, tag, unit, &divisor, &bit, topic) == 6)) {
-                    if (isTag(RSCP_TAGS::RscpTagsOverview, container, false) && isTag(RSCP_TAGS::RscpTagsOverview, tag, false)) addTopic(tagID(RSCP_TAGS::RscpTagsOverview, container), tagID(RSCP_TAGS::RscpTagsOverview, tag), topic, unit, F_AUTO, divisor, bit, true);
+                if ((sscanf(value, "%127[^:]:%127[^:]:%d:%127[^:]:%d:%d:%127[^:]", container, tag, &index, unit, &divisor, &bit, topic) == 7) ||
+                    (sscanf(value, "%127[^:]:%127[^:]:%127[^:]:%d:%d:%127[^:]", container, tag, unit, &divisor, &bit, topic) == 6)) {
+                    if (isTag(RSCP_TAGS::RscpTagsOverview, container, false) && isTag(RSCP_TAGS::RscpTagsOverview, tag, false)) addTopic(tagID(RSCP_TAGS::RscpTagsOverview, container), tagID(RSCP_TAGS::RscpTagsOverview, tag), index, topic, unit, F_AUTO, divisor, bit, true);
                 } else logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"key >%s< value >%s< not enough attributes.\n", key, value);
             }
             else if (strcasecmp(key, "ADD_NEW_SET_TOPIC") == 0) {
@@ -3341,18 +3398,18 @@ int main(int argc, char *argv[]) {
 
     // History year
     if (cfg.verbose) printf("History year range from %d to %d\n", cfg.history_start_year, curr_year);
-    if (cfg.history_start_year < curr_year) addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, NULL, cfg.history_start_year, curr_year, 0, false);
+    if (cfg.history_start_year < curr_year) addTemplTopics(TAG_DB_HISTORY_DATA_YEAR, 1, NULL, cfg.history_start_year, curr_year, 0, 0, false);
 
     // Battery Strings
-    addTemplTopics(TAG_BAT_DATA, (cfg.battery_strings == 1)?0:1, (char *)"battery", 0, cfg.battery_strings, 1, false);
-    addTemplTopics(TAG_BAT_SPECIFICATION, (cfg.battery_strings == 1)?0:1, (char *)"battery", 0, cfg.battery_strings, 1, false);
+    addTemplTopics(TAG_BAT_DATA, (cfg.battery_strings == 1)?0:1, (char *)"battery", 0, cfg.battery_strings, 1, 0, false);
+    addTemplTopics(TAG_BAT_SPECIFICATION, (cfg.battery_strings == 1)?0:1, (char *)"battery", 0, cfg.battery_strings, 1, 0, false);
 
     // PVI strings (no auto detection)
     if (cfg.pvi_tracker) {
-        addTemplTopics(TAG_PVI_DC_POWER, 1, NULL, 0, cfg.pvi_tracker, 1, false);
-        addTemplTopics(TAG_PVI_DC_VOLTAGE, 1, NULL, 0, cfg.pvi_tracker, 1, false);
-        addTemplTopics(TAG_PVI_DC_CURRENT, 1, NULL, 0, cfg.pvi_tracker, 1, false);
-        addTemplTopics(TAG_PVI_DC_STRING_ENERGY_ALL, 1, NULL, 0, cfg.pvi_tracker, 1, false);
+        addTemplTopics(TAG_PVI_DC_POWER, 1, NULL, 0, cfg.pvi_tracker, 1, 0, false);
+        addTemplTopics(TAG_PVI_DC_VOLTAGE, 1, NULL, 0, cfg.pvi_tracker, 1, 0, false);
+        addTemplTopics(TAG_PVI_DC_CURRENT, 1, NULL, 0, cfg.pvi_tracker, 1, 0, false);
+        addTemplTopics(TAG_PVI_DC_STRING_ENERGY_ALL, 1, NULL, 0, cfg.pvi_tracker, 1, 0, false);
         addTemplTopicsIdx(IDX_PVI_ENERGY, NULL, 0, cfg.pvi_tracker, 1, false);
         addTemplTopicsIdx(IDX_PVI_ENERGY_START, NULL, 0, cfg.pvi_tracker, 1, false);
     }
@@ -3360,8 +3417,8 @@ int main(int argc, char *argv[]) {
     // Wallbox
     if (cfg.wallbox) {
         if (cfg.wb_number == 0) cfg.wb_number = 1;
-        addTemplTopics(TAG_WB_DATA, (cfg.wb_number == 1)?0:1, (char *)"wallbox", 0, cfg.wb_number, 1, false);
-        addTemplTopics(TAG_WB_EXTERN_DATA_ALG, (cfg.wb_number == 1)?0:1, (char *)"wallbox", 0, cfg.wb_number, 1, false);
+        addTemplTopics(TAG_WB_DATA, (cfg.wb_number == 1)?0:1, (char *)"wallbox", 0, cfg.wb_number, 1, 0, false);
+        addTemplTopics(TAG_WB_EXTERN_DATA_ALG, (cfg.wb_number == 1)?0:1, (char *)"wallbox", 0, cfg.wb_number, 1, 0, false);
         addTemplTopicsIdx(IDX_WALLBOX_DAY_ENERGY_ALL, (char *)"wallbox", 0, cfg.wb_number, 1, false);
         addTemplTopicsIdx(IDX_WALLBOX_DAY_ENERGY_SOLAR, (char *)"wallbox", 0, cfg.wb_number, 1, false);
         addTemplTopicsIdx(IDX_WALLBOX_ENERGY_ALL_START, (char *)"wallbox", 0, cfg.wb_number, 1, false);
@@ -3375,7 +3432,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Power Meters 
-    addTemplTopics(TAG_PM_DATA, (cfg.pm_number == 1)?0:1, (char *)"pm", 0, cfg.pm_number, 1, false);
+    addTemplTopics(TAG_PM_DATA, (cfg.pm_number == 1)?0:1, (char *)"pm", 0, cfg.pm_number, 1, 0, false);
     addTemplTopicsIdx(IDX_PM_POWER, (char *)"pm", 0, cfg.pm_number, 1, false);
     addTemplTopicsIdx(IDX_PM_ENERGY, (char *)"pm", 0, cfg.pm_number, 1, true);
 

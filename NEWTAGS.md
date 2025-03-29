@@ -38,8 +38,8 @@ All tags that are listed in RscpTags.h and have "REQ" in their name can be used.
 ADD_NEW_REQUEST and ADD_NEW_REQUEST_AT_START (for one-time execution at program start) are usable for configuration in the .config.
 
 ```
-ADD_NEW_REQUEST=<container>:<tag>[:value]-<sequence>
-ADD_NEW_REQUEST_AT_START=<container>:<tag>[:value]-<sequence>
+ADD_NEW_REQUEST=<container>:<tag>[:<value>]-<sequence>
+ADD_NEW_REQUEST_AT_START=<container>:<tag>[:<value>]-<sequence>
 ```
 
 Containers are substructured tags. But containers are not labeled as such and therefore cannot be distinguished from other tags. The root container has the value 0.
@@ -64,7 +64,7 @@ ADD_NEW_REQUEST=TAG_BAT_REQ_DATA:TAG_BAT_REQ_INFO-1
 If you have successfully configured a new tag and were able to find the output in the raw data, you can configure a new topic for it.
 
 ```
-ADD_NEW_TOPIC=<container>:<tag>:<unit>:<divisor>:<bit_to_bool>:<topic>
+ADD_NEW_TOPIC=<container>:<tag>:[:<index>]<unit>:<divisor>:<bit_to_bool>:<topic>
 ```
 Float values are divided by the divisor. In this way power values in Watt can be converted into kW.
 Integer values can be converted to a boolean value (true/false) with "bit_to_bool" using a boolean AND.

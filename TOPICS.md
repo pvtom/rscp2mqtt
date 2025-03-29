@@ -13,6 +13,9 @@ All topics are listed with the default prefix "e3dc".
 | Battery Energy Charge (today) | e3dc/battery/energy/charge | [kWh] |
 | Battery Energy Discharge (today) | e3dc/battery/energy/discharge | [kWh] |
 | Battery Error Code * | e3dc/battery/error | |
+| Battery Module Cell Temperature Min | e3dc/battery/dcb/<#>/cell_temperature/min | [°C] |
+| Battery Module Cell Temperature Max | e3dc/battery/dcb/<#>/cell_temperature/max | [°C] |
+| Battery Module Cell Voltage | e3dc/battery/dcb/<#>/cell_voltage | [V] |
 | Battery Module Charge Cycles | e3dc/battery/dcb/<#>/cycles | |
 | Battery Module Count | e3dc/battery/dcb/count | <count#> |
 | Battery Module Current 30s Average | e3dc/battery/dcb/<#>/current_avg_30s | [A] |
