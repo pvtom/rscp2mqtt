@@ -291,12 +291,12 @@ bool RscpProtocol::allocateMemory(SRscpValue* value, size_t size)  {
 		if(size == 0) {
 			return true;
 		}
-		value->data = (uint8_t *) malloc(size);
+                value->data = (uint8_t *) malloc(size + 8); //fix?
 		return (value->data != NULL);
 	}
 	else {
 		// if data is already allocated -> reallocate to the correct size
-		uint8_t *ucTmp = (uint8_t *) realloc(value->data, size);
+                uint8_t *ucTmp = (uint8_t *) realloc(value->data, size + 8); //fix?
 		if(ucTmp != NULL) {
 			value->data = ucTmp;
 			return true;
@@ -375,7 +375,7 @@ int32_t RscpProtocol::parseData(const uint8_t* data, const uint32_t & length, st
 		newVal.length = value->length;
 		if(value->length > 0) {
 			// allocate data memory for each value separately
-			newVal.data = (uint8_t *) malloc(value->length);
+                        newVal.data = (uint8_t *) malloc(value->length + 8); //fix?
 			if(newVal.data == NULL) {
 				// not enough memory, return only what parsed until now
 				destroyValueData(vecValues);

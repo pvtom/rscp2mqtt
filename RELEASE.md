@@ -1,5 +1,11 @@
 ## Release Notes
 
+### Release v3.37 (12.04.2025)
+
+Bug fixes:
+- Issue #106: Unexpected program crash when using raw mode
+- Issue #107: Memory leak in v3.36
+
 ### Release v3.36 (29.03.2025)
 
 Features:
