@@ -5,6 +5,57 @@
 #define MAX_PM_COUNT  8
 #define MAX_WB_COUNT  8
 
+#define ENV_STRING(NAME, VAR)                         \
+    do {                                              \
+        const char *env = getenv(NAME);               \
+        if (env) {                                    \
+            strncpy(VAR, env, sizeof(VAR) - 1);       \
+            VAR[sizeof(VAR) - 1] = '\0';              \
+        }                                             \
+    } while (0)
+
+#define ENV_STRING_N(NAME, VAR, N)                    \
+    do {                                              \
+        const char *env = getenv(NAME);               \
+        if (env) {                                    \
+            strncpy(VAR, env, N);                     \
+            VAR[N] = '\0';                            \
+        }                                             \
+    } while (0)
+
+#define ENV_INT(NAME, VAR)                            \
+    do {                                              \
+        const char *env = getenv(NAME);               \
+        if (env) {                                    \
+            char *endptr;                             \
+            long val = strtol(env, &endptr, 10);      \
+            if (*endptr == '\0')                      \
+                VAR = (int)val;                       \
+        }                                             \
+    } while (0)
+
+#define ENV_INT_RANGE(NAME, VAR, FROM, TO)            \
+    do {                                              \
+        const char *env = getenv(NAME);               \
+        if (env) {                                    \
+            char *endptr;                             \
+            long val = strtol(env, &endptr, 10);      \
+            if ((*endptr == '\0') && (val >= FROM) && (val <= TO)) \
+                VAR = (int)val;                       \
+        }                                             \
+    } while (0)
+
+#define ENV_BOOL(NAME, VAR)                                            \
+    do {                                                               \
+        const char *env = getenv(NAME);                                \
+        if (env) {                                                     \
+            if (strcasecmp(env, "true") == 0 || strcmp(env, "1") == 0) \
+                VAR = true;                                            \
+            else                                                       \
+                VAR = false;                                           \
+        }                                                              \
+    } while (0)
+
 typedef struct _wb_t {
     int day_add_total[MAX_WB_COUNT];
     int day_total[MAX_WB_COUNT];

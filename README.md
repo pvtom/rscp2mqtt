@@ -6,57 +6,36 @@
 [![GitHub pull requests](https://img.shields.io/github/issues-pr/pvtom/rscp2mqtt)](https://github.com/pvtom/rscp2mqtt/pulls)
 [![GitHub](https://img.shields.io/github/license/pvtom/rscp2mqtt)](https://github.com/pvtom/rscp2mqtt/blob/main/LICENSE)
 
-This software module connects a home power station from E3/DC to an MQTT broker.
+This software module connects a home power station from E3/DC with an MQTT broker. There is also a version that can store data in an InfluxDB.
 
 It uses the RSCP interface of the device. The solution is based on the RSCP sample application provided by E3/DC and was developed and tested with a Raspberry Pi, a Linux PC (x86_64) and an Apple MacBook (x86_64).
 
-The tool cyclically queries data from the home power station and publishes it to an MQTT broker using these [topics](TOPICS.md).
+The tool cyclically queries data from the home power station and publishes it to the MQTT broker (and the InfluxDB) using these [topics](TOPICS.md).
 
-Supported topic areas are:
+It subscribes to the root topic "e3dc/set/#" and forwards incoming requests to the home power station. In this way, the device can be controlled, additional data can be queried and changes can be made to its configuration.
 
-- Energy topics for today
-- Current power values
-- Autarky and self-consumption
-- Battery status
-- Energy management (EMS) power settings
-- Data from yesterday and the current week, month and year
-- Values of the power meter (PM)
-- Values of the photovoltaic inverter (PVI)
-- Values of the emergency power supply (EP)
-- Values of wallboxes (WB)
-
-For continuous provision of values, you can configure several topics that are published in each cycle. Default: Only modified values will be published.
+Please also take a look at the [release notes](RELEASE.md).
 
 ## Features
 
-- E3/DC [wallbox](WALLBOX.md) topics
+- E3/DC [wallbox](WALLBOX.md) support
 - [InfluxDB](INFLUXDB.md) support
-- Topics for temperatures (battery, PVI)
-- Idle periods
-- System error messages
-- Details of the battery modules (DCB)
-- Units as InfluxDB tags
 - Battery SOC limiter
-- Docker images at https://hub.docker.com/r/pvtom/rscp2mqtt
 - [Dashboard](https://github.com/pvtom/rscp2mqtt-dashboard) is available
-- Configuration of the topics that will be published to InfluxDB (INFLUXDB_TOPIC)
-- Multiple battery strings are supported (BATTERY_STRINGS parameter)
-- Automatic detection of the number of PVI trackers
 - Historical data for past years
 - Query of historical daily values
-- Multiple power meters
-- Multiple wallboxes
 - TLS connections ([MQTT broker](MQTT_TLS.md), [InfluxDB](INFLUXDB.md))
-- [Additional tags and topics](NEWTAGS.md) by configuration
-- Raw data mode
-
-Please also take a look at the [release notes](RELEASE.md).
+- [Additional tags and topics](NEWTAGS.md) by configuration and raw data mode
 
 ## Docker
 
 Instead of installing the package you can use a [Docker image](DOCKER.md) for Linux platforms (not MacOS).
 
-## Prerequisites
+## Local Installation
+
+If the software is to be installed locally rather than via Docker, carry on the following steps:
+
+### Prerequisites
 
 - An MQTT broker in your environment
 - rscp2mqtt needs the library libmosquitto. For installation please enter:
@@ -75,7 +54,7 @@ On MacOS try
 brew install mosquitto curl
 ```
 
-## Cloning the Repository
+### Cloning the Repository
 
 ```
 sudo apt-get install git # if necessary
@@ -83,7 +62,7 @@ git clone https://github.com/pvtom/rscp2mqtt.git
 cd rscp2mqtt
 ```
 
-## Compilation
+### Compilation
 
 To build a program version without InfluxDB use:
 ```
@@ -95,7 +74,7 @@ To build a program version including InfluxDB support use:
 make WITH_INFLUXDB=yes
 ```
 
-## Installation
+### Installation
 
 ```
 sudo mkdir -p /opt/rscp2mqtt
@@ -111,6 +90,10 @@ cp -a rscp2mqtt /opt/rscp2mqtt
 
 ## Configuration
 
+The tool can be configured in two ways.
+
+### Configuration via Config File
+
 Copy the config template file into the directory `/opt/rscp2mqtt`
 ```
 cp config.template /opt/rscp2mqtt/.config
@@ -124,27 +107,14 @@ nano .config
 ```
 The configuration parameters are described in the file.
 
-The prefix of the topics can be configured by the attribute PREFIX. By default all topics start with "e3dc". This can be changed to any other string that MQTT accepts as a topic, max. 24 characters. E.g. "s10" or "s10/1".
+### Configuration via Environment Variables
 
-If your system has more than one battery string (e.g. S10 Pro), you have to configure the parameter BATTERY_STRINGS accordingly.
-Battery topics that belong to a battery string are extended by the number of the battery string.
-Battery modules (DCB topics) are numbered consecutively.
-
-Find InfluxDB configurations in [InfluxDB](INFLUXDB.md).
-
-The parameter FORCE_PUB can occur several times. You can use it to define topics that will be published in each cycle, even if the values do not change. To check the definition, look at the log output after the program start.
-
-Logging can be configured for messages that the home power station output in response to a request.
-Messages are collected including a counter for the number of occurrences.
-The errors will be logged in a bundle at midnight, at the end of the program or by querying with e3dc/set/log/errors.
-This reduces the number of error messages.
-To do this, set in the .config file: `LOG_MODE=BUFFERED`.
-You can also switch off the logging of such messages completely with `LOG_MODE=OFF`.
-If every event is to be logged: `LOG_MODE=ON`.
+Program parameters can also be set via environment variables. This simplifies the start of a Docker container, as no .config file is required.
+Please find more [here](CONFIG.md).
 
 ## Program Start
 
-Start the program:
+Program start if the tool has been installed locally:
 ```
 ./rscp2mqtt
 ```
@@ -160,7 +130,7 @@ or to show the help page
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [3.37]
+rscp2mqtt [3.38]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
 MQTT broker >localhost:1883< qos = >0< retain = >✗< tls >✗< client id >✗< prefix >e3dc<
 Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox ✗ | Interval 2 | Autorefresh ✓ | Raw data ✗ | Logging OFF
@@ -241,7 +211,7 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/discharge_start_power" -m 65
 
 ### Idle Periods
 
-Set idle periods to lock battery charging or discharging
+Set idle periods to lock battery charging or discharging.
 
 Note: The set operations will work only if the idle period functionality is turned on (via the S10 display).
 

@@ -18,11 +18,18 @@ RUN make WITH_INFLUXDB=${with_influxdb}
 
 RUN mkdir -p /opt/rscp2mqtt
 RUN cp -a rscp2mqtt /opt/rscp2mqtt
-RUN cp config.template /opt/rscp2mqtt/.config
+RUN cp -a startup.sh /opt/rscp2mqtt
+RUN cp -a config.min /opt/rscp2mqtt
 RUN chown -R nobody:99 /opt/rscp2mqtt
 
 FROM alpine
-RUN apk --no-cache add tzdata libstdc++ mosquitto-libs libcurl
+RUN apk --no-cache add \
+  tzdata \
+  bash \
+  libstdc++ \
+  mosquitto-libs \
+  libcurl
+
 COPY --from=0 /opt/rscp2mqtt /opt/rscp2mqtt
 
 # Switch to use a non-root user from here on
@@ -30,4 +37,4 @@ USER nobody
 
 WORKDIR /opt/rscp2mqtt
 
-CMD ["/opt/rscp2mqtt/rscp2mqtt"]
+CMD ["/bin/bash","-c","./startup.sh"]

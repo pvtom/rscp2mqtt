@@ -218,11 +218,11 @@ All topics are listed with the default prefix "e3dc".
 | PVI Voltage L3 | e3dc/pvi/voltage/L3 | [V] |
 | Sunshine Duration (today) | e3dc/sunshine_duration | [min] |
 | Serial Number | e3dc/system/serial_number | "S10-XXXXXXXXXXXX" |
-| SOC limiter | e3dc/limit/charge/durable | (0/1) |
-| SOC limiter | e3dc/limit/charge/soc | [%] |
-| SOC limiter | e3dc/limit/discharge/by_home_power | [W] |
-| SOC limiter | e3dc/limit/discharge/durable | (0/1) |
-| SOC limiter | e3dc/limit/discharge/soc | [%] |
+| SOC Limiter | e3dc/limit/charge/durable | (0/1) |
+| SOC Limiter | e3dc/limit/charge/soc | [%] |
+| SOC Limiter | e3dc/limit/discharge/by_home_power | [W] |
+| SOC Limiter | e3dc/limit/discharge/durable | (0/1) |
+| SOC Limiter | e3dc/limit/discharge/soc | [%] |
 | Software Release | e3dc/system/software | "S10_XXXX_XXX" |
 | Solar Energy | e3dc/solar/energy | [kWh] |
 | Time Zone | e3dc/time/zone | "Europe/City" |
@@ -304,6 +304,8 @@ All topics are listed with the default prefix "e3dc".
 | Yesterday Grid Out Energy "Netzbezug" | e3dc/yesterday/grid/energy/out | [kWh] |
 | Yesterday Home Energy | e3dc/yesterday/home/energy | [kWh] |
 | Yesterday Solar Energy | e3dc/yesterday/solar/energy | [kWh] |
+
+For continuous provision of values, you can configure several topics that are published in each cycle. Default: Only modified values will be published.
 
 *) If your system has more than one battery string (e.g. S10 Pro), you have to configure the parameter BATTERY_STRINGS accordingly. Battery topics that belong to a battery string are extended by the number of the battery string. Battery modules (DCB topics) are numbered consecutively.
 

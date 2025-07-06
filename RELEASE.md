@@ -1,5 +1,10 @@
 ## Release Notes
 
+### Release v3.38 (06.07.2025)
+
+Features:
+- Configuration via environment variables, e.g. to simplify the start of a Docker container
+
 ### Release v3.37 (12.04.2025)
 
 Bug fixes:
@@ -7,6 +12,8 @@ Bug fixes:
 - Issue #107: Memory leak in v3.36
 
 ### Release v3.36 (29.03.2025)
+
+Use not recommended due to existing errors!
 
 Features:
 - Issue #103: Battery module cell information (voltage and temperature)
@@ -62,6 +69,8 @@ Bug fixes:
 - Issue #81: Raw data mode: Possible segmentation fault due to a memory leak
 
 ### Release v3.26 (14.07.2024)
+
+Use not recommended due to existing errors!
 
 Features:
 - Issue #76: Multiple wallboxes
