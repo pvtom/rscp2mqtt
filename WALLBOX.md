@@ -50,7 +50,8 @@ The following topics are sent to the MQTT broker:
 | Wallbox Phases * | e3dc/wallbox/phases/L1 | (true/false) |
 | Wallbox Phases * | e3dc/wallbox/phases/L2 | (true/false) |
 | Wallbox Phases * | e3dc/wallbox/phases/L3 | (true/false) |
-| Wallbox Phases * | e3dc/wallbox/number_phases | |
+| Wallbox Phases * | e3dc/wallbox/number_phases | (1/3) |
+| Wallbox Phases * | e3dc/wallbox/auto_phase_switch | (true/false) |
 | Wallbox Plugged * | e3dc/wallbox/plugged | (true/false) |
 | Wallbox Power All | e3dc/wallbox/solar/power | [W] |
 | Wallbox Power Solar | e3dc/wallbox/total/power | [W] |
@@ -132,6 +133,17 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/1/number_phases" -m 1 # 
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/2/number_phases" -m 1 # for the second wallbox
 # ...
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/8/number_phases" -m 1 # for the eighth wallbox
+```
+
+Set auto phase switch (true/1/false/0)
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/auto_phase_switch" -m true
+# 
+# or if more than one wallbox is available
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/1/auto_phase_switch" -m true # for the first wallbox
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/2/auto_phase_switch" -m true # for the second wallbox
+# ...
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/wallbox/8/auto_phase_switch" -m true # for the eighth wallbox
 ```
 
 The following settings apply to all available wallboxes:

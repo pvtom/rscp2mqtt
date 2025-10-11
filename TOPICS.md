@@ -256,6 +256,7 @@ All topics are listed with the default prefix "e3dc".
 | Wallbox Phases **** | e3dc/wallbox/phases/L2 | (true/false) |
 | Wallbox Phases **** | e3dc/wallbox/phases/L3 | (true/false) |
 | Wallbox Phases **** | e3dc/wallbox/number_phases | (1/3) |
+| Wallbox Phases **** | e3dc/wallbox/auto_phase_switch | (true/false) |
 | Wallbox Plugged **** | e3dc/wallbox/plugged | (true/false) |
 | Wallbox Power All | e3dc/wallbox/solar/power | [W] |
 | Wallbox Power Solar | e3dc/wallbox/total/power | [W] |
@@ -360,6 +361,7 @@ Please find detailled information and examples in the [README](README.md).
 | Set battery discharge until [%] | e3dc/set/wallbox/discharge_battery_until | [%] |
 | Set disable charging battery at mix mode | e3dc/set/wallbox/disable_battery_at_mix_mode | (true/false) |
 | Set number of phases | e3dc/set/wallbox/number_phases | (1/3) |
+| Set auto phase switch | e3dc/set/wallbox/auto_phase_switch | (true/false) |
 | Historical daily data | | |
 | Query data for a specific day | e3dc/set/request/day | "2023-12-31" |
 | Settings and others | | |

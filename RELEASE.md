@@ -1,5 +1,12 @@
 ## Release Notes
 
+### Release v3.39 (11.10.2025)
+
+Features:
+- Pull request #113
+- Issue #111: New topics e3dc/wallbox/auto_phase_switch and e3dc/set/wallbox/auto_phase_switch
+- Issue #116: .config can be edited by a Windows Editor (CR/LF) now
+
 ### Release v3.38 (06.07.2025)
 
 Features:
