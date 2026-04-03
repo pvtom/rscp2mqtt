@@ -22,7 +22,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "3.39"
+#define RSCP2MQTT_VERSION       "3.40"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -37,6 +37,7 @@
 #define RECURSION_MAX_LEVEL     7
 
 #define MQTT_PORT_DEFAULT       1883
+#define REFRESH_SEC             0.1
 
 #ifdef INFLUXDB
     #define RSCP2MQTT               RSCP2MQTT_VERSION".influxdb"
@@ -477,20 +478,61 @@ void mqttCallbackOnMessage(struct mosquitto *mosq, void *obj, const struct mosqu
 
 void mqttListener(struct mosquitto *m) {
     if (m) {
-         if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"MQTT: starting listener loop\n");
-         mosquitto_loop_forever(m, -1, 1);
+        if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"MQTT: starting listener loop\n");
+        mosquitto_loop_forever(m, -1, 1);
     }
     return;
 }
 
 #ifdef INFLUXDB
+void set_curl_options() {
+    char buffer[512];
+
+    headers = curl_slist_append(headers, "Content-Type: text/plain");
+    headers = curl_slist_append(headers, "Accept: application/json");
+
+    if (cfg.influxdb_version == 1) {
+        if (cfg.influxdb_auth && strcmp(cfg.influxdb_user, "") && strcmp(cfg.influxdb_password, "")) {
+            curl_easy_setopt(curl, CURLOPT_HTTPAUTH, (long)CURLAUTH_BASIC);
+            curl_easy_setopt(curl, CURLOPT_USERNAME, cfg.influxdb_user);
+            curl_easy_setopt(curl, CURLOPT_PASSWORD, cfg.influxdb_password);
+        }
+        sprintf(buffer, "%s://%s:%d/write?db=%s", cfg.curl_protocol, cfg.influxdb_host, cfg.influxdb_port, cfg.influxdb_db);
+    } else {
+        sprintf(buffer, "Authorization: Token %s", cfg.influxdb_token);
+        headers = curl_slist_append(headers, buffer);
+        sprintf(buffer, "%s://%s:%d/api/v2/write?org=%s&bucket=%s", cfg.curl_protocol, cfg.influxdb_host, cfg.influxdb_port, cfg.influxdb_orga, cfg.influxdb_bucket);
+    }
+
+    if (cfg.curl_https) {
+        if (!cfg.curl_opt_ssl_verifypeer) curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+        if (!cfg.curl_opt_ssl_verifyhost) curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+        if (cfg.curl_opt_cainfo) curl_easy_setopt(curl, CURLOPT_CAINFO, cfg.curl_opt_cainfo);
+        if (cfg.curl_opt_sslcert) curl_easy_setopt(curl, CURLOPT_SSLCERT, cfg.curl_opt_sslcert);
+        if (cfg.curl_opt_sslkey) curl_easy_setopt(curl, CURLOPT_SSLKEY, cfg.curl_opt_sslkey);
+    }
+    curl_easy_setopt(curl, CURLOPT_URL, buffer);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    return;
+}
+
 void insertInfluxDb(char *buffer) {
     CURLcode res = CURLE_OK;
+    int i = 2; // attempts
 
     if (strlen(buffer)) {
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, buffer);
-        res = curl_easy_perform(curl);
-        if (res != CURLE_OK) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"InfluxDB: %s\n", curl_easy_strerror(res));
+        do {
+                curl_easy_setopt(curl, CURLOPT_POSTFIELDS, buffer);
+                i--;
+                res = curl_easy_perform(curl);
+                if (res != CURLE_OK) {
+                    logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"InfluxDB: %s\n", curl_easy_strerror(res));
+                    // Issue #121
+                    curl_easy_cleanup(curl);
+                    curl = curl_easy_init();
+                    if (curl) set_curl_options();
+                }
+        } while ((res != CURLE_OK) && (i > 0));
     }
     return;
 }
@@ -2837,10 +2879,10 @@ static void mainLoop(void) {
 
         // MQTT connection
         if (!mosq) {
-            if (strcmp(cfg.mqtt_client_id, ""))
-                mosq = mosquitto_new(cfg.mqtt_client_id, true, NULL);
-            else
+            if (cfg.mqtt_no_client_id)
                 mosq = mosquitto_new(NULL, true, NULL);
+            else
+                mosq = mosquitto_new(cfg.mqtt_client_id, true, NULL);
             if (cfg.verbose) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Connecting to broker %s:%u\n", cfg.mqtt_host, cfg.mqtt_port);
             if (mosq) {
                 char topic[TOPIC_SIZE];
@@ -2984,6 +3026,7 @@ int main(int argc, char *argv[], char *envp[]) {
     cfg.mqtt_tls_keyfile = NULL;
     cfg.mqtt_tls_password = NULL;
     cfg.mqtt_qos = 0;
+    cfg.mqtt_no_client_id = false;
     cfg.mqtt_retain = false;
     cfg.interval = 4;
     cfg.battery_strings = 1;
@@ -3080,7 +3123,9 @@ int main(int argc, char *argv[], char *envp[]) {
                 else if (strcasecmp(key, "MQTT_PASSWORD") == 0)
                     strcpy(cfg.mqtt_password, value);
                 else if (strcasecmp(key, "MQTT_CLIENT_ID") == 0)
-                    strcpy(cfg.mqtt_client_id, value);
+                    strncpy(cfg.mqtt_client_id, value, 127);
+                else if ((strcasecmp(key, "MQTT_NO_CLIENT_ID") == 0) && (strcasecmp(value, "true") == 0))
+                    cfg.mqtt_no_client_id = true;
                 else if ((strcasecmp(key, "MQTT_AUTH") == 0) && (strcasecmp(value, "true") == 0))
                     cfg.mqtt_auth = true;
                 else if (strcasecmp(key, "MQTT_TLS_CAFILE") == 0)
@@ -3313,6 +3358,8 @@ int main(int argc, char *argv[], char *envp[]) {
     ENV_STRING("MQTT_USER", cfg.mqtt_user);
     ENV_STRING("MQTT_PASSWORD", cfg.mqtt_password);
     ENV_BOOL("MQTT_AUTH", cfg.mqtt_auth);
+    ENV_STRING_N("MQTT_CLIENT_ID", cfg.mqtt_client_id, 127);
+    ENV_BOOL("MQTT_NO_CLIENT_ID", cfg.mqtt_no_client_id);
     ENV_STRING("MQTT_TLS_CAFILE", cfg.mqtt_tls_cafile);
     ENV_STRING("MQTT_TLS_CAPATH", cfg.mqtt_tls_capath);
     ENV_STRING("MQTT_TLS_CERTFILE", cfg.mqtt_tls_certfile);
@@ -3516,7 +3563,17 @@ int main(int argc, char *argv[], char *envp[]) {
     addTemplTopicsIdx(IDX_PM_POWER, (char *)"pm", 0, cfg.pm_number, 1, false);
     addTemplTopicsIdx(IDX_PM_ENERGY, (char *)"pm", 0, cfg.pm_number, 1, true);
 
-    printf("MQTT broker >%s:%u< qos = >%i< retain = >%s< tls >%s< client id >%s< prefix >%s<\n", cfg.mqtt_host, cfg.mqtt_port, cfg.mqtt_qos, cfg.mqtt_retain?"✓":"✗", cfg.mqtt_tls?"✓":"✗", strcmp(cfg.mqtt_client_id, "")?cfg.mqtt_client_id:"✗", cfg.prefix);
+    if ((cfg.mqtt_no_client_id == false) && (!strcmp(cfg.mqtt_client_id, ""))) {
+        char hname[128];
+        time_t now;
+        time(&now);
+        if (gethostname(hname, 127) == 0)
+            snprintf(cfg.mqtt_client_id, 127, "r2m-%d-%s-%x", getpid(), hname, (int)now);
+        else
+            snprintf(cfg.mqtt_client_id, 127, "r2m-%d-%x", getpid(), (int)now);
+    }
+
+    printf("MQTT broker >%s:%u< qos = >%i< retain = >%s< tls >%s< client id >%s< prefix >%s<\n", cfg.mqtt_host, cfg.mqtt_port, cfg.mqtt_qos, cfg.mqtt_retain?"✓":"✗", cfg.mqtt_tls?"✓":"✗", cfg.mqtt_no_client_id?"✗":cfg.mqtt_client_id, cfg.prefix);
 
 #ifdef INFLUXDB
     if (cfg.curl_https) cfg.curl_protocol = strdup("https");
@@ -3604,36 +3661,7 @@ int main(int argc, char *argv[], char *envp[]) {
 #ifdef INFLUXDB
     // CURL init
     if (cfg.influxdb_on) curl = curl_easy_init();
-
-    if (curl) {
-        char buffer[512];
-
-        headers = curl_slist_append(headers, "Content-Type: text/plain");
-        headers = curl_slist_append(headers, "Accept: application/json");
-
-        if (cfg.influxdb_version == 1) {
-            if (cfg.influxdb_auth && strcmp(cfg.influxdb_user, "") && strcmp(cfg.influxdb_password, "")) {
-                curl_easy_setopt(curl, CURLOPT_HTTPAUTH, (long)CURLAUTH_BASIC);
-                curl_easy_setopt(curl, CURLOPT_USERNAME, cfg.influxdb_user);
-                curl_easy_setopt(curl, CURLOPT_PASSWORD, cfg.influxdb_password);
-            }
-            sprintf(buffer, "%s://%s:%d/write?db=%s", cfg.curl_protocol, cfg.influxdb_host, cfg.influxdb_port, cfg.influxdb_db);
-        } else {
-            sprintf(buffer, "Authorization: Token %s", cfg.influxdb_token);
-            headers = curl_slist_append(headers, buffer);
-            sprintf(buffer, "%s://%s:%d/api/v2/write?org=%s&bucket=%s", cfg.curl_protocol, cfg.influxdb_host, cfg.influxdb_port, cfg.influxdb_orga, cfg.influxdb_bucket);
-        }
-
-        if (cfg.curl_https) {
-            if (!cfg.curl_opt_ssl_verifypeer) curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-            if (!cfg.curl_opt_ssl_verifyhost) curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-            if (cfg.curl_opt_cainfo) curl_easy_setopt(curl, CURLOPT_CAINFO, cfg.curl_opt_cainfo);
-            if (cfg.curl_opt_sslcert) curl_easy_setopt(curl, CURLOPT_SSLCERT, cfg.curl_opt_sslcert);
-            if (cfg.curl_opt_sslkey) curl_easy_setopt(curl, CURLOPT_SSLKEY, cfg.curl_opt_sslkey);
-        }
-        curl_easy_setopt(curl, CURLOPT_URL, buffer);
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    }
+    if (curl) set_curl_options();
 #endif
 
     // application which re-connections to server on connection lost

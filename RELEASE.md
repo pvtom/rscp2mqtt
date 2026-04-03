@@ -1,5 +1,9 @@
 ## Release Notes
 
+### Release v3.40 (03.04.2026)
+
+- Issue #121: Re-Connect feature for InfluxDB
+
 ### Release v3.39 (11.10.2025)
 
 Features:
