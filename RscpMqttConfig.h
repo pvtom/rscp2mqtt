@@ -151,7 +151,10 @@ typedef struct _config_t {
     char true_value[5];
     char false_value[6];
     bool raw_mode;
+    bool raw_with_types;
     char *raw_topic_regex;    
+    bool idle_periods_v2;
+    bool idle_periods_short;
 } config_t;
 
 #endif

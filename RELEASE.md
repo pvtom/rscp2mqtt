@@ -1,5 +1,11 @@
 ## Release Notes
 
+### Release v3.41 (31.05.2026)
+
+- Pull requests #122, #123, #124, #125, #126
+- Issue #127: Idle Periods V2: New topics
+- Issue #128: New Tags for Dynamic Power Price
+
 ### Release v3.40 (03.04.2026)
 
 - Issue #121: Re-Connect feature for InfluxDB

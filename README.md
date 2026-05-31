@@ -130,10 +130,11 @@ or to show the help page
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [3.40]
+rscp2mqtt [3.41]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
-MQTT broker >localhost:1883< qos = >0< retain = >✗< tls >✗< client id >✗< prefix >e3dc<
-Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox ✗ | Interval 2 | Autorefresh ✓ | Raw data ✗ | Logging OFF
+MQTT broker >localhost:1883< qos = >0< retain = >✗< tls >✗< client id >r2m-4711-myhost-6a144087< prefix >e3dc<
+Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox ✗ | Idle Periods V2 | Interval 2 | Autorefresh ✓ | Raw data ✓ | Logging OFF
+
 ```
 
 Check the configuration if the connections are not established.
@@ -213,7 +214,16 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/discharge_start_power" -m 65
 
 Set idle periods to lock battery charging or discharging.
 
-Note: The set operations will work only if the idle period functionality is turned on (via the S10 display).
+Note: The set operations will work only if the idle period functionality is turned on (via the S10 display) or by
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/idle_period/enable" -m true
+```
+
+E3/DC supports two versions of idle periods.
+
+#### V1
+
+Set config IDLE_PERIODS_V2=false to switch to V1. Default is V2.
 
 Parameters:
 - Day: "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday" or "today"
@@ -224,7 +234,33 @@ Parameters:
 mosquitto_pub -h localhost -p 1883 -t "e3dc/set/idle_period" -m "today:charge:true:00:00-23:59"
 ```
 
-With the topics "e3dc/ems/charging_lock" and "e3dc/ems/discharging_lock" you can check whether a lock is currently active or not.
+#### V2
+
+Hints:
+- rscp2mqtt gets the control of all periods. So maybe existing periods will be changed or dropped. Existing V1 periods will be named non-unique with "?"
+- Single periods of the same type should not overlap. The E3/DC device will choose the first in the list if there are overlapping periods
+
+Parameters:
+- Name: Unique name
+- Days: Comma separated list of days "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday" or "today"
+- Mode: "charge" or "discharge"
+- Active: "true" or "false"
+- Period: "hh:mi-hh:mi"
+```
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/idle_period" -m "weekend:saturday,sunday:charge:true:00:00-23:59"
+
+# delete a period by the name
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/idle_period/delete" -m "weekend"
+
+# refresh the list of periods to mqtt
+mosquitto_pub -h localhost -p 1883 -t "e3dc/set/idle_period/refresh" -m true
+```
+
+Every change of the period list will increase the value of the change number e3dc/idle_period/change
+
+The current idle periods are represented by e3dc/idle_period/<change number>/<nr>.
+
+By setting IDLE_PERIODS_SHORT=true the topics come without the change number: e3dc/idle_period/<nr>. In this case consider e3dc/idle_period/number which shows the number of valid period entries.
 
 ### Battery SOC Limiter
 

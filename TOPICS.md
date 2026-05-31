@@ -98,7 +98,10 @@ All topics are listed with the default prefix "e3dc".
 | EMS Home Power Min (today) | e3dc/home/power_min | [W] |
 | EMS Home Power Max (today) | e3dc/home/power_max | [W] |
 | EMS Idle Periods | e3dc/idle_period/change | <change#> |
-| EMS Idle Periods | e3dc/idle_period/<change#>/<#> | "day:mode:active:hh:mi-hh:mi" |
+| EMS Idle Periods (with change number) | e3dc/idle_period/<change#>/<#> | "[name:]day:mode:active:hh:mi-hh:mi" |
+| EMS Idle Periods (without change nr) | e3dc/idle_period/<#> | "[name:]day:mode:active:hh:mi-hh:mi" |
+| EMS Idle Periods | e3dc/idle_period/enable | (true/false) |
+| EMS Idle Periods | e3dc/idle_period/number | Number of valid periods |
 | EMS Installed Peak Power | e3dc/system/installed_peak_power | [W] |
 | EMS Inverter Count | e3dc/system/inverter_count | |
 | EMS Max Charge Power | e3dc/ems/max_charge/power | [W] |
@@ -335,6 +338,10 @@ Please find detailled information and examples in the [README](README.md).
 |  - set the charging and discharging power limits | e3dc/set/max_discharge_power | [W] |
 |  - set the charging and discharging power limits | e3dc/set/discharge_start_power | [W] |
 | Set idle periods to lock battery charging or discharging | e3dc/set/idle_period | "day:mode:active:hh:mi-hh:mi", e.g. "sunday:charge:true:00:00-23:59" |
+| Set idle periods to lock battery charging or discharging V2 | e3dc/set/idle_period | "unique_name:day1,...dayn:mode:active:hh:mi-hh:mi", e.g. "sunday:charge:true:00:00-23:59" |
+| Enable usage of idle periods | e3dc/set/idle_period/enable | (true/false) |
+| Delete a idle period (V2) | e3dc/set/idle_period/delete" | "unique_name" |
+| Refresh the list of idle periods | e3dc/set/idle_period/refresh | true |
 | SOC Limiter | | |
 | Limit discharging of the house battery to SOC | e3dc/set/limit/discharge/soc | (0..100) |
 | Set the home power value which stops discharging the battery | e3dc/set/limit/discharge/by_home_power | [W] |

@@ -17,6 +17,8 @@
 #define PAYLOAD_REGEX_2_DIGIT      "(^[0-9]{1,2}$)"
 #define PAYLOAD_REGEX_5_DIGIT      "(^[0-9]{1,5}$)"
 #define SET_IDLE_PERIOD_REGEX      "^(mon|tues|wednes|thurs|fri|satur|sun|to)day:(charge|discharge):(true|false):([0-9]|0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]-([0-9]|0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
+#define SET_IDLE_PERIOD_REGEX2     "^[A-Za-z0-9 -_!?]+:[a-z,]+:(charge|discharge):(true|false):([0-9]|0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]-([0-9]|0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"
+#define SET_IDLE_PERIOD_REGEX3     "[A-Za-z0-9 -_!?]+"
 
 #define UNIT_NONE         ""
 #define UNIT_PERCENT      "%"
@@ -85,7 +87,7 @@ typedef struct _topic_store_t {
 std::vector<topic_store_t> TopicStore;
 
 typedef struct _idle_period_t {
-    uint8_t marker;
+    uint32_t marker;
     uint8_t type;
     uint8_t day;
     uint8_t starthour;
@@ -96,6 +98,38 @@ typedef struct _idle_period_t {
 } idle_period_t;
 
 std::vector<idle_period_t> IdlePeriodCache;
+
+typedef struct _idle_period_2_t {
+    uint32_t marker;
+    uint8_t type;
+    char name[PAYLOAD_SIZE];
+    uint8_t weekdays;
+    uint32_t start;
+    uint32_t stop;
+    bool active;
+} idle_period_2_t;
+
+std::vector<idle_period_2_t> IdlePeriodCache2;
+std::vector<idle_period_2_t> IdlePeriodTable;
+
+bool uniqueIdlePeriodTable(RSCP_MQTT::idle_period_2_t c1, RSCP_MQTT::idle_period_2_t c2) {
+    if ((c1.marker == c2.marker) &&
+        (c1.type == c2.type) &&
+        (c1.weekdays == c2.weekdays) &&
+        (c1.start == c2.start) &&
+        (c1.stop == c2.stop)) return(true);
+    return(false);
+}
+
+bool compareIdlePeriodTable(RSCP_MQTT::idle_period_2_t c1, RSCP_MQTT::idle_period_2_t c2) {
+    if (c1.marker < c2.marker) return(true);
+    if ((c1.marker == c2.marker) && (c1.type < c2.type)) return(true);
+    if ((c1.marker == c2.marker) && (c1.type == c2.type) && (c1.weekdays < c2.weekdays)) return(true);
+    if ((c1.marker == c2.marker) && (c1.type == c2.type) && (c1.weekdays ==  c2.weekdays) && (c1.start < c2.start)) return(true);
+    if ((c1.marker == c2.marker) && (c1.type == c2.type) && (c1.weekdays ==  c2.weekdays) && (c1.start == c2.start) && (c1.stop < c2.stop)) return(true);
+    if ((c1.marker == c2.marker) && (c1.type == c2.type) && (c1.weekdays ==  c2.weekdays) && (c1.start == c2.start) && (c1.stop == c2.stop) && (c1.active?0:1 < c2.active?0:1)) return(true);
+    return(false);
+}
 
 typedef struct _error_t {
     uint8_t type;
@@ -228,6 +262,7 @@ cache_t cache[] = {
     { 0, TAG_EMS_MODE, 0, "mode", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false, false, false },
     { 0, TAG_EMS_COUPLING_MODE, 0, "coupling/mode", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false, false, false },
     { 0, TAG_EMS_IDLE_PERIOD_CHANGE_MARKER, 0, "idle_period/change", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false, false, false },
+    { 0, TAG_EMS_GET_IDLE_PERIODS_ENABLE, 0, "idle_period/enable", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false, false, false },
     { 0, TAG_PVI_INVERTER_COUNT, 0, "system/inverter_count", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false, false, false },
     { 0, TAG_BAT_AVAILABLE_BATTERIES, 0, "system/battery_count", "", F_AUTO, UNIT_NONE, 1, 0, false, false, false, false, false },
     { 0, TAG_EMS_USED_CHARGE_LIMIT, 0, "ems/used_charge_limit", "", F_AUTO, UNIT_W, 1, 0, false, false, false, false, false },
@@ -547,9 +582,10 @@ rec_cache_t rec_cache[] = {
     { TAG_SE_REQ_SET_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE, 0, "set/reserve/percent", PAYLOAD_REGEX_0_100, "", "", "", "", UNIT_PERCENT, RSCP::eTypeFloat32, 0, false, true },
     { TAG_SE_REQ_SET_EP_RESERVE, TAG_SE_PARAM_EP_RESERVE_W, 0, "set/reserve/energy", PAYLOAD_REGEX_5_DIGIT, "", "", "", "", UNIT_WH, RSCP::eTypeFloat32, 0, false, true },
     { 0, 0, 0, "set/power_mode", "^auto$|^idle:[0-9]{1,4}$|^charge:[0-9]{1,5}:[0-9]{1,4}$|^discharge:[0-9]{1,5}:[0-9]{1,4}$|^grid_charge:[0-9]{1,5}:[0-9]{1,4}$", "", "", "", "", UNIT_NONE, RSCP::eTypeBool, 0, false, true },
-    { 0, 0, 0, "set/idle_period", SET_IDLE_PERIOD_REGEX, "", "", "", "", UNIT_NONE, RSCP::eTypeBool, 0, false, true },
     { 0, TAG_EMS_REQ_SET_BATTERY_TO_CAR_MODE, 0, "set/wallbox/discharge_battery_to_car", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, 0, false, true },
     { 0, TAG_EMS_REQ_SET_BATTERY_BEFORE_CAR_MODE, 0, "set/wallbox/charge_battery_before_car", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, 0, false, true },
+    { 0, TAG_EMS_REQ_SET_IDLE_PERIODS_ENABLE, 0, "set/idle_period/enable", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, 0, false, true },
+    { 0, 0, 0, "set/idle_period/refresh", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, 0, false, true },
     { 0, TAG_EMS_REQ_SET_WB_DISCHARGE_BAT_UNTIL, 0, "set/wallbox/discharge_battery_until", PAYLOAD_REGEX_2_DIGIT, "", "", "", "", UNIT_PERCENT, RSCP::eTypeUChar8, 0, false, true },
     { 0, TAG_EMS_REQ_SET_WALLBOX_ENFORCE_POWER_ASSIGNMENT, 0, "set/wallbox/disable_battery_at_mix_mode", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, 0, false, true },
     { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, 0, "set/wallbox/sun_mode", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeBool, 0, false, true },

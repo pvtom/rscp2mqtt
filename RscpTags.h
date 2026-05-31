@@ -1,4 +1,5 @@
 // Based on rscpLibV0.9.3.min.js
+// Additional tags from https://github.com/git-kick/ioBroker.e3dc-rscp/blob/master/lib/RscpTags.json
 
 #ifndef RSCP_TAGS_H_
 #define RSCP_TAGS_H_
@@ -11,11 +12,13 @@
 #define TAG_RSCP_REQ_AUTH_CHALLENGE                                                0x00000006
 #define TAG_RSCP_AUTH_CHALLENGE_INDEX                                              0x00000007
 #define TAG_RSCP_AUTH_CHALLENGE_DATA                                               0x00000008
-#define TAG_RSCP_REQ_SET_PROTOCOL_VERSION                                          0x00000009
+#define TAG_SERVER_CUSTOM_START                                                    0x00000009
 #define TAG_RSCP_REQ_SUPPORTED_PROTOCOL_VERSIONS                                   0x0000000A
+#define TAG_RSCP_REQ_TEST                                                          0x0000000C
 #define TAG_RSCP_REQ_TRIGGER_FRAME_DUMP                                            0x0000000D
 #define TAG_RSCP_AUTHENTICATION_TYPE                                               0x00000815
 #define TAG_RSCP_CONFIG_PROCESSED_STATE                                            0x00400001
+#define TAG_RSCP_UNDEFINED                                                         0x00800000
 #define TAG_RSCP_AUTHENTICATION                                                    0x00800001
 #define TAG_RSCP_USER_LEVEL                                                        0x00800004
 #define TAG_RSCP_SET_ENCRYPTION_PASSPHRASE                                         0x00800005
@@ -24,8 +27,10 @@
 #define TAG_RSCP_SUPPORTED_PROTOCOL_VERSIONS                                       0x0080000A
 #define TAG_RSCP_TRIGGER_FRAME_DUMP                                                0x0080000D
 #define TAG_RSCP_TAG_AVAHIB_RESPONSE_PLAY                                          0x0080000E
+#define TAG_RSCP_TEST_1                                                            0x0080000F
 #define TAG_RSCP_EMOBILITY_GET_OVERLOAD_CHARGING_CURRENT_LIMIT_PER_PHASE           0x00810021
 #define TAG_RSCP_GENERAL_ERROR                                                     0x00FFFFFF
+#define TAG_EMS_REQ_SMGW_USE_CASES                                                 0x01000000
 #define TAG_EMS_REQ_POWER_PV                                                       0x01000001
 #define TAG_EMS_REQ_POWER_BAT                                                      0x01000002
 #define TAG_EMS_REQ_POWER_HOME                                                     0x01000003
@@ -73,8 +78,15 @@
 #define TAG_EMS_REQ_GET_IDLE_PERIODS_2                                             0x01000033
 #define TAG_EMS_REQ_SET_IDLE_PERIODS_ENABLE                                        0x01000034
 #define TAG_EMS_REQ_GET_IDLE_PERIODS_ENABLE                                        0x01000035
-#define TAG_EMS_REQ_SET_EP_WALLBOX_PRIORITY                                        0x01000036
-#define TAG_EMS_REQ_GET_EP_WALLBOX_PRIORITY                                        0x01000037
+#define TAG_EMS_REQ_DPP_GET_DATA                                                   0x01000036
+#define TAG_EMS_REQ_DPP_SET_DATA                                                   0x01000037
+#define TAG_EMS_REQ_SET_WB_CHARGE_BAT_UNTIL                                        0x01000038
+#define TAG_EMS_REQ_GET_WB_CHARGE_BAT_UNTIL                                        0x01000039
+#define TAG_EMS_DPP_ERROR                                                          0x0100003A
+#define TAG_EMS_REQ_MANIPULATOR_COLLECTION                                         0x0100003B
+#define TAG_EMS_REQ_MANIPULATOR_EVENT_TOTAL_COUNT                                  0x0100003C
+#define TAG_EMS_UNDEFINED_POWER_VALUE                                              0x0100003E
+#define TAG_EMS_REQ_DPP_PRICE_BASED_WB_CHARGE_ACTIVE                               0x0100003F
 #define TAG_EMS_REQ_STATUS                                                         0x01000040
 #define TAG_EMS_REQ_USED_CHARGE_LIMIT                                              0x01000041
 #define TAG_EMS_REQ_BAT_CHARGE_LIMIT                                               0x01000042
@@ -84,6 +96,16 @@
 #define TAG_EMS_REQ_BAT_DISCHARGE_LIMIT                                            0x01000046
 #define TAG_EMS_REQ_DCDC_DISCHARGE_LIMIT                                           0x01000047
 #define TAG_EMS_REQ_USER_DISCHARGE_LIMIT                                           0x01000048
+#define TAG_EMS_REQ_DPP_SET_PRICE_LIMIT_WB                                         0x0100004B
+#define TAG_EMS_REQ_DPP_PRICE_BASED_BATTERY_CHARGE_ACTIVE                          0x01000054
+#define TAG_EMS_REQ_DPP_SET_PRICE_LIMIT_BATTERY                                    0x01000055
+#define TAG_EMS_REQ_DPP_SET_SOC_BATTERY                                            0x01000057
+#define TAG_EMS_REQ_DPP_SET_MONTHS_ACTIVE                                          0x01000058
+#define TAG_EMS_REQ_DPP_SET_BATTERY_CHARGE_ENABLED                                 0x01000059
+#define TAG_EMS_REQ_DPP_PRICE_LIMIT_BATTERY                                        0x0100005A
+#define TAG_EMS_REQ_DPP_SOC_BATTERY                                                0x0100005B
+#define TAG_EMS_REQ_DPP_MONTHS_ACTIVE                                              0x0100005C
+#define TAG_EMS_REQ_DPP_PRICE_BASED_BATTERY_CHARGE_ENABLED                         0x0100005D
 #define TAG_EMS_REQ_SET_POWER_CONTROL_OFFSET                                       0x01000060
 #define TAG_EMS_REQ_REMAINING_BAT_CHARGE_POWER                                     0x01000071
 #define TAG_EMS_REQ_REMAINING_BAT_DISCHARGE_POWER                                  0x01000072
@@ -110,10 +132,10 @@
 #define TAG_EMS_REQ_SETTINGS_CHANGE_MARKER                                         0x0100008D
 #define TAG_EMS_REQ_GET_MANUAL_CHARGE                                              0x0100008E
 #define TAG_EMS_REQ_START_MANUAL_CHARGE                                            0x0100008F
-#define TAG_EMS_REQ_START_EMERGENCYPOWER_TEST                                      0x01000090
+#define TAG_EMS_REQ_START_EMERGENCY_POWER_TEST                                     0x01000090
 #define TAG_EMS_REQ_GET_GENERATOR_STATE                                            0x01000091
 #define TAG_EMS_REQ_SET_GENERATOR_MODE                                             0x01000092
-#define TAG_EMS_REQ_EMERGENCYPOWER_TEST_STATUS                                     0x01000093
+#define TAG_EMS_REQ_EMERGENCY_POWER_TEST_STATUS                                    0x01000093
 #define TAG_EMS_EPTEST_NEXT_TESTSTART                                              0x01000094
 #define TAG_EMS_EPTEST_START_COUNTER                                               0x01000095
 #define TAG_EMS_EPTEST_RUNNING                                                     0x01000096
@@ -137,7 +159,7 @@
 #define TAG_EMS_MANUAL_CHARGE_ACTIVE                                               0x01000151
 #define TAG_EMS_MANUAL_CHARGE_ENERGY_COUNTER                                       0x01000152
 #define TAG_EMS_MANUAL_CHARGE_LASTSTART                                            0x01000153
-#define TAG_EMS_REQ_REMOTE_CONTR                                                   0x01000200
+#define TAG_EMS_REQ_REMOTE_CONTROL                                                 0x01000200
 #define TAG_EMS_REQ_DEACTIVATE_REMOTE_CONTROL                                      0x01000201
 #define TAG_EMS_REQ_IP_REMOTE_CONTROL                                              0x01000202
 #define TAG_EMS_REQ_EP_DELAY                                                       0x01000203
@@ -200,6 +222,8 @@
 #define TAG_EMS_REQ_GET_LIST_ACTOR                                                 0x01000289
 #define TAG_EMS_REQ_WB_BIC_LOAD_PRICE_POWER_TABLE                                  0x01000307
 #define TAG_EMS_REQ_WB_BIC_PRICE_POWER_TABLE_STATUS                                0x01000308
+#define TAG_EMS_REQ_SET_OVERRIDE_DERATE_FEEDIN                                     0x0100030A
+#define TAG_EMS_REQ_GET_OVERRIDE_DERATE_FEEDIN                                     0x0100030B
 #define TAG_EMS_PARAM_DERATE_POWER_VALUE                                           0x01040001
 #define TAG_EMS_PARAM_AVAILABLE_POWER                                              0x01040002
 #define TAG_EMS_PARAM_IP_REMOTE_CONTROL                                            0x01040004
@@ -228,6 +252,30 @@
 #define TAG_EMS_PARAM_POWER_GRID_OVERRIDE_L2                                       0x01040298
 #define TAG_EMS_PARAM_POWER_GRID_OVERRIDE_L3                                       0x01040299
 #define TAG_EMS_REQ_ALIVE                                                          0x01050000
+#define TAG_EMS_PARAM_MANIPULATOR_STATUS                                           0x01400000
+#define TAG_EMS_MANIPULATOR_EVENT                                                  0x01400001
+#define TAG_EMS_PARAM_MANIPULATOR_EVENT_MAX_ROWS                                   0x01400002
+#define TAG_EMS_PARAM_MANIPULATOR_EVENT_TIME_START                                 0x01400003
+#define TAG_EMS_PARAM_MANIPULATOR_EVENT_TIME_END                                   0x01400004
+#define TAG_EMS_PARAM_MANIPULATOR_EVENT_POWER                                      0x01400005
+#define TAG_EMS_PARAM_MANIPULATOR_EVENT_TYPE                                       0x01400006
+#define TAG_EMS_PARAM_MANIPULATOR_EVENT_SOURCE                                     0x01400007
+#define TAG_EMS_PARAM_MANIPULATOR_EVENT_ID                                         0x01400008
+#define TAG_EMS_DPP_PROTOCOL_MAJOR_VERSION                                         0x0140000B
+#define TAG_EMS_DPP_PROTOCOL_MINOR_VERSION                                         0x0140000C
+#define TAG_EMS_DPP_ERROR_CODE                                                     0x0140000D
+#define TAG_EMS_DPP_ERROR_MESSAGE                                                  0x0140000E
+#define TAG_EMS_DPP_CONSTRAINT_SERIAL_NO                                           0x0140000F
+#define TAG_EMS_DPP_CONSTRAINT_INSTALLATION_ID                                     0x01400010
+#define TAG_EMS_DPP_CONSTRAINT_START_TIMESTAMP                                     0x01400011
+#define TAG_EMS_DPP_CONSTRAINT_DURATION_MS                                         0x01400012
+#define TAG_EMS_DPP_ENERGY_PRICES_DATA                                             0x01400013
+#define TAG_EMS_DPP_GRID_CONSUMPTION_DATA                                          0x01400014
+#define TAG_EMS_DPP_CONSTRAINT_START_OFFSET_MS                                     0x01400015
+#define TAG_EMS_DPP_PRICES                                                         0x01400016
+#define TAG_EMS_DPP_PRICE_LOWER_BORDER                                             0x01400017
+#define TAG_EMS_DPP_PRICE_VALUE                                                    0x01400018
+#define TAG_EMS_DPP_GRID_FEED_IN_DATA                                              0x01400019
 #define TAG_EMS_PARAM_LIMITS_TOTAL_MAX                                             0x01400265
 #define TAG_EMS_PARAM_LIMITS_TOTAL_MIN                                             0x01400266
 #define TAG_EMS_PARAM_LIMITS_PHASE_MAX_L1                                          0x01400267
@@ -239,6 +287,8 @@
 #define TAG_EMS_PARAM_CURR_CHARGED_ENERGY_EP_RESERVE                               0x01400278
 #define TAG_EMS_REQ_SET_TOTAL_EP_RESERVE_W                                         0x01400279
 #define TAG_EMS_IDLE_PERIOD_2                                                      0x0140027A
+#define TAG_EMS_UNKNOWN4                                                           0x0140027B
+#define TAG_EMS_SMGW_USE_CASES                                                     0x01800000
 #define TAG_EMS_POWER_PV                                                           0x01800001
 #define TAG_EMS_POWER_BAT                                                          0x01800002
 #define TAG_EMS_POWER_HOME                                                         0x01800003
@@ -291,6 +341,11 @@
 #define TAG_EMS_GET_IDLE_PERIODS_ENABLE                                            0x01800035
 #define TAG_EMS_SET_EP_WALLBOX_PRIORITY                                            0x01800036
 #define TAG_EMS_GET_EP_WALLBOX_PRIORITY                                            0x01800037
+#define TAG_EMS_SET_WB_CHARGE_BAT_UNTIL                                            0x01800038
+#define TAG_EMS_GET_WB_CHARGE_BAT_UNTIL                                            0x01800039
+#define TAG_EMS_MANIPULATOR_COLLECTION                                             0x0180003B
+#define TAG_EMS_MANIPULATOR_EVENT_TOTAL_COUNT                                      0x0180003C
+#define TAG_EMS_DPP_PRICE_BASED_WB_CHARGE_ACTIVE                                   0x0180003F
 #define TAG_EMS_STATUS                                                             0x01800040
 #define TAG_EMS_USED_CHARGE_LIMIT                                                  0x01800041
 #define TAG_EMS_BAT_CHARGE_LIMIT                                                   0x01800042
@@ -300,7 +355,19 @@
 #define TAG_EMS_BAT_DISCHARGE_LIMIT                                                0x01800046
 #define TAG_EMS_DCDC_DISCHARGE_LIMIT                                               0x01800047
 #define TAG_EMS_USER_DISCHARGE_LIMIT                                               0x01800048
+#define TAG_EMS_DPP_SET_PRICE_LIMIT_WB                                             0x0180004B
+#define TAG_EMS_DPP_SET_PRICE_LIMIT_BATTERY                                        0x01800055
+#define TAG_EMS_DPP_PRICE_BASED_BATTERY_CHARGE_ACTIVE                              0x01800056
+#define TAG_EMS_DPP_SET_SOC_BATTERY                                                0x01800057
+#define TAG_EMS_DPP_SET_MONTHS_ACTIVE                                              0x01800058
+#define TAG_EMS_DPP_SET_BATTERY_CHARGE_ENABLED                                     0x01800059
+#define TAG_EMS_DPP_PRICE_LIMIT_BATTERY                                            0x0180005A
+#define TAG_EMS_DPP_SOC_BATTERY                                                    0x0180005B
+#define TAG_EMS_DPP_MONTHS_ACTIVE                                                  0x0180005C
+#define TAG_EMS_DPP_PRICE_BASED_BATTERY_CHARGE_ENABLED                             0x0180005D
+#define TAG_EMS_DPP_REQ_SET_EV_ACTIVE                                              0x0180005F
 #define TAG_EMS_SET_POWER_CONTROL_OFFSET                                           0x01800060
+#define TAG_EMS_DPP_DPPACTIVE                                                      0x01800061
 #define TAG_EMS_REMAINING_BAT_CHARGE_POWER                                         0x01800071
 #define TAG_EMS_REMAINING_BAT_DISCHARGE_POWER                                      0x01800072
 #define TAG_EMS_EMERGENCY_POWER_STATUS                                             0x01800073
@@ -312,16 +379,24 @@
 #define TAG_EMS_BATTERY_BEFORE_CAR_MODE                                            0x01800079
 #define TAG_EMS_GET_IDLE_PERIODS                                                   0x01800080
 #define TAG_EMS_SET_IDLE_PERIODS                                                   0x01800081
+#define TAG_EMS_RES_IDLE_PERIOD                                                    0x01800082
+#define TAG_EMS_RES_PERIOD_TYPE                                                    0x01800083
+#define TAG_EMS_RES_PERIOD_DAY                                                     0x01800084
+#define TAG_EMS_RES_IDLE_PERIOD_START                                              0x01800085
+#define TAG_EMS_RES_IDLE_PERIOD_END                                                0x01800086
+#define TAG_EMS_RES_IDLE_PERIOD_HOUR                                               0x01800087
+#define TAG_EMS_RES_IDLE_PERIOD_MINUTE                                             0x01800088
+#define TAG_EMS_RES_IDLE_PERIOD_ACTIVE                                             0x01800089
 #define TAG_EMS_IDLE_PERIOD_CHANGE_MARKER                                          0x0180008A
 #define TAG_EMS_GET_POWER_SETTINGS                                                 0x0180008B
 #define TAG_EMS_SET_POWER_SETTINGS                                                 0x0180008C
 #define TAG_EMS_SETTINGS_CHANGE_MARKER                                             0x0180008D
 #define TAG_EMS_GET_MANUAL_CHARGE                                                  0x0180008E
 #define TAG_EMS_START_MANUAL_CHARGE                                                0x0180008F
-#define TAG_EMS_START_EMERGENCYPOWER_TEST                                          0x01800090
+#define TAG_EMS_START_EMERGENCY_POWER_TEST                                         0x01800090
 #define TAG_EMS_GET_GENERATOR_STATE                                                0x01800091
 #define TAG_EMS_SET_GENERATOR_MODE                                                 0x01800092
-#define TAG_EMS_EMERGENCYPOWER_TEST_STATUS                                         0x01800093
+#define TAG_EMS_EMERGENCY_POWER_TEST_STATUS                                        0x01800093
 #define TAG_EMS_GET_SYS_SPECS                                                      0x01800098
 #define TAG_EMS_RES_POWER_LIMITS_USED                                              0x01800100
 #define TAG_EMS_RES_MAX_CHARGE_POWER                                               0x01800101
@@ -360,8 +435,8 @@
 #define TAG_EMS_ENERGY_STORAGE_MODEL                                               0x01800228
 #define TAG_EMS_PARAM_CURR_CHARGED_ENERGY                                          0x01800229
 #define TAG_EMS_PARAM_FULL_CHARGED_ENERGY_EP_RESERVE                               0x01800230
-#define TAG_EMS_PARAM_DESIGN_ENERGY                                                0x01800231
-#define TAG_EMS_PARAM_FULL_CHARGED_ENERGY                                          0x01800232
+#define TAG_EMS_PARAM_DESIGN_CAPACITY                                              0x01800231
+#define TAG_EMS_PARAM_FULL_CHARGED_CAPACITY                                        0x01800232
 #define TAG_EMS_PARAM_USED_CAPACITY                                                0x01800233
 #define TAG_EMS_SPECIFICATION_VALUES                                               0x01800234
 #define TAG_EMS_PARAM_MAX_CHARGE_POWER                                             0x01800235
@@ -430,10 +505,12 @@
 #define TAG_EMS_PERIOD_START                                                       0x01800304
 #define TAG_EMS_PERIOD_STOP                                                        0x01800305
 #define TAG_EMS_PERIOD_POWER                                                       0x01800306
-#define TAG_EMS_WB_BIC_LOAD_PRICE_POWER_TABLE                                      0x01800307
+#define TAG_EMS_PERIOD_UNKNOWN                                                     0x01800307
 #define TAG_EMS_WB_BIC_PRICE_POWER_TABLE_STATUS                                    0x01800308
 #define TAG_EMS_ALIVE                                                              0x01850000
 #define TAG_EMS_SET_TOTAL_EP_RESERVE_W                                             0x01C00279
+#define TAG_EMS_SET_OVERRIDE_DERATE_FEEDIN                                         0x01C0027A
+#define TAG_EMS_GET_OVERRIDE_DERATE_FEEDIN                                         0x01C0027B
 #define TAG_EMS_GENERAL_ERROR                                                      0x01FFFFFF
 #define TAG_PVI_REQ_ON_GRID                                                        0x02000001
 #define TAG_PVI_REQ_STATE                                                          0x02000002
@@ -513,6 +590,7 @@
 #define TAG_PVI_REQ_AC_ENERGY_DAY                                                  0x020AC008
 #define TAG_PVI_REQ_AC_ENERGY_GRID_CONSUMPTION                                     0x020AC009
 #define TAG_PVI_REQ_AC_FREQUENCY                                                   0x020AC00A
+#define TAG_PVI_REQ_IS_MAX_USER_APPARENTPOWER_CHANGEABLE                           0x020AC00D
 #define TAG_PVI_REQ_INVERTER_COUNT                                                 0x020CCCC9
 #define TAG_PVI_REQ_DC_MAX_STRING_COUNT                                            0x020DC000
 #define TAG_PVI_REQ_DC_POWER                                                       0x020DC001
@@ -590,6 +668,7 @@
 #define TAG_PVI_AC_ENERGY_DAY                                                      0x028AC008
 #define TAG_PVI_AC_ENERGY_GRID_CONSUMPTION                                         0x028AC009
 #define TAG_PVI_AC_FREQUENCY                                                       0x028AC00A
+#define TAG_PVI_IS_MAX_USER_APPARENTPOWER_CHANGEABLE                               0x028AC00D
 #define TAG_PVI_INVERTER_COUNT                                                     0x028CCCC9
 #define TAG_PVI_DC_MAX_STRING_COUNT                                                0x028DC000
 #define TAG_PVI_DC_POWER                                                           0x028DC001
@@ -651,6 +730,8 @@
 #define TAG_BAT_REQ_SET_A1_MODE                                                    0x03000029
 #define TAG_BAT_REQ_DELETE_DCB_TYPE                                                0x0300002A
 #define TAG_BAT_REQ_DCB_TYPE                                                       0x0300002B
+#define TAG_BAT_REQ_PV_CHARGE_MODE                                                 0x0300002C
+#define TAG_BAT_REQ_SET_PV_CHARGE_MODE                                             0x0300002D
 #define TAG_BAT_REQ_SET_A1_VOLTAGE                                                 0x03000030
 #define TAG_BAT_REQ_SET_A1_CURRENT                                                 0x03000031
 #define TAG_BAT_REQ_CONTROL_CODE                                                   0x03000032
@@ -683,6 +764,8 @@
 #define TAG_BAT_REQ_INTERNAL_STATE                                                 0x03000096
 #define TAG_BAT_REQ_IS_BREAKER_OPEN                                                0x03000097
 #define TAG_BAT_REQ_CLOSE_BREAKER                                                  0x03000098
+#define TAG_BAT_REQ_MEASURED_RESISTANCE                                            0x03000130
+#define TAG_BAT_REQ_RUN_MEASURED_RESISTANCE                                        0x03000131
 #define TAG_BAT_REQ_DATA                                                           0x03040000
 #define TAG_BAT_INDEX                                                              0x03040001
 #define TAG_BAT_REQ_DEVICE_STATE                                                   0x03060000
@@ -734,6 +817,7 @@
 #define TAG_BAT_SET_A1_DATA                                                        0x03800028
 #define TAG_BAT_DELETE_DCB_TYPE                                                    0x0380002A
 #define TAG_BAT_DCB_TYPE                                                           0x0380002B
+#define TAG_BAT_PV_CHARGE_MODE                                                     0x0380002C
 #define TAG_BAT_CONTROL_CODE                                                       0x03800032
 #define TAG_BAT_BPM_STATUS                                                         0x03800033
 #define TAG_BAT_DCB_ERROR_LIST                                                     0x03800034
@@ -1572,6 +1656,11 @@
 #define TAG_WB_REQ_SET_MAX_CURRENT_FALLBACK                                        0x0E000047
 #define TAG_WB_REQ_SET_LED_COLOR                                                   0x0E000048
 #define TAG_WB_REQ_DC_CHARGER_STATE                                                0x0E000049
+#define TAG_WB_REQ_ASSIGNED_POWER                                                  0x0E00004C
+#define TAG_WB_REQ_CP_STATE                                                        0x0E00004D
+#define TAG_WB_SESSION_PRICE_TIME_SLOT_WAIT_FOR                                    0x0E000050
+#define TAG_WB_SESSION_PRICE_TIME_SLOT_IDENTIFIER                                  0x0E00005D
+#define TAG_WB_SESSION_PRICE                                                       0x0E00005E
 #define TAG_WB_REQ_DATA                                                            0x0E040000
 #define TAG_WB_INDEX                                                               0x0E040001
 #define TAG_WB_MODE_PARAM_MODE                                                     0x0E040031
@@ -1680,6 +1769,9 @@
 #define TAG_WB_SESSION_DISCHARGED_ENERGY                                           0x0E741040
 #define TAG_WB_SESSION_DISCHARGE_METER_ENERGY_START                                0x0E741041
 #define TAG_WB_SESSION_DISCHARGE_METER_ENERGY_STOP                                 0x0E741042
+#define TAG_WB_ASSIGNED_POWER_L1                                                   0x0E741043
+#define TAG_WB_ASSIGNED_POWER_L2                                                   0x0E741044
+#define TAG_WB_ASSIGNED_POWER_L3                                                   0x0E741045
 #define TAG_WB_ENERGY_ALL                                                          0x0E800001
 #define TAG_WB_ENERGY_SOLAR                                                        0x0E800002
 #define TAG_WB_SOC                                                                 0x0E800003
@@ -1750,6 +1842,8 @@
 #define TAG_WB_SET_MAX_CURRENT_FALLBACK                                            0x0E800047
 #define TAG_WB_SET_LED_COLOR                                                       0x0E800048
 #define TAG_WB_DC_CHARGER_STATE                                                    0x0E800049
+#define TAG_WB_ASSIGNED_POWER                                                      0x0E80004C
+#define TAG_WB_CP_STATE                                                            0x0E80004D
 #define TAG_WB_DATA                                                                0x0E840000
 #define TAG_WB_AVAILABLE_SOLAR_POWER                                               0x0E841000
 #define TAG_WB_SET_EXTERN                                                          0x0E841010
@@ -1897,6 +1991,7 @@
 #define TAG_MBS_REQ_DISABLE_CONNECTOR                                              0x13000004
 #define TAG_MBS_REQ_CHANGE_SETTING                                                 0x13000005
 #define TAG_MBS_REQ_SET_MODBUS_ENABLED                                             0x13700001
+#define TAG_MBS_UNKNOWN                                                            0x13800000
 #define TAG_MBS_MODBUS_ENABLED                                                     0x13800001
 #define TAG_MBS_MODBUS_CONNECTORS                                                  0x13800002
 #define TAG_MBS_CHANGE_SETTING                                                     0x13800005
@@ -2087,6 +2182,12 @@
 #define TAG_SE_REQ_EMERGENCY_POWER_RETRY                                           0x1B000029
 #define TAG_SE_REQ_IS_EMERGENCYPOWER_POSSIBLE                                      0x1B000030
 #define TAG_SE_REQ_SET_PROTECTION_STRATEGY                                         0x1B000031
+#define TAG_SE_REQ_SET_MIN_ENERGY_RESTART_EP                                       0x1B000032
+#define TAG_SE_REQ_ENABLE_CHARGE_FREE_PV_POWER                                     0x1B000033
+#define TAG_SE_REQ_GET_MIN_ENERGY_RESTART_EP                                       0x1B000034
+#define TAG_SE_REQ_IS_CHARGE_FREE_PV_POWER_ENABLED                                 0x1B000035
+#define TAG_SE_REQ_GET_BAT_TRAINING_SETTINGS                                       0x1B000036
+#define TAG_SE_REQ_SET_BAT_TRAINING_SETTINGS                                       0x1B000037
 #define TAG_SE_PARAM_INDEX                                                         0x1B040000
 #define TAG_SE_PARAM_DCDC_STATUS                                                   0x1B040001
 #define TAG_SE_PARAM_BAT_STATUS                                                    0x1B040002
@@ -2116,6 +2217,9 @@
 #define TAG_SE_PARAM_EP_RESERVE_MAX_W                                              0x1B040034
 #define TAG_SE_PARAM_BOOL                                                          0x1B400001
 #define TAG_SE_PARAM_BRI_INDEX                                                     0x1B400002
+#define TAG_SE_PARAM_BAT_TRAINING_MODE                                             0x1B400003
+#define TAG_SE_PARAM_BAT_TRAINING_CHARGE_FROM_GRID                                 0x1B400004
+#define TAG_SE_PARAM_BAT_TRAINING_RECHARGE_EP_RESERVE_FROM_BATTERY                 0x1B400005
 #define TAG_SE_SE_COUNT                                                            0x1B800001
 #define TAG_SE_SE_DATA                                                             0x1B800002
 #define TAG_SE_SET_POWER                                                           0x1B800003
@@ -2135,6 +2239,12 @@
 #define TAG_SE_EMERGENCY_POWER_RETRY                                               0x1B800029
 #define TAG_SE_IS_EMERGENCYPOWER_POSSIBLE                                          0x1B800030
 #define TAG_SE_SET_PROTECTION_STRATEGY                                             0x1B800031
+#define TAG_SE_SET_MIN_ENERGY_RESTART_EP                                           0x1B800032
+#define TAG_SE_ENABLE_CHARGE_FREE_PV_POWER                                         0x1B800033
+#define TAG_SE_GET_MIN_ENERGY_RESTART_EP                                           0x1B800034
+#define TAG_SE_IS_CHARGE_FREE_PV_POWER_ENABLED                                     0x1B800035
+#define TAG_SE_GET_BAT_TRAINING_SETTINGS                                           0x1B800036
+#define TAG_SE_SET_BAT_TRAINING_SETTINGS                                           0x1B800037
 #define TAG_QPI_REQ_INVERTER_COUNT                                                 0x1C000001
 #define TAG_QPI_REQ_INVERTER_DATA                                                  0x1C000002
 #define TAG_QPI_REQ_UPDATE_FIRMWARE                                                0x1C000003
@@ -2490,6 +2600,9 @@
 #define TAG_NETWORK_REQ_SET_DHCP                                                   0x23000008
 #define TAG_NETWORK_REQ_MAKE_INFO_FILE                                             0x23000009
 #define TAG_NETWORK_REQ_CHECK_INTERNET_SPEED                                       0x2300000A
+#define TAG_NETWORK_REQ_LC_SET_NETWORK_SETTINGS                                    0x2300000B
+#define TAG_NETWORK_REQ_LC_GET_NETWORK_SETTINGS                                    0x2300000C
+#define TAG_NETWORK_LC_PARAM_TOKEN                                                 0x23400000
 #define TAG_NETWORK_PARAM_IP                                                       0x23400001
 #define TAG_NETWORK_PARAM_SUBNETMASK                                               0x23400002
 #define TAG_NETWORK_PARAM_GATEWAY                                                  0x23400003
@@ -2503,6 +2616,11 @@
 #define TAG_NETWORK_PARAM_SYSTEM_IP_VALID                                          0x2340000B
 #define TAG_NETWORK_PARAM_CABLE_CONNECTED                                          0x2340000C
 #define TAG_NETWORK_PARAM_INTERNET_SPEED                                           0x2340000D
+#define TAG_NETWORK_LC_PARAM_STATUS                                                0x2340000E
+#define TAG_NETWORK_PARAM_HOSTNAME                                                 0x2340000F
+#define TAG_NETWORK_PARAM_NETWORK_INTERFACE                                        0x23400010
+#define TAG_NETWORK_PARAM_INTERFACE_NAME                                           0x23400020
+#define TAG_NETWORK_PARAM_DNS_SERVER_LIST                                          0x23400030
 #define TAG_NETWORK_PING                                                           0x23800001
 #define TAG_NETWORK_INFO                                                           0x23800002
 #define TAG_NETWORK_DIAGNOSE                                                       0x23800003
@@ -2513,6 +2631,8 @@
 #define TAG_NETWORK_SET_DHCP                                                       0x23800008
 #define TAG_NETWORK_MAKE_INFO_FILE                                                 0x23800009
 #define TAG_NETWORK_CHECK_INTERNET_SPEED                                           0x2380000A
+#define TAG_NETWORK_LC_SET_NETWORK_SETTINGS                                        0x2380000B
+#define TAG_NETWORK_LC_GET_NETWORK_SETTINGS                                        0x2380000C
 #define TAG_WBAUTH_REQ_VERIFY_SESSION                                              0x24000000
 #define TAG_WBAUTH_WALLBOX_ID                                                      0x24400001
 #define TAG_WBAUTH_SESSION_ID                                                      0x24400002
@@ -2522,8 +2642,10 @@
 #define TAG_WBAUTH_VERIFICATION_RESULT                                             0x24400006
 #define TAG_WBAUTH_ENTRY_SWAPPED                                                   0x24400007
 #define TAG_WBAUTH_VERIFY_SESSION                                                  0x24800000
+#define TAG_PLAY_REQ_IS_REMOTE_SETPOINT_ACTIVE                                     0x25000000
 #define TAG_PLAY_REQ_DATA                                                          0x25000001
 #define TAG_PLAY_SEND_TIME                                                         0x25400001
+#define TAG_PLAY_IS_REMOTE_SETPOINT_ACTIVE                                         0x25800000
 #define TAG_PLAY_DATA                                                              0x25800001
 #define TAG_GDI_KEY_2                                                              0x26000000
 #define TAG_GDI_REQ_PUSH_DESC                                                      0x26000001
@@ -2609,6 +2731,7 @@
 #define TAG_GDI_PUSH_DELAY                                                         0x26500134
 #define TAG_GDI_PUSH_CHANNEL                                                       0x26500135
 #define TAG_GDI_PUSH_DESC                                                          0x26800001
+#define TAG_SCM_REQ_GET_APPLIED_CONFIG                                             0x27000000
 #define TAG_SCM_REQ_SET_CONFIG                                                     0x27000001
 #define TAG_SCM_CONFIG_PROCESSED                                                   0x27000002
 #define TAG_SCM_CONFIG_PROCESSED_STATE                                             0x27000003
@@ -2619,6 +2742,7 @@
 #define TAG_SCM_LC_REQ_GET_POWER_MGT_CONFIG                                        0x27000008
 #define TAG_SCM_LC_REQ_SET_TYPE_MEASURE                                            0x27000009
 #define TAG_SCM_LC_REQ_SET_POWER_MGT_CONFIG                                        0x2700000A
+#define TAG_SCM_LC_PARAM_FALLBACK_STATIC_CURRENT                                   0x27400000
 #define TAG_SCM_CONFIG_ID                                                          0x27400001
 #define TAG_SCM_CONFIG_FILE_VALID                                                  0x27400002
 #define TAG_SCM_LC_PARAM_POWER_MGT_TYPE                                            0x27400003
@@ -2633,6 +2757,11 @@
 #define TAG_SCM_LC_PARAM_MAIN_FUSE_DERATED                                         0x2740000C
 #define TAG_SCM_PARAM_EXT_LOAD_SHEDDING_ACTIVE                                     0x2740000D
 #define TAG_SCM_PARAM_LOAD_SHEDDING_INPUT_ADDRESS                                  0x2740000E
+#define TAG_SCM_LC_PARAM_BLACKLIST_MODBUS_RTU_ADDRESS                              0x27400010
+#define TAG_SCM_LC_PARAM_MODBUS_RTU_ADDRESS                                        0x27400011
+#define TAG_SCM_LC_PARAM_FRONT_EVSE_FUSE                                           0x27400012
+#define TAG_SCM_LC_PARAM_FRONT_EVSE_FUSE_ACTIVE                                    0x27400013
+#define TAG_SCM_GET_APPLIED_CONFIG                                                 0x27800000
 #define TAG_SCM_SET_CONFIG                                                         0x27800001
 #define TAG_SCM_ACCEPTED_CONFIG_FILE_VERSION                                       0x27800002
 #define TAG_SCM_SET_CONFIG_RESET                                                   0x27800006
@@ -2668,6 +2797,7 @@
 #define TAG_EEBUS_EMOBILITY_WB_EV_REQ_GET_OVERLOAD_CHARGING_CURRENT_LIMIT          0x28010021
 #define TAG_EEBUS_EMOBILITY_WB_EV_REQ_GET_DATA                                     0x2801FFFE
 #define TAG_EEBUS_EMOBILITY_WB_REQ_GET_DATA                                        0x2801FFFF
+#define TAG_EEBUS_SMGW_REQ_GET_DATA                                                0x28020000
 #define TAG_EEBUS_PARAM_DEVICE                                                     0x28400001
 #define TAG_EEBUS_PARAM_SHIP_ID                                                    0x28400002
 #define TAG_EEBUS_PARAM_SKI                                                        0x28400003
@@ -2742,6 +2872,7 @@
 #define TAG_EEBUS_EMOBILITY_WB_EV_GET_OVERLOAD_CHARGING_CURRENT_LIMIT              0x28810021
 #define TAG_EEBUS_EMOBILITY_WB_EV_GET_DATA                                         0x2881FFFE
 #define TAG_EEBUS_EMOBILITY_WB_GET_DATA                                            0x2881FFFF
+#define TAG_EEBUS_SMGW_GET_DATA                                                    0x28820000
 #define TAG_SDSA_REQ_STATUS_FILE                                                   0x29000001
 #define TAG_SDSA_STATUS_FILE                                                       0x29800001
 #define TAG_ETH_REQ_SET_SEARCH_ACTIVE                                              0x2A000001
@@ -2780,6 +2911,9 @@
 #define TAG_LCT_SD_REQ_GET_MEM_INFO                                                0x2B000005
 #define TAG_LCT_SD_REQ_GET_MOF_HEAP                                                0x2B000006
 #define TAG_LCT_SD_REQ_GET_UP_TIME                                                 0x2B000007
+#define TAG_LCT_REQ_SET_RC_DISCONNECTED_MODE                                       0x2B000009
+#define TAG_LCT_REQ_GET_RC_DISCONNECTED_MODE                                       0x2B00000A
+#define TAG_LCT_PARAM_RC_DISCONNECTED_MODE                                         0x2B400000
 #define TAG_LCT_PARAM_STATUS                                                       0x2B400001
 #define TAG_LCT_PARAM_NGROK_HOSTNAME                                               0x2B400002
 #define TAG_LCT_PARAM_GTOU_ACCEPTED                                                0x2B400003
@@ -2796,6 +2930,8 @@
 #define TAG_LCT_SD_GET_MEM_INFO                                                    0x2B800005
 #define TAG_LCT_SD_GET_MOF_HEAP                                                    0x2B800006
 #define TAG_LCT_SD_GET_UP_TIME                                                     0x2B800007
+#define TAG_LCT_SET_RC_DISCONNECTED_MODE                                           0x2B800009
+#define TAG_LCT_GET_RC_DISCONNECTED_MODE                                           0x2B80000A
 #define TAG_HG_OCPP_WB_CFG_LC_REQ_SET_START_SCAN                                   0x2C000001
 #define TAG_HG_OCPP_WB_CFG_LC_REQ_GET_NON_CONFIGURED_HAG_EVCS                      0x2C000002
 #define TAG_HG_OCPP_WB_CFG_LC_REQ_SET_CONFIGURE_HAG_EVCS                           0x2C000003
@@ -2924,6 +3060,11 @@
 #define TAG_OCPP_WB_LC_PARAM_EVCS_BADGE_ASSOCIATED                                 0x2D400045
 #define TAG_OCPP_WB_LC_PARAM_EVCS_BADGE_MASK                                       0x2D400048
 #define TAG_OCPP_WB_LC_PARAM_EVCS_BADGE_MASK_INDEX                                 0x2D400049
+#define TAG_OCPP_WB_WB_LC_PARAM_EVCS_DEVICE_CHARGEPOINT_ENERGY_INDEX               0x2D400052
+#define TAG_OCPP_WB_WB_LC_PARAM_EVCS_DEVICE_CHARGEPOINT_SESSION_NUMBER             0x2D400054
+#define TAG_OCPP_WB_WB_LC_PARAM_EVCS_DEVICE_INDEX                                  0x2D400055
+#define TAG_OCPP_WB_WB_LC_PARAM_CPO_URI_CUSTOM_ID                                  0x2D40005A
+#define TAG_OCPP_WB_WB_LC_PARAM_CPO_USE_CUSTOM_ID                                  0x2D40005B
 #define TAG_OCPP_WB_LC_SET_ACCEPTANCE_RULE                                         0x2D800001
 #define TAG_OCPP_WB_LC_GET_NON_ACCEPTED_EVCS                                       0x2D800002
 #define TAG_OCPP_WB_LC_GET_ACCEPTED_EVCS                                           0x2D800003
@@ -3037,6 +3178,7 @@
 #define TAG_DASHBOARD_LC_REQ_GET_CONSUMPTIONS                                      0x30000002
 #define TAG_DASHBOARD_LC_REQ_GET_CHARGING_SESSIONS                                 0x30000003
 #define TAG_DASHBOARD_LC_REQ_GET_SUPPORT_CONTACTS                                  0x30000004
+#define TAG_DASHBOARD_LC_PARAM_EXT_METER_STATUS                                    0x30400000
 #define TAG_DASHBOARD_LC_PARAM_TOKEN                                               0x30400001
 #define TAG_DASHBOARD_LC_PARAM_POWER_MGT_TYPE                                      0x30400002
 #define TAG_DASHBOARD_LC_PARAM_MAX_CURRENT_PER_PHASE                               0x30400003
@@ -3077,10 +3219,25 @@
 #define TAG_DASHBOARD_LC_PARAM_CONTACT_EMAIL                                       0x30400026
 #define TAG_DASHBOARD_LC_PARAM_CONTACT_ROLE                                        0x30400027
 #define TAG_DASHBOARD_LC_PARAM_CONTACT_TYPE                                        0x30400028
+#define TAG_DASHBOARD_LC_PARAM_WB_SESSION_CHARGEPOINT                              0x30400029
+#define TAG_DASHBOARD_LC_PARAM_WB_SESSION_CHARGEPOINT_ID                           0x3040002A
+#define TAG_DASHBOARD_LC_PARAM_WB_SESSION_CHARGEPOINT_POSITION                     0x3040002B
+#define TAG_DASHBOARD_LC_PARAM_WB_INDEX                                            0x3040002C
+#define TAG_DASHBOARD_LC_PARAM_MAX_CURRENT_PER_PHASE_EVCS                          0x30400041
 #define TAG_DASHBOARD_LC_GET_SYSTEM_INFO                                           0x30800001
 #define TAG_DASHBOARD_LC_GET_CONSUMPTIONS                                          0x30800002
 #define TAG_DASHBOARD_LC_GET_CHARGING_SESSIONS                                     0x30800003
 #define TAG_DASHBOARD_LC_GET_SUPPORT_CONTACTS                                      0x30800004
+#define TAG_RD_CONNECTED_DEVICE                                                    0x31400000
+#define TAG_SMGW_REQ_E3DC_SKI                                                      0x32000006
+#define TAG_SMGW_EEBUS_ENABLED                                                     0x32800001
+#define TAG_SMGW_SET_HEARTBEAT_AVAILABLE                                           0x32800002
+#define TAG_SMGW_EEBUS_STATUS                                                      0x32800003
+#define TAG_SMGW_HEARTBEAT_AVAILABLE                                               0x32800004
+#define TAG_SMGW_E3DC_SKI                                                          0x32800006
+#define TAG_SMGW_GET_AVAILABLE_SKIS                                                0x32800007
+#define TAG_SMGW_SKI                                                               0x32800008
+#define TAG_SMGW_SET_SMGW_SKI                                                      0x32800009
 #define TAG_UMRC_REQ_FILE_LIST                                                     0xF0000104
 #define TAG_UMRC_REQ_MD5_HASH                                                      0xF0000105
 #define TAG_UMRC_REQ_FILE_CONTENT                                                  0xF0000106
@@ -3565,5 +3722,6 @@
 #define TAG_FINAL_CHECK_ERROR_MESSAGE                                              0xFE800003
 #define TAG_FINAL_CHECK_SERIAL_STATUS                                              0xFE800004
 #define TAG_FINAL_CHECK_SUBMIT_TEST_PROTOCOL                                       0xFE800005
+#define TAG_VIRTUAL_LIST_TYPE                                                      0xFFFFFFFF
 
 #endif

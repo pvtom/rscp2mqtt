@@ -42,6 +42,8 @@ If you use both, the environment variables overwrite the parameters set with .co
 | FORCE_PUB * | string | e3dc/[a-z]+/power |
 | HISTORY_START_YEAR | integer | 2024 |
 | HST_REQUESTS | true/false | true |
+| IDLE_PERIODS_SHORT | true/false | false | 
+| IDLE_PERIODS_V2 | true/false | true |
 | INTERVAL | integer | 4 |
 | LIMIT_CHARGE_SOC | 0 - 100 | 0 |
 | LIMIT_DISCHARGE_SOC | 0 - 100 | 0 |
@@ -53,6 +55,7 @@ If you use both, the environment variables overwrite the parameters set with .co
 | PM_REQUESTS | true/false | true |
 | PVI_TRACKER | integer | 0 |
 | RAW_MODE | true/false | true |
+| RAW_MODE_WITH_TYPES | true/false | true |
 | RAW_TOPIC_REGEX | string | |
 | RETAIN_FOR_SETUP | true/false | true |
 | SOC_LIMITER | true/false | false |
