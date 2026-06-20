@@ -22,7 +22,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "3.41"
+#define RSCP2MQTT_VERSION       "3.42"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -37,7 +37,6 @@
 #define RECURSION_MAX_LEVEL     7
 
 #define MQTT_PORT_DEFAULT       1883
-#define REFRESH_SEC             0.1
 
 #ifdef INFLUXDB
     #define RSCP2MQTT               RSCP2MQTT_VERSION".influxdb"
@@ -1059,6 +1058,62 @@ void pushAdditionalTag(uint32_t req_container, uint32_t req_tag, int req_index, 
     RSCP_MQTT::AdditionalTags.push_back(v);
     tags_added = true;
     return;
+}
+
+void parse_and_add_new_request(char *key, char *value, bool one_shot) {
+    int order = 0;
+    int index = -1;
+    char container[128];
+    char tag[128];
+    memset(container, 0, sizeof(container));
+    memset(tag, 0, sizeof(tag));
+    if ((sscanf(value, "%127[^:-]:%127[^:-]:%d-%d", container, tag, &index, &order) == 4) || (sscanf(value, "%127[^:-]:%127[^:-]-%d", container, tag, &order) == 3)) {
+        if (isTag(RSCP_TAGS::RscpTagsOverview, container, true) && isTag(RSCP_TAGS::RscpTagsOverview, tag, false)) pushAdditionalTag(tagID(RSCP_TAGS::RscpTagsOverview, container), tagID(RSCP_TAGS::RscpTagsOverview, tag), index, order, one_shot);
+    } else logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"key >%s< value >%s< not enough attributes.\n", key, value);
+}
+
+void parse_and_add_new_topic(char *key, char *value) {
+    int divisor = 1;
+    int bit = 1;
+    int index = 0;
+    char container[128];
+    char tag[128];
+    char topic[TOPIC_SIZE];
+    char unit[128];
+    memset(container, 0, sizeof(container));
+    memset(tag, 0, sizeof(tag));
+    memset(topic, 0, sizeof(topic));
+    memset(unit, 0, sizeof(unit));
+    if ((sscanf(value, "%127[^:]:%127[^:]:%d:%127[^:]:%d:%d:%127[^:]", container, tag, &index, unit, &divisor, &bit, topic) == 7) ||
+    (sscanf(value, "%127[^:]:%127[^:]:%127[^:]:%d:%d:%127[^:]", container, tag, unit, &divisor, &bit, topic) == 6)) {
+        if (isTag(RSCP_TAGS::RscpTagsOverview, container, false) && isTag(RSCP_TAGS::RscpTagsOverview, tag, false)) addTopic(tagID(RSCP_TAGS::RscpTagsOverview, container), tagID(RSCP_TAGS::RscpTagsOverview, tag), index, topic, unit, F_AUTO, divisor, bit, true); 
+    } else logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"key >%s< value >%s< not enough attributes.\n", key, value);
+}
+
+void parse_and_add_new_set_topic(char *key, char *value) {
+    char container[128];
+    char tag[128];
+    int index = 0;
+    char topic[TOPIC_SIZE];
+    char regex_true[128];
+    char value_true[128];
+    char regex_false[128];
+    char value_false[128];
+    char type[128];
+    memset(container, 0, sizeof(container));
+    memset(tag, 0, sizeof(tag));
+    memset(topic, 0, sizeof(topic));
+    memset(regex_true, 0, sizeof(regex_true));
+    memset(value_true, 0, sizeof(value_true));
+    memset(regex_false, 0, sizeof(regex_false));
+    memset(value_false, 0, sizeof(value_false));
+    memset(type, 0, sizeof(type));
+
+    if ((sscanf(value, "%127[^:#]:%127[^:#]:%d:%127[^:#]:%127[^:#]:%127[^:#]:%127[^:#]:%127[^:#]#%127[^:#]", container, tag, &index, topic, regex_true, value_true, regex_false, value_false, type) == 9) || (sscanf(value, "%127[^:#]:%127[^:#]:%d:%127[^:#]:%127[^:#]#%127[^:#]", container, tag, &index, topic, regex_true, type) == 6)) {
+        if (isTag(RSCP_TAGS::RscpTagsOverview, container, false) && isTag(RSCP_TAGS::RscpTagsOverview, tag, false) && (index >= 0)) addSetTopic(tagID(RSCP_TAGS::RscpTagsOverview, container), tagID(RSCP_TAGS::RscpTagsOverview, tag), index, topic, regex_true, value_true, regex_false, value_false, typeID(RSCP_TAGS::RscpTypeNames, type), true);
+    } else {
+        logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"key >%s< value >%s< not enough attributes.\n", key, value);
+    }
 }
 
 void initRawData() {
@@ -3142,7 +3197,7 @@ static void mainLoop(void) {
             if (mosq) {
                 char topic[TOPIC_SIZE];
                 snprintf(topic, TOPIC_SIZE, "%s/rscp2mqtt/status", cfg.prefix);
-                // mosquitto_threaded_set(mosq, true); // necessary?
+                mosquitto_threaded_set(mosq, true); // Issue #129
                 if (cfg.mqtt_tls && cfg.mqtt_tls_password) {
                     if (mosquitto_tls_set(mosq, cfg.mqtt_tls_cafile, cfg.mqtt_tls_capath, cfg.mqtt_tls_certfile, cfg.mqtt_tls_keyfile, mqttCallbackTlsPassword) != MOSQ_ERR_SUCCESS) {
                         logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Unable to set TLS options.\n");
@@ -3220,7 +3275,6 @@ static void mainLoop(void) {
 #endif
                 if (cfg.once) go = false;
             }
-            sleep(1);
         } else {
             gettimeofday(&end, NULL);
             elapsed = end.tv_sec - start.tv_sec + (end.tv_usec - start.tv_usec) * 1e-6;
@@ -3359,7 +3413,7 @@ int main(int argc, char *argv[], char *envp[]) {
             if (skip) continue;
             memset(key, 0, sizeof(key));
             memset(value, 0, sizeof(value));
-            if (sscanf(line, "%127[^ \t=]=%127[^\r^\n]", key, value) == 2) { // Issue #116 accept Windows format as well
+            if (sscanf(line, "%127[^ \t=]=%127[^\r\n]", key, value) == 2) { // Issue #116 accept Windows format as well, Issue #130
                 if (strcasecmp(key, "E3DC_IP") == 0)
                     strcpy(cfg.e3dc_ip, value);
                 else if (strcasecmp(key, "E3DC_PORT") == 0)
@@ -3551,58 +3605,16 @@ int main(int argc, char *argv[], char *envp[]) {
                     correctExternalPM(RSCP_MQTT::RscpMqttCache, 1, NULL, atoi(value));
                 }
                 else if (strncasecmp(key, "ADD_NEW_REQUEST", strlen("ADD_NEW_REQUEST")) == 0) {
-                    int order = 0;
-                    int index = -1;
-                    char container[128];
-                    char tag[128];
-                    bool one_shot = false;
-                    memset(container, 0, sizeof(container));
-                    memset(tag, 0, sizeof(tag));
-                    if (!strcasecmp(key, "ADD_NEW_REQUEST_AT_START")) one_shot = true;
-                    if ((sscanf(value, "%127[^:-]:%127[^:-]:%d-%d", container, tag, &index, &order) == 4) || (sscanf(value, "%127[^:-]:%127[^:-]-%d", container, tag, &order) == 3)) {
-                        if (isTag(RSCP_TAGS::RscpTagsOverview, container, true) && isTag(RSCP_TAGS::RscpTagsOverview, tag, false)) pushAdditionalTag(tagID(RSCP_TAGS::RscpTagsOverview, container), tagID(RSCP_TAGS::RscpTagsOverview, tag), index, order, one_shot);
-                    } else logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"key >%s< value >%s< not enough attributes.\n", key, value);
+                    parse_and_add_new_request(key, value, false);
+                }
+                else if (strncasecmp(key, "ADD_NEW_REQUEST_AT_START", strlen("ADD_NEW_REQUEST")) == 0) {
+                    parse_and_add_new_request(key, value, true);
                 }
                 else if (strcasecmp(key, "ADD_NEW_TOPIC") == 0) {
-                    int divisor = 1;
-                    int bit = 1;
-                    int index = 0;
-                    char container[128];
-                    char tag[128];
-                    char topic[TOPIC_SIZE];
-                    char unit[128];
-                    memset(container, 0, sizeof(container));
-                    memset(tag, 0, sizeof(tag));
-                    memset(topic, 0, sizeof(topic));
-                    memset(unit, 0, sizeof(unit));
-                    if ((sscanf(value, "%127[^:]:%127[^:]:%d:%127[^:]:%d:%d:%127[^:]", container, tag, &index, unit, &divisor, &bit, topic) == 7) ||
-                        (sscanf(value, "%127[^:]:%127[^:]:%127[^:]:%d:%d:%127[^:]", container, tag, unit, &divisor, &bit, topic) == 6)) {
-                        if (isTag(RSCP_TAGS::RscpTagsOverview, container, false) && isTag(RSCP_TAGS::RscpTagsOverview, tag, false)) addTopic(tagID(RSCP_TAGS::RscpTagsOverview, container), tagID(RSCP_TAGS::RscpTagsOverview, tag), index, topic, unit, F_AUTO, divisor, bit, true);
-                    } else logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"key >%s< value >%s< not enough attributes.\n", key, value);
+                    parse_and_add_new_topic(key, value);
                 }
                 else if (strcasecmp(key, "ADD_NEW_SET_TOPIC") == 0) {
-                    char container[128];
-                    char tag[128];
-                    int index = 0;
-                    char topic[TOPIC_SIZE];
-                    char regex_true[128];
-                    char value_true[128];
-                    char regex_false[128];
-                    char value_false[128];
-                    char type[128];
-                    memset(container, 0, sizeof(container));
-                    memset(tag, 0, sizeof(tag));
-                    memset(topic, 0, sizeof(topic));
-                    memset(regex_true, 0, sizeof(regex_true));
-                    memset(value_true, 0, sizeof(value_true));
-                    memset(regex_false, 0, sizeof(regex_false));
-                    memset(value_false, 0, sizeof(value_false));
-                    memset(type, 0, sizeof(type));
-                    if ((sscanf(value, "%127[^:#]:%127[^:#]:%d:%127[^:#]:%127[^:#]:%127[^:#]:%127[^:#]:%127[^:#]#%127[^:#]", container, tag, &index, topic, regex_true, value_true, regex_false, value_false, type) == 9) || (sscanf(value, "%127[^:#]:%127[^:#]:%d:%127[^:#]:%127[^:#]#%127[^:#]", container, tag, &index, topic, regex_true, type) == 6)) {
-                        if (isTag(RSCP_TAGS::RscpTagsOverview, container, false) && isTag(RSCP_TAGS::RscpTagsOverview, tag, false) && (index >= 0)) addSetTopic(tagID(RSCP_TAGS::RscpTagsOverview, container), tagID(RSCP_TAGS::RscpTagsOverview, tag), index, topic, regex_true, value_true, regex_false, value_false, typeID(RSCP_TAGS::RscpTypeNames, type), true);
-                    } else {
-                        logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"key >%s< value >%s< not enough attributes.\n", key, value);
-                    }
+                    parse_and_add_new_set_topic(key, value);
                 }
             }
         }
@@ -3683,6 +3695,14 @@ int main(int argc, char *argv[], char *envp[]) {
                 storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, 1, IDX_LIMIT_DISCHARGE_DURABLE, true);
             else if ((strcasecmp(key, "LIMIT_DISCHARGE_BY_HOME_POWER") == 0) && (atoi(value) >= 0) && (atoi(value) <= 99999))
                 storeIntegerValue(RSCP_MQTT::RscpMqttCache, 0, 0, atoi(value), IDX_LIMIT_DISCHARGE_BY_HOME_POWER, true);
+            else if (strcasestr(key, "ADD_NEW_REQUEST_AT_START"))
+                parse_and_add_new_request(key, value, true);
+            else if (strcasestr(key, "ADD_NEW_REQUEST"))
+                parse_and_add_new_request(key, value, false);
+            else if (strcasestr(key, "ADD_NEW_TOPIC"))
+                parse_and_add_new_topic(key, value);
+            else if (strcasestr(key, "ADD_NEW_SET_TOPIC"))
+                parse_and_add_new_set_topic(key, value);
         }
     }
 
@@ -3893,6 +3913,12 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     if (!cfg.mqtt_pub) printf("DISABLE_MQTT_PUBLISH / DRYRUN mode\n");
+
+    if (cfg.verbose) {
+        int major, minor, revision;
+        mosquitto_lib_version(&major, &minor, &revision);
+        printf("libmosquitto %d.%d.%d\n", major, minor, revision);
+    }
 
     if (!isatty(STDOUT_FILENO)) {
       printf("Stdout to pipe/file\n");

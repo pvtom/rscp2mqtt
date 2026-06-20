@@ -13,7 +13,7 @@ The raw data mode helps to find out which data is output when configuring new qu
 
 It can be configured in the .config with
 ```
-RAW_DATA=true
+RAW_MODE=true
 ```
 rscp2mqtt will generate additional output such as
 ```
@@ -111,6 +111,14 @@ ADD_NEW_SET_TOPIC=TAG_EMS_REQ_SET_POWER_SETTINGS:TAG_EMS_WEATHER_REGULATED_CHARG
 ADD_NEW_SET_TOPIC=TAG_WB_REQ_DATA:TAG_WB_REQ_SET_MIN_CHARGE_CURRENT:0:set/wallbox/min_current:^[0-9]{1,2}$#UChar8
 ```
 
+### Configuration with Environment Variables
+
+The parameters ADD_NEW_REQUEST_AT_START, ADD_NEW_REQUEST, ADD_NEW_TOPIC and ADD_NEW_SET_TOPIC can be set multiple times in the configuration file.
+
+This is not possible via environment variables, as the values would be overwritten.
+
+Therefore, please use ADD_NEW_REQUEST_01, ADD_NEW_REQUEST_02, ADD_NEW_TOPIC_01, ADD_NEW_TOPIC_02, ADD_NEW_SET_TOPIC_01, ADD_NEW_SET_TOPIC_02, ADD_NEW_SET_TOPIC_03 etc.
+
 ### One-time Execution
 
 The program can be started that it executes only one entire interval.
@@ -121,8 +129,6 @@ The program can be started that it executes only one entire interval.
 ### Remarks
 
 The procedure for integrating new tags is always trial and error. The structure of the tags is not standardized. There is no guarantee that you will get the expected values. Sometimes you receive multiple tags or tag structures in response to a single query. A look at the list of generated errors can be very helpful.
-
-RscpTags.h is based on the old portal, so new features may not be available.
 
 If you have made a big catch and it makes sense to integrate what you have found directly into the tool, let the community know.
 

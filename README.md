@@ -130,7 +130,7 @@ or to show the help page
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [3.41]
+rscp2mqtt [3.42]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
 MQTT broker >localhost:1883< qos = >0< retain = >✗< tls >✗< client id >r2m-4711-myhost-6a144087< prefix >e3dc<
 Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox ✗ | Idle Periods V2 | Interval 2 | Autorefresh ✓ | Raw data ✓ | Logging OFF
@@ -258,9 +258,9 @@ mosquitto_pub -h localhost -p 1883 -t "e3dc/set/idle_period/refresh" -m true
 
 Every change of the period list will increase the value of the change number e3dc/idle_period/change
 
-The current idle periods are represented by e3dc/idle_period/<change number>/<nr>.
+The current idle periods are represented by e3dc/idle_period/<change#>/<#>.
 
-By setting IDLE_PERIODS_SHORT=true the topics come without the change number: e3dc/idle_period/<nr>. In this case consider e3dc/idle_period/number which shows the number of valid period entries.
+By setting IDLE_PERIODS_SHORT=true the topics come without the change number: e3dc/idle_period/<#>. In this case consider e3dc/idle_period/number which shows the number of valid period entries.
 
 ### Battery SOC Limiter
 

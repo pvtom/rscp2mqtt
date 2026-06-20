@@ -1,6 +1,12 @@
 ## Release Notes
 
-### Release v3.41 (31.05.2026)
+### Release v3.42 (20.06.2026)
+
+- Issue #128: Multiple ADD commands with environment variables
+- Issue #129: libmosquitto 2.1 support
+- Issue #130: Cannot use ADD_NEW_SET_TOPIC (general error reading the .config file)
+
+### v3.41 (31.05.2026)
 
 - Pull requests #122, #123, #124, #125, #126
 - Issue #127: Idle Periods V2: New topics

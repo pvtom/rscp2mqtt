@@ -34,6 +34,10 @@ If you use both, the environment variables overwrite the parameters set with .co
 
 | Key | Value/Range | Example |
 | --- | --- | --- |
+| ADD_NEW_REQUEST_AT_START * | string | |
+| ADD_NEW_REQUEST * | string | |
+| ADD_NEW_TOPIC * | string | |
+| ADD_NEW_SET_TOPIC * | string | |
 | AUTO_REFRESH | true/false | false |
 | BATTERY_STRINGS | integer | 1 |
 | DAILY_VALUES | true/false | false |
@@ -51,7 +55,7 @@ If you use both, the environment variables overwrite the parameters set with .co
 | LIMIT_DISCHARGE_DURABLE | true/false | false |
 | LIMIT_DISCHARGE_BY_HOME_POWER | 0 - 99999 | 0 |
 | PM_EXTERN | true/false | false |
-| PM_INDEX | integer | 0 |
+| PM_INDEX * | integer | 0 |
 | PM_REQUESTS | true/false | true |
 | PVI_TRACKER | integer | 0 |
 | RAW_MODE | true/false | true |
@@ -63,11 +67,11 @@ If you use both, the environment variables overwrite the parameters set with .co
 | USE_TRUE_FALSE | true/false | false |
 | VERBOSE | true/false | false |
 | WALLBOX | true/false | false |
-| WB_INDEX | integer | 0 |
+| WB_INDEX * | integer | 0 |
 
-*) Multiple FORCE_PUB and INFLUXDB_TOPIC
+*) Multiple FORCE_PUB, INFLUXDB_TOPIC, ADD_NEW_REQUEST_AT_START, ADD_NEW_REQUEST, ADD_NEW_TOPIC, ADD_NEW_SET_TOPIC, PM_INDEX, WB_INDEX
 
-The parameters FORCE_PUB and INFLUXDB_TOPIC can be set multiple times in the configuration file.
+The parameters FORCE_PUB, INFLUXDB_TOPIC, ADD_NEW_REQUEST_AT_START, ADD_NEW_REQUEST, ADD_NEW_TOPIC, ADD_NEW_SET_TOPIC, PM_INDEX, WB_INDEX can be set multiple times in the configuration file.
 This is not possible via environment variables, as the values would be overwritten. Therefore, please use FORCE_PUB_01, FORCE_PUB_02, INFLUXDB_TOPIC_01, INFLUXDB_TOPIC_02, INFLUXDB_TOPIC_03 etc.
 
 ### InfluxDB
