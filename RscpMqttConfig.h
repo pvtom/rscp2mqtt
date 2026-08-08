@@ -155,6 +155,7 @@ typedef struct _config_t {
     char *raw_topic_regex;    
     bool idle_periods_v2;
     bool idle_periods_short;
+    bool cycle;
 } config_t;
 
 #endif

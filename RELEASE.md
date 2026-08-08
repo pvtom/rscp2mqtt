@@ -1,5 +1,10 @@
 ## Release Notes
 
+### Release v3.43 (08.08.2026)
+
+- Pull request #131
+- Issue #133: Fixed behavior with "e3dc/rscp2mqtt/status", new: "e3dc/rscp2mqtt/cycle", "e3dc/rscp2mqtt/timestamp"
+
 ### Release v3.42 (20.06.2026)
 
 - Issue #128: Multiple ADD commands with environment variables

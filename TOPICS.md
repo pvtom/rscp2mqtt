@@ -229,9 +229,13 @@ All topics are listed with the default prefix "e3dc".
 | Software Release | e3dc/system/software | "S10_XXXX_XXX" |
 | Solar Energy | e3dc/solar/energy | [kWh] |
 | Time Zone | e3dc/time/zone | "Europe/City" |
-| Program Status | e3dc/rscp2mqtt/status | "connected" |
-| Program Version | e3dc/rscp2mqtt/long_version | "3.23.influxdb" |
-| Program Version | e3dc/rscp2mqtt/version | "3.23" |
+| Program Info | e3dc/rscp2mqtt/curl/protocol | "http", "https" |
+| Program Info ****** | e3dc/rscp2mqtt/cycle | 2702 |
+| Program Info | e3dc/rscp2mqtt/mqtt/encryption | "none", "tls" |
+| Program Status | e3dc/rscp2mqtt/status | "connected", "disconnected", "connection lost" |
+| Program Status ****** | e3dc/rscp2mqtt/timestamp | "2026-08-01 23:59:00" |
+| Program Version | e3dc/rscp2mqtt/long_version | "3.43.influxdb" |
+| Program Version | e3dc/rscp2mqtt/version | "3.43" |
 | Wallbox Battery | e3dc/wallbox/charge_battery_before_car | (true/false) |
 | Wallbox Battery | e3dc/wallbox/discharge_battery_to_car | (true/false) |
 | Wallbox Battery | e3dc/wallbox/discharge_battery_until | [%] |
@@ -322,6 +326,8 @@ Energy topics are collected for today, yesterday and the current week, month, ye
 ****) If more than one wallbox exists (WB_INDEX configured multiple times), topics are extended by the number of the wallbox
 
 *****) The value is required to be able to calculate the daily value. To ensure that the value survives a restart, set RETAIN_FOR_SETUP=true in .config.
+
+******) if configured by CYCLE_INFO=true
 
 The boolean values "true" and "false" are saved in the InfluxDB as "1" and "0". By setting the configuration parameter `USE_TRUE_FALSE=false`, this behavior can also be set for the MQTT payload.
 

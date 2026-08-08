@@ -22,7 +22,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "3.42"
+#define RSCP2MQTT_VERSION       "3.43"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -338,13 +338,13 @@ int handleSetIdlePeriod(RscpProtocol *protocol, SRscpValue *rootContainer, char 
     return(0);
 }
 
-int storeSetIdlePeriod2(char *payload, std::vector<RSCP_MQTT::idle_period_2_t> & v, int32_t change_nr) {
+int storeSetIdlePeriod2(char *payload, std::vector<RSCP_MQTT::idle_period_2_t> & v, uint32_t change_nr) {
     int day, starthour, startminute, endhour, endminute;
     char namestring[64];
     char daystring[64]; //monday,tuesday,wednesday,thursday,friday,saturday,sunday
     char typestring[12];
     char activestring[12];
-    uint8_t weekdays;
+    uint8_t weekdays = 0;
     RSCP_MQTT::idle_period_2_t ip;
 
     memset(namestring, 0, sizeof(namestring));
@@ -541,8 +541,10 @@ void mqttCallbackOnConnect(struct mosquitto *mosq, void *obj, int result) {
     snprintf(topic, TOPIC_SIZE, "%s/%s", cfg.prefix, SUBSCRIBE_TOPIC); 
     if (!result) {
         mosquitto_subscribe(mosq, NULL, topic, cfg.mqtt_qos);
+        snprintf(topic, TOPIC_SIZE, "%s/rscp2mqtt/status", cfg.prefix);
+        mosquitto_publish(mosq, NULL, topic, strlen("connected"), "connected", cfg.mqtt_qos, cfg.mqtt_retain);
     } else {
-        logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: subscribing topic >%s< failed\n", topic);
+        logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"mqttCallbackOnConnect: >%s<\n", mosquitto_connack_string(result));
     }
     return;
 }
@@ -769,7 +771,7 @@ void handleMQTTIdlePeriods2(std::vector<RSCP_MQTT::idle_period_2_t> & v, int qos
     return;
 }
 
-int cleanupMQTTIdlePeriodsTable(std::vector<RSCP_MQTT::idle_period_2_t> & v, int32_t change_nr) {
+int cleanupMQTTIdlePeriodsTable(std::vector<RSCP_MQTT::idle_period_2_t> & v, uint32_t change_nr) {
     std::vector<RSCP_MQTT::idle_period_2_t>::iterator it;
     for (it = v.begin(); it != v.end(); ) {
         if (it->marker != change_nr) it = v.erase(it);
@@ -830,7 +832,7 @@ void setupItem(std::vector<RSCP_MQTT::cache_t> & v, char *topic_in, char* payloa
     time(&rawtime);
     struct tm *l = localtime(&rawtime);
 
-    if (snprintf(date, sizeof(date), "%.4d%.2d%.2d", l->tm_year + 1900, l->tm_mon + 1, l->tm_mday) >= sizeof(date)) {
+    if (snprintf(date, 10, "%.4d%.2d%.2d", l->tm_year + 1900, l->tm_mon + 1, l->tm_mday) >= 10) {
         logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"setupItem: Buffer overflow\n");
         return;
     }
@@ -3131,6 +3133,10 @@ static void mainLoop(void) {
     bool bStopExecution = false;
     struct timeval start, end;
     double elapsed;
+    char cycle_payload[27];
+    static uint32_t cycle_num = 0;
+    time_t rawtime;
+    struct tm *timeinfo;
     int countdown = 3;
 
     while (go && !bStopExecution) {
@@ -3141,6 +3147,17 @@ static void mainLoop(void) {
         memset(&frameBuffer, 0, sizeof(frameBuffer));
 
         gettimeofday(&start, NULL);
+
+        if (mosq) {
+            if (cfg.cycle) {
+                time(&rawtime);
+                timeinfo = localtime(&rawtime);
+                strftime(cycle_payload, 26, "%Y-%m-%d %H:%M:%S", timeinfo);
+                publishImmediately((char *)"rscp2mqtt/timestamp", cycle_payload, true);
+                sprintf(cycle_payload, "%u", cycle_num++);
+                publishImmediately((char *)"rscp2mqtt/cycle", cycle_payload, true);
+            }
+        }
 
         resetHandleFlag(RSCP_MQTT::RscpMqttCache);
 
@@ -3210,7 +3227,7 @@ static void mainLoop(void) {
                 mosquitto_connect_callback_set(mosq, (void (*)(mosquitto*, void*, int))mqttCallbackOnConnect);
                 mosquitto_message_callback_set(mosq, (void (*)(mosquitto*, void*, const mosquitto_message*))mqttCallbackOnMessage);
                 if (cfg.mqtt_auth && strcmp(cfg.mqtt_user, "") && strcmp(cfg.mqtt_password, "")) mosquitto_username_pw_set(mosq, cfg.mqtt_user, cfg.mqtt_password);
-                mosquitto_will_set(mosq, topic, strlen("disconnected"), "disconnected", cfg.mqtt_qos, cfg.mqtt_retain);
+                mosquitto_will_set(mosq, topic, strlen("connection lost"), "connection lost", cfg.mqtt_qos, cfg.mqtt_retain);
                 if (!mosquitto_connect(mosq, cfg.mqtt_host, cfg.mqtt_port, 10)) {
                     if (!cfg.once) {
                         std::thread th(mqttListener, mosq);
@@ -3221,9 +3238,6 @@ static void mainLoop(void) {
                     logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: MQTT broker connection failed.\n");
                     mosquitto_destroy(mosq);
                     mosq = NULL;
-                }
-                if (mosq) {
-                    mosquitto_publish(mosq, NULL, topic, strlen("connected"), "connected", cfg.mqtt_qos, cfg.mqtt_retain);
                 }
             }
         }
@@ -3397,6 +3411,7 @@ int main(int argc, char *argv[], char *envp[]) {
     cfg.raw_with_types = false;
     cfg.idle_periods_v2 = true;
     cfg.idle_periods_short = false;
+    cfg.cycle = false;
 
     // signal handler
     signal(SIGINT, signal_handler);
@@ -3591,6 +3606,8 @@ int main(int argc, char *argv[], char *envp[]) {
                     cfg.idle_periods_v2 = false;
                 else if ((strcasecmp(key, "IDLE_PERIODS_SHORT") == 0) && (strcasecmp(value, "true") == 0))
                     cfg.idle_periods_short = true;
+                else if ((strcasecmp(key, "CYCLE_INFO") == 0) && (strcasecmp(value, "true") == 0))
+                    cfg.cycle = true;
 // Issue #9 
                 else if (strcasecmp(key, "CORRECT_PM_0_UNIT") == 0) {
                     correctExternalPM(RSCP_MQTT::RscpMqttCache, 0, value, 0);
@@ -3649,6 +3666,7 @@ int main(int argc, char *argv[], char *envp[]) {
     ENV_BOOL("RAW_MODE_WITH_TYPES", cfg.raw_with_types);
     ENV_BOOL("IDLE_PERIODS_V2", cfg.idle_periods_v2);
     ENV_BOOL("IDLE_PERIODS_SHORT", cfg.idle_periods_short);
+    ENV_BOOL("CYCLE_INFO", cfg.cycle);
     ENV_STRING("RAW_TOPIC_REGEX", cfg.raw_topic_regex);
     ENV_BOOL("WALLBOX", cfg.wallbox);
     ENV_BOOL("VERBOSE", cfg.verbose);
@@ -4015,6 +4033,11 @@ int main(int argc, char *argv[], char *envp[]) {
     if (cfg.log_level) {
         logMessageCache(cfg.logfile, false);
     }
+
+    // good bye
+    char topic[TOPIC_SIZE];
+    snprintf(topic, TOPIC_SIZE, "%s/rscp2mqtt/status", cfg.prefix);
+    mosquitto_publish(mosq, NULL, topic, strlen("disconnected"), "disconnected", cfg.mqtt_qos, cfg.mqtt_retain);
 
     for (std::vector<RSCP_MQTT::raw_data_t>::iterator it = RSCP_MQTT::rawData.begin(); it != RSCP_MQTT::rawData.end(); ++it) {
         if (it->topic) free(it->topic);

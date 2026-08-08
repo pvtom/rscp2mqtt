@@ -33,6 +33,8 @@ MQTT_TLS_PASSWORD=
 VERBOSE=false
 #--cycle interval in seconds (max 300 seconds)
 INTERVAL=1
+#--publish cycle number and timestamp (heartbeat)
+CYCLE_INFO=false
 #--log mode defines the handling of errors/messages that are returned in response to a tag request
 #--OFF: no logs, ON: error is logged immediately when it occurs, BUFFERED: errors are buffered and printed at midnight, at the end of the program or by a /set/log/errors request
 #LOG_MODE=OFF

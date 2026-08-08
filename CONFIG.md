@@ -40,6 +40,7 @@ If you use both, the environment variables overwrite the parameters set with .co
 | ADD_NEW_SET_TOPIC * | string | |
 | AUTO_REFRESH | true/false | false |
 | BATTERY_STRINGS | integer | 1 |
+| CYCLE_INFO | true/false | false |
 | DAILY_VALUES | true/false | false |
 | DCB_REQUESTS | true/false | true |
 | EMS_REQUESTS | true/false | true |

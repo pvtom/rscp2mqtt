@@ -127,7 +127,7 @@ bool compareIdlePeriodTable(RSCP_MQTT::idle_period_2_t c1, RSCP_MQTT::idle_perio
     if ((c1.marker == c2.marker) && (c1.type == c2.type) && (c1.weekdays < c2.weekdays)) return(true);
     if ((c1.marker == c2.marker) && (c1.type == c2.type) && (c1.weekdays ==  c2.weekdays) && (c1.start < c2.start)) return(true);
     if ((c1.marker == c2.marker) && (c1.type == c2.type) && (c1.weekdays ==  c2.weekdays) && (c1.start == c2.start) && (c1.stop < c2.stop)) return(true);
-    if ((c1.marker == c2.marker) && (c1.type == c2.type) && (c1.weekdays ==  c2.weekdays) && (c1.start == c2.start) && (c1.stop == c2.stop) && (c1.active?0:1 < c2.active?0:1)) return(true);
+    if ((c1.marker == c2.marker) && (c1.type == c2.type) && (c1.weekdays ==  c2.weekdays) && (c1.start == c2.start) && (c1.stop == c2.stop) && ((c1.active?0:1) < (c2.active?0:1))) return(true);
     return(false);
 }
 
