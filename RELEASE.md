@@ -1,5 +1,10 @@
 ## Release Notes
 
+### Release v3.44 (22.11.2026)
+
+- Issue #134: e3dc/set/wallbox/discharge_battery_until fixed the range to 0..100
+- Issue #135: Introducing the watchdog. Hopefully, it will help mitigate the problems.
+
 ### Release v3.43 (08.08.2026)
 
 - Pull request #131

@@ -156,6 +156,7 @@ typedef struct _config_t {
     bool idle_periods_v2;
     bool idle_periods_short;
     bool cycle;
+    bool watchdog;
 } config_t;
 
 #endif

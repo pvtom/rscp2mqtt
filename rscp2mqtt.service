@@ -3,16 +3,15 @@ Description=RSCP2MQTT service
 After=network.target
 After=systemd-user-sessions.service
 After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
 User=pi
 WorkingDirectory=/opt/rscp2mqtt
 ExecStart=/opt/rscp2mqtt/rscp2mqtt
-ExecStop=pkill rscp2mqtt
-Restart=on-failure
-RestartSec=30
-StartLimitInterval=350
-StartLimitBurst=10
+Restart=always
+RestartSec=30s
 
 [Install]
 WantedBy=multi-user.target

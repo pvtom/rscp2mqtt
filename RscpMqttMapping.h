@@ -586,7 +586,7 @@ rec_cache_t rec_cache[] = {
     { 0, TAG_EMS_REQ_SET_BATTERY_BEFORE_CAR_MODE, 0, "set/wallbox/charge_battery_before_car", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeUChar8, 0, false, true },
     { 0, TAG_EMS_REQ_SET_IDLE_PERIODS_ENABLE, 0, "set/idle_period/enable", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, 0, false, true },
     { 0, 0, 0, "set/idle_period/refresh", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, 0, false, true },
-    { 0, TAG_EMS_REQ_SET_WB_DISCHARGE_BAT_UNTIL, 0, "set/wallbox/discharge_battery_until", PAYLOAD_REGEX_2_DIGIT, "", "", "", "", UNIT_PERCENT, RSCP::eTypeUChar8, 0, false, true },
+    { 0, TAG_EMS_REQ_SET_WB_DISCHARGE_BAT_UNTIL, 0, "set/wallbox/discharge_battery_until", PAYLOAD_REGEX_0_100, "", "", "", "", UNIT_PERCENT, RSCP::eTypeUChar8, 0, false, true },
     { 0, TAG_EMS_REQ_SET_WALLBOX_ENFORCE_POWER_ASSIGNMENT, 0, "set/wallbox/disable_battery_at_mix_mode", "^true|on|1$", "true", "^false|off|0$", "false", "", UNIT_NONE, RSCP::eTypeBool, 0, false, true },
     { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, 0, "set/wallbox/sun_mode", "^true|on|1$", "1", "^false|off|0$", "0", "", UNIT_NONE, RSCP::eTypeBool, 0, false, true },
     { TAG_WB_REQ_DATA, TAG_WB_EXTERN_DATA, 0, "set/wallbox/toggle", "^true|on|1$", "1", "", "", "", UNIT_NONE, RSCP::eTypeBool, 0, false, true },

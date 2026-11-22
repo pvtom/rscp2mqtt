@@ -22,7 +22,7 @@
 #include <regex>
 #include <mutex>
 
-#define RSCP2MQTT_VERSION       "3.43"
+#define RSCP2MQTT_VERSION       "3.44"
 
 #define AES_KEY_SIZE            32
 #define AES_BLOCK_SIZE          32
@@ -81,10 +81,13 @@ static bool day_end = false;
 static bool new_day = false;
 
 std::mutex mtx;
+std::mutex watch_mtx;
 
 static bool mqttRcvd = false;
 static bool go = true;
 static bool tags_added = false;
+
+time_t watchdog_ping;
 
 #ifdef INFLUXDB
     CURL *curl = NULL;
@@ -100,6 +103,22 @@ void signal_handler(int sig) {
     else if (sig == SIGTERM) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Program exits by signal SIGTERM\n");
     else logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Program exits by signal >%d<\n", sig);
     go = false;
+}
+
+void watchdog(int i) {
+    time_t now;
+    while (go) {
+        sleep(10 + cfg.interval);
+        time(&now);
+        watch_mtx.lock();
+        if ((int)(now - watchdog_ping) > (10 + 4 * cfg.interval)) {
+            logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Error: Watchdog terminates the process.\n");
+            watch_mtx.unlock();
+            exit(EXIT_FAILURE);
+        } else if ((int)(now - watchdog_ping) > (10 + 3 * cfg.interval)) logMessage(cfg.logfile, (char *)__FILE__, __LINE__, (char *)"Warning: The watchdog is expected to terminate the program in %d seconds. (%d)\n", 10 + cfg.interval, (int)(now - watchdog_ping));
+        watch_mtx.unlock();
+    }
+    return;
 }
 
 void wsleep(double seconds) {
@@ -3295,6 +3314,11 @@ static void mainLoop(void) {
             elapsed = (double)cfg.interval - elapsed;
             if (elapsed > 0.0) wsleep(elapsed);
         }
+        if (cfg.watchdog) {
+            watch_mtx.lock();
+            time(&watchdog_ping);
+            watch_mtx.unlock();
+        }
     }
     return;
 }
@@ -3307,6 +3331,8 @@ int main(int argc, char *argv[], char *envp[]) {
     cfg.daemon = false;
     cfg.verbose = false;
     cfg.once = false;
+
+    time(&watchdog_ping);
 
     while (i < argc) {
         if (!strcmp(argv[i], "--daemon") || !strcmp(argv[i], "-d")) cfg.daemon = true;
@@ -3412,6 +3438,7 @@ int main(int argc, char *argv[], char *envp[]) {
     cfg.idle_periods_v2 = true;
     cfg.idle_periods_short = false;
     cfg.cycle = false;
+    cfg.watchdog = false;
 
     // signal handler
     signal(SIGINT, signal_handler);
@@ -3608,6 +3635,8 @@ int main(int argc, char *argv[], char *envp[]) {
                     cfg.idle_periods_short = true;
                 else if ((strcasecmp(key, "CYCLE_INFO") == 0) && (strcasecmp(value, "true") == 0))
                     cfg.cycle = true;
+                else if ((strcasecmp(key, "WATCHDOG") == 0) && (strcasecmp(value, "true") == 0))
+                    cfg.watchdog = true;
 // Issue #9 
                 else if (strcasecmp(key, "CORRECT_PM_0_UNIT") == 0) {
                     correctExternalPM(RSCP_MQTT::RscpMqttCache, 0, value, 0);
@@ -3667,6 +3696,7 @@ int main(int argc, char *argv[], char *envp[]) {
     ENV_BOOL("IDLE_PERIODS_V2", cfg.idle_periods_v2);
     ENV_BOOL("IDLE_PERIODS_SHORT", cfg.idle_periods_short);
     ENV_BOOL("CYCLE_INFO", cfg.cycle);
+    ENV_BOOL("WATCHDOG", cfg.watchdog);
     ENV_STRING("RAW_TOPIC_REGEX", cfg.raw_topic_regex);
     ENV_BOOL("WALLBOX", cfg.wallbox);
     ENV_BOOL("VERBOSE", cfg.verbose);
@@ -3913,7 +3943,7 @@ int main(int argc, char *argv[], char *envp[]) {
         }
         printf(")");
     }
-    printf(" | Idle Periods V%d | Interval %d | Autorefresh %s | Raw data %s | ", cfg.idle_periods_v2?2:1 ,cfg.interval, cfg.auto_refresh?"✓":"✗", cfg.raw_mode?"✓":"✗");
+    printf(" | Idle Periods V%d | Interval %d | Autorefresh %s | Raw data %s | Watchdog %s | ", cfg.idle_periods_v2?2:1 ,cfg.interval, cfg.auto_refresh?"✓":"✗", cfg.raw_mode?"✓":"✗", cfg.watchdog?"✓":"✗");
 
     switch (cfg.log_level) {
         case 1: {
@@ -3975,6 +4005,11 @@ int main(int argc, char *argv[], char *envp[]) {
     if (cfg.influxdb_on) curl = curl_easy_init();
     if (curl) set_curl_options();
 #endif
+
+    if (cfg.watchdog) {
+        std::thread th(watchdog, 0);
+        th.detach();
+    }
 
     // application which re-connections to server on connection lost
     while (go) {

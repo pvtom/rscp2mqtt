@@ -59,6 +59,8 @@ DAILY_VALUES=true
 STATISTIC_VALUES=true
 #--Save values as retained topics for setup during restart
 RETAIN_FOR_SETUP=true
+#--Watchdog
+WATCHDOG=false
 
 #-MQTT Topics
 #--Topic prefix (max 24 characters), default is e3dc

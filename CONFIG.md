@@ -29,6 +29,7 @@ If you use both, the environment variables overwrite the parameters set with .co
 | MQTT_RETAIN | true/false | false |
 | MQTT_QOS | 0 - 2 | 0 |
 | PREFIX | string | e3dc |
+| WATCHDOG | true/false | false |
 
 ### Configuration Output Values
 

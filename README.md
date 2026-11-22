@@ -112,6 +112,12 @@ The configuration parameters are described in the file.
 Program parameters can also be set via environment variables. This simplifies the start of a Docker container, as no .config file is required.
 Please find more [here](CONFIG.md).
 
+### Watchdog
+
+Starting with release v3.44, there is a watchdog that terminates the program in the event of a failure. It is assumed that systemd will then restart the program. rscp2mtt.service has been updated accordingly. The startup script for Docker works the same way.
+
+The watchdog is started using WATCHDOG=true.
+
 ## Program Start
 
 Program start if the tool has been installed locally:
@@ -130,10 +136,10 @@ or to show the help page
 If everything works properly, you will see something like this:
 
 ```
-rscp2mqtt [3.43]
+rscp2mqtt [3.44]
 E3DC system >192.168.178.111:5033< user: >your E3DC user<
 MQTT broker >localhost:1883< qos = >0< retain = >✗< tls >✗< client id >r2m-4711-myhost-6a144087< prefix >e3dc<
-Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox ✗ | Idle Periods V2 | Interval 2 | Autorefresh ✓ | Raw data ✓ | Logging OFF
+Requesting PVI ✓ | PM (0) | DCB ✓ (1 battery string) | Wallbox ✗ | Idle Periods V2 | Interval 2 | Autorefresh ✓ | Raw data ✓ | Watchdog ✓ | Logging OFF
 
 ```
 
